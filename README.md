@@ -1,13 +1,12 @@
 # interactive-test-cc
 
-Test a target Claude Code skill by running multi-turn conversations
-through Claude Code and capturing the results.
+Test a Claude Code skill by running multi-turn conversations and capturing results.
+A Hermes agent orchestrates: pre-flight setup, turn-by-turn message delivery via
+`send_one.py`, shape checking, and session archiving.
 
-The Hermes agent orchestrates: writing messages, calling send_one.py
-per turn, checking response format, and archiving session artifacts.
+**v3.5.0** — Simplified to ~140 lines following Karpathy guidelines.
+Added Setting B (12-turn with data at turn 3, two report cycles, HTML conversion).
+Extracted reference files for settings and gate test protocols.
 
 For the full procedure, see SKILL.md.
-
-To set up repeated batch testing with private operational details (datasets,
-environment, infrastructure), place a RULES.md in the test-center folder —
-the agent loads it alongside this skill during pre-flight.
+For private operational details (datasets, proxy, infrastructure), place a RULES.md in the test-center folder.
