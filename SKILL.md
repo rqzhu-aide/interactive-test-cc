@@ -5,7 +5,7 @@ description: "Test a Claude Code skill by running multi-turn conversations. Each
 
 # interactive-test-cc
 
-Version: `3.12.0`
+Version: `3.15.0`
 
 > **Design philosophy:** Follows `karpathy-guidelines` — simplicity first,
 > surgical changes, goal-driven execution. If you're tempted to add more
@@ -87,7 +87,7 @@ python3 ~/.hermes/skills/interactive-test-cc/scripts/send_one.py \
   --timeout 900
 ```
 
-**B. Batch runner (Python):** Run all turns in one process via `scripts/run_all_turns.py`. Copy the script to your session directory, populate the `TURNS` dict, and run it. Handles `ANTHROPIC_API_KEY` fallback, `--continue` automatically, and reports per-turn timing. Useful for unattended Setting A runs.
+**B. Batch runner (Python):** Run all turns in one process via `scripts/run_all_turns.py`. Copy the script to your session directory, populate the `TURNS` dict, and run it. Handles `ANTHROPIC_API_KEY` fallback, `--continue` automatically, reports per-turn `Turn | Dur | Tokens | Shape`, and prints a final summary with all 5 required fields (Turns, Shape, Output, YAML, Tokens). Useful for unattended Setting A runs.
 
 ## After Each Turn: Report
 
@@ -214,6 +214,10 @@ rm -rf ~/test-center/playground/* ~/test-center/interception/*
 - **Turn 1 is load-skill only.** Combining "load skill + explore data" times out.
 - **--continue in loops**: when running turns beyond T1, every turn needs `--continue`. The common gotcha: `[ "$n" != "2" ]` skips T2. Correct: `if [ "$n" != "1" ]`.
 - **Re-run in same directory → wipe first.** If a previous run failed, `--continue` picks up the dead session. Always `rm -f turn-*.json && rm -rf .claude playground` before restarting.
+
+## Sending Results
+
+Use himalaya for small archives (< ~1MB). For large zips (3MB+), himalaya `message send` may time out — fall back to Python `smtplib`. Construct MIME with `MIMEMultipart`, attach with `MIMEBase` + `encoders.encode_base64`, and `server.send_message(msg)`.
 
 ## Other Settings
 
