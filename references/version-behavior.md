@@ -3,7 +3,7 @@
 ## v4.5.3 (current)
 
 - **Architecture**: Router-based. Commit `d8c0983`: "Release causal consultant v4.5.3 gate fixes." Simplified core-review gate logic, removed meta-instructions from team_lead, simplified report closeout.
-- **Setting A (deepseek-v4-pro)**: 13/13 OK ✅ — all turns complete with coherent responses. College dataset (777×19). Total cost $4.80. Produced: HTML report (30KB), PPT (37KB), EDA chart (633KB). **YAML requires explicit skill activation** — include "Use the causal-consultant skill" in Turn 1 or the structured workflow (router, next_step_plan, project_state.yaml) won't fire. Without activation, Claude Code handles the conversation naturally but skips the team protocol.
+- **Setting A (deepseek-v4-pro, activated)**: 13/13 OK ✅ — full team workflow. College (777×19). 2,854K tokens (2,730K in + 123K out, 14,143K cache). Produced: YAML (42KB), HTML report (51KB), slides (17KB), 12 PNG figures. **Without activation**: same prompts yield 406K tokens (327K in + 79K out, 2,351K cache) but no YAML or structured output.
 - **Setting A (deepseek-v4-flash)**: 0/9 PASS — complete shape collapse. Produced 4.3MB HTML, 1.4MB PPTX, 27 figures but zero structured output. ⛔ Flash models incompatible.
 
 ## v4.5.1

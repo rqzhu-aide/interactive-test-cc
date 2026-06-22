@@ -96,13 +96,15 @@ import json
 with open(f'{interception_dir}/turn-{N}.json') as f:
     d = json.load(f)
 result = d.get('result', '')
+usage = d.get('usage', {})
 shape_ok = all(s in result for s in ['[> Framing]', '[+ Consultant Options]', '[? Next Steps]'])
-print(f"Turn {N}: {elapsed}s | Shape: {'PASS' if shape_ok else 'FAIL'} | Chars: {len(result)}")
+tok = usage.get('input_tokens', 0) + usage.get('output_tokens', 0)
+print(f"Turn {N}: {d['duration_ms']/1000:.0f}s | {tok:,} tok | Shape: {'PASS' if shape_ok else 'FAIL'}")
 ```
 
 Append to `summary.md`:
 ```
-| N | X | PASS/FAIL | N | optional notes |
+| N | Time | Tokens | Shape | Chars | Notes |
 ```
 
 ## Setting A (13-turn, Default)
@@ -146,19 +148,20 @@ done
 
 # Build summary table
 python3 -c "
-import json, glob, os
+import json, glob, os, re
 with open('summary.md', 'w') as out:
-  out.write('| Turn | Time | Shape | Chars | Notes |\n')
-  out.write('|------|------|-------|-------|-------|\n')
-  for p in sorted(glob.glob('turn-*.json'), key=lambda x: int(re.search(r'\d+', os.path.basename(x)).group())):
-    import re
-    n = int(re.search(r'\d+', os.path.basename(p)).group())
+  out.write('| Turn | Time | Tokens | Shape | Chars | Notes |\\n')
+  out.write('|------|------|--------|-------|-------|-------|\\n')
+  for p in sorted(glob.glob('turn-*.json'), key=lambda x: int(re.search(r'\\d+', os.path.basename(x)).group())):
+    n = int(re.search(r'\\d+', os.path.basename(p)).group())
     with open(p) as fh:
       d = json.load(fh)
     result = d.get('result', '')
+    usage = d.get('usage', {})
+    tok = usage.get('input_tokens', 0) + usage.get('output_tokens', 0)
     shape = 'PASS' if all(s in result for s in ['[> Framing]', '[+ Consultant Options]', '[? Next Steps]']) else 'FAIL'
     dur = d.get('duration_ms', 0) / 1000
-    out.write(f'| {n} | {dur:.0f}s | {shape} | {len(result)} | |\n')
+    out.write(f'| {n} | {dur:.0f}s | {tok:,} | {shape} | {len(result):,} | |\\n')
 "
 
 # Copy artifacts (exclude data.csv)
