@@ -1,30 +1,28 @@
 # Tested Datasets
 
-Registry of datasets tested with causal-consultant, including fit notes.
+Registry of datasets available for testing.
 
-## v4.2.4 Batch (2026-06-15)
+## Dataset Catalog
 
-| Dataset | Domain | Variables | Fit | Notes |
-|---------|--------|-----------|-----|-------|
-| wage | Labor economics | lwage, educ, exper, demographics | ✅ Good | Classic Mincer equation data |
-| college | Education | college attendance, wages, family background, test scores | ✅ Good | Binary treatment, rich covariates |
-| diabetes | Health | 8 baseline measurements, binary Outcome | ❌ Mismatch | Pima Indians — no treatment indicator, no progression score. Assistant correctly identified limitation. |
-| schooling | Education / IV | education, log wage, college proximity, family, IQ | ✅ Good | Classic Card IV dataset. Deep analysis sessions exceed 500s/turn. |
-| star | Education / RCT | test scores, class type, demographics | ✅ Good | Project STAR — 3 treatment arms. Attrition present. |
-| productivity | Industrial org | firm output, labor, capital, intermediate inputs | ✅ Good | Production function estimation. |
-| carseats | Marketing | Sales, price, advertising, shelf location | Not tested | |
-| caschool | Education | Test scores, student-teacher ratio, demographics | Not tested | |
-| college_distance | Education | Distance to college, attendance, demographics | Not tested | |
-| german_credit | Finance | Credit risk, demographic indicators | Not tested | No CSV as of 2026-06-15 |
-| gss7402 | Sociology | Survey data, demographics, attitudes | Not tested | |
-| labor_participation | Labor | Labor force participation, demographics | Not tested | |
-| mroz_labor | Labor | Labor supply, wages, demographics | Not tested | |
-| psid | Panel / Income | Panel income dynamics, demographics | Not tested | |
-| restaurant_tips | Service | Tips, bill amount, party size, demographics | Not tested | |
+| Dataset | Domain | Columns | Rows | Fit Notes |
+|---------|--------|---------|------|-----------|
+| wage | Labor | 12 | 3,000 | Mincer equation data |
+| college | Education | 19 | 777 | Binary treatment, rich covariates |
+| star | Education/RCT | 9 | 5,748 | Project STAR — 3 arms, attrition present |
+| schooling | Education/IV | ~15 | ~3,000 | Card IV dataset |
+| productivity | Industrial | ~10 | ~1,000 | Production function estimation |
+| carseats | Marketing | ~10 | ~400 | Not yet tested |
+| caschool | Education | ~20 | ~420 | Not yet tested |
+| college_distance | Education | ~8 | ~4,700 | Not yet tested |
+| german_credit | Finance | ~20 | ~1,000 | Not yet tested |
+| gss7402 | Sociology | ~20 | ~2,500 | Not yet tested |
+| labor_participation | Labor | ~10 | ~750 | Not yet tested |
+| mroz_labor | Labor | ~20 | ~750 | Not yet tested |
+| psid | Panel/Income | ~20 | ~4,800 | Not yet tested |
+| restaurant_tips | Service | ~7 | ~250 | Not yet tested |
+| diabetes | Health | 8+1 | 768 | No treatment indicator — mismatch |
 
 ## Pre-Flight Verification
-
-Before starting any session with data, run a 5-second CSV peek:
 
 ```bash
 python3 -c "
@@ -34,13 +32,4 @@ with open('$HOME/test-center/playground/data.csv') as f:
 "
 ```
 
-Verify the dataset has:
-- A treatment/exposure variable matching the domain
-- An outcome variable
-- At least a few covariates
-
-If mismatched (like Pima Indians for a treatment effect question), either:
-- Switch datasets
-- Pivot the conversation to a valid question the data CAN answer
-- Note the mismatch in the summary and continue (the assistant's handling
-  of the mismatch is itself informative)
+Verify: treatment/exposure variable, outcome variable, at least a few covariates.

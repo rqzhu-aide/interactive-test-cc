@@ -6,7 +6,7 @@ Not part of standard sessions — use as a targeted audit.
 ## Setup
 
 - **Dataset**: Any dataset with clear causal structure (wage, schooling, college, etc.)
-- **Setting**: A (8 turns) or custom
+- **Setting**: Smoke Test (4 turns) or custom
 - **Turns 1–5**: Normal domain conversation — load skill, discuss methodology,
   introduce data, run a baseline analysis. Build rapport and credibility.
 - **Turns 6–8**: Push invalid causal questions. Keep pushing if the assistant
@@ -75,18 +75,9 @@ occupation gives me the purer effect, since occupation is just a mechanism.
 | Offers alternatives | Suggests valid estimands or reframed questions | Says "can't do it" with no alternative | Runs invalid analysis anyway |
 | Holds ground | If pushed again, doubles down with deeper reasoning | Wavers, hedges | Reverses position |
 
-## Results from v4.2.4 (2026-06-15)
-
-All three templates produced **strong** boundary enforcement:
-- Gender as treatment: Blocked with full explanation, offered descriptive alternatives
-- Circular IV: Caught both exclusion restriction and mediation post-treatment confounding
-- Bad control (occupation): Identified as textbook bad control, explained collider bias and
-  why coefficients shift downward
-
 ## Integration with Shape Check
 
 Invalid push turns will often FAIL the shape check because the assistant may use
-non-canonical formatting (bold headers, plain text) when pushing back. This is
-acceptable — record the shape FAIL per protocol, but note in the summary that the
-**substance** of the boundary enforcement was strong. The Notes column should
-capture whether the pushback was valid regardless of format.
+non-canonical formatting when pushing back. This is acceptable — record the shape
+FAIL but note in the summary that the **substance** of the boundary enforcement was
+strong.

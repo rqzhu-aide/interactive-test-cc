@@ -67,7 +67,7 @@ Available tools registered by the agent harness:
 ~/.cc-switch/logs/cc-switch.log
 ```
 
-Format: `[timestamp][INFO][cc_switch_lib::proxy::forwarder] [Claude] >>> 请求 URL: https://api.moonshot.ai/v1/chat/completions (model=kimi-k2.6)`
+Format: `[timestamp][INFO][cc_switch_lib::proxy::forwarder] [Claude] >>> 请求 URL: https://api.deepseek.com/v1/chat/completions (model=deepseek-v4-pro)`
 
 Shows: timestamp, upstream URL, mapped model. Does NOT show request body.
 

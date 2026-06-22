@@ -1,29 +1,32 @@
-# Other Settings
+# Settings
 
-## Setting S (3-turn smoke)
-No data ever. Conversation only.
+## Smoke Test (4 turns)
 
-| Turn | Action |
-|------|--------|
-| 1 | Domain-aligned opening (load skill, no data) |
-| 2 | Probe reasoning or methodology |
-| 3 | Counterfactual or synthesis question |
-
-## Setting B (12-turn)
-
-Data at turn 3. First report at turn 6. Second analysis + report turns 9–10. HTML at turn 12.
+No data needed. Pure conversation — verify skill loads and produces shaped output.
 
 | Turn | What you say |
 |------|-------------|
+| 1 | Load skill, domain opening |
+| 2 | Domain question |
+| 3 | Causal claim question |
+| 4 | Ask for an email summary report |
+
+## Setting A — Default (13 turns)
+
+Precheck gates on analysis (turns 8, 10), report (turn 12), and PPT summary (turn 13). Reports output HTML by default.
+
+| Turn | What |
+|------|------|
 | 1 | Load skill, domain opening |
 | 2 | Deeper domain question |
 | 3 | **"Here is the data — data.csv, take a look"** |
 | 4 | Follow up on data exploration |
 | 5 | Causal or method question based on data |
-| 6 | **Ask for report** |
-| 7 | Discuss report, probe weaknesses |
-| 8 | Unconventional angle or what-if |
-| 9 | **Ask for a different type of analysis** |
-| 10 | **Ask for report of the new analysis** |
-| 11 | Synthesis / key takeaway |
-| 12 | **Convert to HTML** |
+| 6 | Probe a specific finding or edge case |
+| 7 | **Ask for analysis** |
+| 8 | Confirm analysis (precheck gate) |
+| 9 | **Ask for additional analysis** |
+| 10 | Confirm additional analysis (precheck gate) |
+| 11 | **Ask for report** (HTML by default) |
+| 12 | Confirm report (precheck gate) |
+| 13 | **Ask for a 3-slide PPT summary** |
