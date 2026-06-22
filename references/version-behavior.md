@@ -3,7 +3,8 @@
 ## v4.5.3 (current)
 
 - **Architecture**: Router-based. Commit `d8c0983`: "Release causal consultant v4.5.3 gate fixes." Simplified core-review gate logic, removed meta-instructions from team_lead, simplified report closeout.
-- **Setting A (deepseek-v4-pro, activated)**: 13/13 OK ✅ — full team workflow. College (777×19). 2,854K tokens (2,730K in + 123K out, 14,143K cache). Produced: YAML (42KB), HTML report (51KB), slides (17KB), 12 PNG figures. **Without activation**: same prompts yield 406K tokens (327K in + 79K out, 2,351K cache) but no YAML or structured output.
+- **Setting A (deepseek-v4-pro, activated)**: 11/13 PASS shape ✅, 13/13 OK substance. T1-T11 all 3/3 markers, T12-T13 0-1/3 (format drift on output turns). College (777×19). 2,854K tokens (2,730K in + 123K out). Produced: YAML (42KB), HTML report (51KB), slides (17KB), 12 PNG figures.
+- **Setting A (deepseek-v4-pro, not activated)**: 0/13 PASS shape ⚠️. No markers at all — natural conversation without structured protocol. Same prompts produce 406K tokens (327K in + 79K out) but no YAML, no team workflow. Produces loose artifacts (1 chart, HTML, PPT) but skips the protocol entirely.
 - **Setting A (deepseek-v4-flash)**: 0/9 PASS — complete shape collapse. Produced 4.3MB HTML, 1.4MB PPTX, 27 figures but zero structured output. ⛔ Flash models incompatible.
 
 ## v4.5.1
@@ -34,4 +35,4 @@
 
 ## Recommendation
 
-Use **v4.5.3** with `deepseek-v4-pro` — produces all substantive artifacts. **Include explicit skill trigger** in Turn 1 (e.g., "Use the causal-consultant skill: I'm studying...") to get the full team workflow with `project_state.yaml`.
+Use **v4.5.3** with `deepseek-v4-pro` — with explicit activation: 11/13 shape PASS, full YAML, rich output. Without activation: 0/13 shape, no protocol.
