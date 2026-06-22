@@ -99,12 +99,12 @@ result = d.get('result', '')
 usage = d.get('usage', {})
 shape_ok = all(s in result for s in ['[> Framing]', '[+ Consultant Options]', '[? Next Steps]'])
 tok = usage.get('input_tokens', 0) + usage.get('output_tokens', 0)
-print(f"Turn {N}: {d['duration_ms']/1000:.0f}s | {tok:,} tok | Shape: {'PASS' if shape_ok else 'FAIL'}")
+print(f"Turn {N:2d}: {d['duration_ms']/1000:.0f}s | {tok/1000:.0f}K tok | Shape: {'PASS' if shape_ok else 'FAIL'}")
 ```
 
 Append to `summary.md`:
 ```
-| N | Time | Tokens | Shape | Chars | Notes |
+| Turn | Dur | Tokens | Shape |
 ```
 
 ## Setting A (13-turn, Default)
@@ -129,24 +129,32 @@ Precheck gates on analysis (turns 8, 10), report (turn 12), and PPT summary (tur
 
 ## After Test: Report Summary
 
-After the final turn, report BOTH metrics:
+After the final turn, report these 5 fields:
 
-1. **Substance**: how many turns completed without error (e.g., "13/13 OK")
-2. **Shape**: how many turns pass the marker check (≥2 of `[> Framing]`, `[+ Consultant Options]`, `[? Next Steps]`). Always report PASS or FAIL per turn in a table — never just a lump count. Example format:
+| Field | What |
+|-------|------|
+| Turns | Per-turn table: number, duration, tokens, shape PASS/FAIL |
+| Shape | Aggregate: X/13 PASS, with breakdown of which turns failed and why |
+| Output | List notable artifacts (report, slides, figures, scripts) |
+| YAML | ✅ with size, or ❌ — yaml check is mandatory |
+| Tokens | Total input + output tokens across all turns |
+
+Example:
 
 ```
-| Turn | Dur | Tokens | Shape | YAML? | Output |
-|------|-----|--------|-------|-------|--------|
-| 1 | 101s | 109K | PASS | — | — |
-| … | … | … | … | … | … |
-| 13 | 28s | 197K | FAIL | ✅ | — |
+Turn |  Dur  | Tokens | Shape
+   1 | 101s |  109K  | PASS
+   2 |  98s |   54K  | PASS
+  …
+  11 | 184s |  218K  | PASS
+  12 | 138s |  426K  | FAIL
+  13 |  28s |  197K  | FAIL
 
-Shape: 11/13 PASS, 2/13 FAIL (T12-T13 format drift)
-Tokens: 2,854K total
-YAML: ✅ 42KB (or ❌ none)
+Shape:  11/13 PASS (T1-11), 2/13 FAIL (T12-13 format drift)
+Output: HTML report (51KB), slides (17KB), 12 PNG figures, 3 Python scripts
+YAML:   ✅ 42KB
+Tokens: 2,854K (2,730K in + 123K out)
 ```
-
-Include YAML status (exists? size?) and notable output artifacts.
 
 ## Post-Session: Archive
 
@@ -171,8 +179,8 @@ done
 python3 -c "
 import json, glob, os, re
 with open('summary.md', 'w') as out:
-  out.write('| Turn | Time | Tokens | Shape | Chars | Notes |\\n')
-  out.write('|------|------|--------|-------|-------|-------|\\n')
+  out.write('| Turn | Dur | Tokens | Shape |\\n')
+  out.write('|------|-----|--------|-------|\\n')
   for p in sorted(glob.glob('turn-*.json'), key=lambda x: int(re.search(r'\\d+', os.path.basename(x)).group())):
     n = int(re.search(r'\\d+', os.path.basename(p)).group())
     with open(p) as fh:
@@ -182,7 +190,7 @@ with open('summary.md', 'w') as out:
     tok = usage.get('input_tokens', 0) + usage.get('output_tokens', 0)
     shape = 'PASS' if all(s in result for s in ['[> Framing]', '[+ Consultant Options]', '[? Next Steps]']) else 'FAIL'
     dur = d.get('duration_ms', 0) / 1000
-    out.write(f'| {n} | {dur:.0f}s | {tok:,} | {shape} | {len(result):,} | |\\n')
+    out.write(f'| {n} | {dur:.0f}s | {tok/1000:.0f}K | {shape} |\\n')
 "
 
 # Copy artifacts (exclude data.csv)
