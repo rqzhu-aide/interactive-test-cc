@@ -127,6 +127,27 @@ Precheck gates on analysis (turns 8, 10), report (turn 12), and PPT summary (tur
 | 12 | Confirm report (precheck gate) |
 | 13 | **Ask for a 3-slide PPT summary** |
 
+## After Test: Report Summary
+
+After the final turn, report BOTH metrics:
+
+1. **Substance**: how many turns completed without error (e.g., "13/13 OK")
+2. **Shape**: how many turns pass the marker check (≥2 of `[> Framing]`, `[+ Consultant Options]`, `[? Next Steps]`). Always report PASS or FAIL per turn in a table — never just a lump count. Example format:
+
+```
+| Turn | Dur | Tokens | Shape | YAML? | Output |
+|------|-----|--------|-------|-------|--------|
+| 1 | 101s | 109K | PASS | — | — |
+| … | … | … | … | … | … |
+| 13 | 28s | 197K | FAIL | ✅ | — |
+
+Shape: 11/13 PASS, 2/13 FAIL (T12-T13 format drift)
+Tokens: 2,854K total
+YAML: ✅ 42KB (or ❌ none)
+```
+
+Include YAML status (exists? size?) and notable output artifacts.
+
 ## Post-Session: Archive
 
 ```bash
