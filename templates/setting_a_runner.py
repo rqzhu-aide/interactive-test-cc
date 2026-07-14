@@ -1,18 +1,16 @@
 #!/usr/bin/env python3
-"""Batch runner for multi-turn causal-consultant tests using send_one.py.
+"""Setting A (13-turn) runner for causal-consultant testing.
 
-Writes all turn prompt files and runs each turn sequentially, passing
---continue for turns 2+.
-
-Reports per-turn: Turn | Dur | Tokens | Shape (PASS/FAIL).
-Final summary: Turns, Shape, Output, YAML, Tokens.
+Copy this to your session directory, customize TURNS for your dataset/domain,
+and run with ANTHROPIC_BASE_URL set.
 
 Usage:
     cd ~/test-center/v5.0.0/session-<name>
-    export ANTHROPIC_BASE_URL=<your-proxy-url>
+    cp ~/.hermes/skills/interactive-test-cc/templates/setting_a_runner.py run_all_turns.py
+    # Edit TURNS prompts for your domain/dataset
+    cp ~/test-center/causal-data/<dataset>/<file>.csv data.csv
+    export ANTHROPIC_BASE_URL=http://127.0.0.1:8777
     python3 run_all_turns.py
-The TURNS dict should be customized per session.
-"""
 """
 
 import subprocess
@@ -25,11 +23,35 @@ import glob
 SEND_ONE = os.path.expanduser("~/.hermes/skills/interactive-test-cc/scripts/send_one.py")
 SHAPE_MARKERS = ['[> Framing]', '[+ Consultant Options]', '[? Next Steps]']
 
-# Replace with your test prompts
+# --- CUSTOMIZE BELOW for your dataset/domain ---
 TURNS = {
-    1: "I'm studying factors that influence college graduation rates in the US. I have data on 777 colleges with variables like admissions stats, selectivity measures, institutional resources, and student spending. I want to understand what drives better graduation outcomes — is it selectivity? resources? teaching quality? Let me know what you think and how you'd approach this.",
-    # ... add turns 2-13
+    1: "Use the causal-consultant skill. I'm studying <DOMAIN>. I have data on <N> observations with variables like <LIST KEY VARS>. I want to understand <RESEARCH QUESTION>. Let me know what you think and how you'd approach this.",
+
+    2: "<DEEPER DOMAIN QUESTION — probe a specific aspect of the research question>",
+
+    3: "Here is the data — data.csv, take a look. <OUTCOME VAR> is the outcome, and <KEY PREDICTOR> is the main variable of interest. I'd like you to explore the data and tell me what patterns stand out.",
+
+    4: "Interesting findings. <FOLLOW UP ON DATA EXPLORATION — dig deeper into a specific relationship>",
+
+    5: "Let's get more causal. If I want to estimate the effect of <TREATMENT VAR> on <OUTCOME VAR>, what would be a defensible causal identification strategy given this observational data? What assumptions would we need and can we defend them?",
+
+    6: "<PROBE EDGE CASE OR ALTERNATIVE ANGLE — e.g., heterogeneity, subgroup, alternative mechanism>",
+
+    7: "Great discussion. I'd like you to run a formal causal analysis now. Estimate the effect of <TREATMENT VAR> on <OUTCOME VAR>, controlling for the key confounders you've identified. Use a method you think is most appropriate and defensible given what we've discussed.",
+
+    8: "Yes, that analysis plan looks solid. Please go ahead and execute it. I'm comfortable with the method choice and the confounder selection you've laid out.",
+
+    9: "That's a good analysis. Now I'd like you to do a second analysis — this time looking at <HETEROGENEITY DIMENSION>. Is the effect of <TREATMENT> different across <SUBGROUPS>? Run this as a separate analysis.",
+
+    10: "The <HETEROGENEITY> analysis plan makes sense. Please go ahead and run it.",
+
+    11: "We have two good analyses now. Can you write up a full report? I'd like it in HTML format with clear sections: background, data description, methods, results from both analyses, and conclusions. Include the key figures and tables.",
+
+    12: "The report outline looks comprehensive. Please go ahead and generate the full HTML report. I want the final version with all figures embedded.",
+
+    13: "One last thing — can you create a 3-slide PPT summary of the key findings? Slide 1: problem and data, Slide 2: main analysis results, Slide 3: <HETEROGENEITY/SUPPLEMENTARY> findings and conclusions.",
 }
+# --- END CUSTOMIZE ---
 
 
 def check_shape(result_text):
@@ -41,12 +63,12 @@ def main():
     session_dir = os.getcwd()
     env = os.environ.copy()
     if "ANTHROPIC_BASE_URL" not in env:
-        print("⚠️  ANTHROPIC_BASE_URL not set — set it and retry")
+        print("ANTHROPIC_BASE_URL not set — set it and retry")
         sys.exit(1)
     if "ANTHROPIC_API_KEY" not in env:
         env["ANTHROPIC_API_KEY"] = "dummy"
 
-    results = {}  # turn_num -> {dur, tok, shape, hits}
+    results = {}
 
     for turn_num in sorted(TURNS.keys()):
         msg = TURNS[turn_num]
@@ -76,16 +98,15 @@ def main():
         print(result.stderr.strip())
 
         if result.returncode != 0:
-            print(f"❌ Exit {result.returncode}")
+            print(f"Exit {result.returncode}")
             results[turn_num] = {"dur": elapsed, "tok": 0, "shape": "ERROR", "hits": []}
             continue
 
-        # Read and parse output
         try:
             with open(out_file) as f:
                 data = json.load(f)
         except (json.JSONDecodeError, FileNotFoundError):
-            print("❌ Could not parse output JSON")
+            print("Could not parse output JSON")
             results[turn_num] = {"dur": elapsed, "tok": 0, "shape": "ERROR", "hits": []}
             continue
 
@@ -103,10 +124,8 @@ def main():
     print("FINAL SUMMARY")
     print(f"{'='*60}")
 
-    # Turns table
     print(f"\n{'Turn':>4} | {'Dur':>5} | {'Tokens':>6} | Shape")
     print(f"{'-'*4}-+-{'-'*5}-+-{'-'*6}-+-{'-'*5}")
-    total_tok = 0
     total_in = 0
     total_out = 0
     pass_count = 0
@@ -114,14 +133,12 @@ def main():
 
     for tn in sorted(results.keys()):
         r = results[tn]
-        total_tok += r["tok"]
         print(f"{tn:4d} | {r['dur']:.0f}s | {r['tok']/1000:5.0f}K | {r['shape']}")
         if r["shape"] == "PASS":
             pass_count += 1
         else:
             fail_turns.append(tn)
 
-    # Count tokens from all JSON files
     for f in sorted(glob.glob(os.path.join(session_dir, "turn-*.json"))):
         with open(f) as fh:
             d = json.load(fh)
@@ -133,15 +150,12 @@ def main():
           (f", {len(fail_turns)}/{len(TURNS)} FAIL (T{','.join(str(t) for t in fail_turns)})" if fail_turns else ""))
     print(f"Tokens: {total_in/1000:.0f}K in + {total_out/1000:.0f}K out = {(total_in+total_out)/1000:.0f}K total")
 
-    # Check YAML
     yaml_path = os.path.join(session_dir, "project_state.yaml")
     if os.path.exists(yaml_path):
-        yaml_size = os.path.getsize(yaml_path)
-        print(f"YAML:   ✅ {yaml_size}B")
+        print(f"YAML:   {os.path.getsize(yaml_path)}B")
     else:
-        print("YAML:   ❌ not found")
+        print("YAML:   not found")
 
-    # Check output
     output_dir = os.path.join(session_dir, "output")
     if os.path.exists(output_dir):
         files = []
@@ -150,18 +164,9 @@ def main():
                 files.append(os.path.relpath(os.path.join(root, fn), output_dir))
         print(f"Output: {len(files)} files in output/ — {', '.join(files[:8])}{'...' if len(files) > 8 else ''}")
     else:
-        # Loose artifacts
-        loose = []
-        for fn in sorted(os.listdir(session_dir)):
-            if fn.endswith(('.html', '.pptx', '.png', '.py')) and fn != 'run_all_turns.py':
-                fp = os.path.join(session_dir, fn)
-                loose.append(f"{fn} ({os.path.getsize(fp)}B)")
-        if loose:
-            print(f"Output: {', '.join(loose[:5])}")
-        else:
-            print("Output: none found")
+        print("Output: none found")
 
-    print(f"\n✅ All {len(TURNS)} turns complete")
+    print(f"\nAll {len(TURNS)} turns complete")
 
 
 if __name__ == "__main__":

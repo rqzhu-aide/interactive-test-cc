@@ -6,8 +6,8 @@ Registry of datasets available for testing.
 
 | Dataset | Domain | Columns | Rows | Fit Notes |
 |---------|--------|---------|------|-----------|
-| wage | Labor | 12 | 3,000 | Mincer equation data |
-| college | Education | 19 | 777 | Binary treatment, rich covariates |
+| wage | Labor | 12 | 3,000 | Mincer equation data. Tested for Invalid Push (v4.2.4) — good for boundary-enforcement scenarios with gender/occupation variables. |
+| college | Education | 19 | 777 | Binary treatment, rich covariates. Primary benchmark dataset — tested across v4.2.4 through v5.0.0. v5.0.0: 13/13 (pro), 10/13 (flash). |
 | star | Education/RCT | 9 | 5,748 | Project STAR — 3 arms, attrition present |
 | schooling | Education/IV | ~15 | ~3,000 | Card IV dataset |
 | productivity | Industrial | ~10 | ~1,000 | Production function estimation |

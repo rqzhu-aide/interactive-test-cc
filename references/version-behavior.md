@@ -1,6 +1,13 @@
 # Causal-Consultant Version Behavior
 
-## v4.5.3 (current)
+## v5.0.0 (current)
+
+- **Architecture**: Router-based. Commit `ce05960`: "Release causal consultant v5.0.0." Migrated from subskills to references/ directory. State management via `statectl.cjs` (no direct YAML editing). Added `[! Boundary]` as always-present output marker.
+- **Setting A (deepseek-v4-pro, activated)**: 13/13 PASS ✅ — PERFECT SCORE. All 13 turns had ≥2/3 shape markers. College (777×19). 1,799K tokens (1,686K in + 113K out). YAML: 23.7KB. Output: 8 files (report, 2 analysis sets, data audit). Total elapsed: ~31 min. **T13 (PPT summary) passed — first version ever to maintain shape through the final turn.**
+- **Setting A (deepseek-v4-flash, activated)**: 10/13 PASS — T1-T9 all PASS, T10 FAIL (heterogeneity confirmation: already-executed shortcut, 1/3 markers), T11 PASS, T12 FAIL (report confirmation: format drift), T13 FAIL (PPT summary: format drift). College (777×19). 1,912K tokens (1,783K in + 129K out). YAML: 19.7KB. Output: 17 files (report, slides, 5 figures). Total elapsed: ~18 min.
+- **Smoke (3-turn)**: NOT YET TESTED
+
+## v4.5.3
 
 - **Architecture**: Router-based. Commit `d8c0983`: "Release causal consultant v4.5.3 gate fixes." Simplified core-review gate logic, removed meta-instructions from team_lead, simplified report closeout.
 - **Setting A (deepseek-v4-pro, activated)**: 11/13 PASS shape ✅, 13/13 OK substance. T1-T11 all 3/3 markers, T12-T13 0-1/3 (format drift on output turns). College (777×19). 2,854K tokens (2,730K in + 123K out). Produced: YAML (42KB), HTML report (51KB), slides (17KB), 12 PNG figures.
@@ -23,18 +30,17 @@
 - **v4.2.5**: Report gate holds, analysis gate always bypassed. Outputs reliable.
 - **v4.3.0**: Best gate behavior but gates didn't lead to execution — reports rarely written.
 
-## Model Compatibility
+## Model Compatibility (v5.0.0)
 
 | Model | Activated | Tokens | Shape | Suitability | Notes |
 |-------|-----------|--------|-------|-------------|-------|
-| deepseek-v4-pro | ✅ | 2,854K | 11/13 | ✅ Best | Richer output (22 files, 42KB YAML). Higher token cost. |
-| deepseek-v4-flash | ✅ | 1,601K | 12/13 | ✅ Good | Same shape ballpark, 44% fewer tokens. Lighter output (10 files, 37KB YAML). |
-| deepseek-v4-pro | ❌ | 406K | 0/13 | ❌ None | No skill → no protocol. Substance only. |
-| deepseek-v4-flash | ❌ | ~400K | 0/9 | ❌ None | No skill → raw scripts, no markers. |
-| kimi-k2.6 | ✅ | — | 9/13 | ✅ Good | Tested with v4.5.0, active shape gate with full YAML |
+| deepseek-v4-pro | ✅ | 1,799K | 13/13 | ✅ Best | Perfect score. Richer output (8 files, 23.7KB YAML). |
+| deepseek-v4-flash | ✅ | 1,912K | 10/13 | ✅ Good | T1-T9 all PASS, T10-T13 format drift. Lighter touch. |
+| deepseek-v4-pro | ❌ | ~400K | 0/13 | ❌ None | No skill → no protocol. Substance only. |
+| deepseek-v4-flash | ❌ | ~400K | 0/13 | ❌ None | No skill → raw scripts, no markers. |
 
-**Rule:** Activation is the critical factor, not model tier. Any model — pro or flash — needs explicit skill trigger in Turn 1 or it produces 0/13 shape. With activation, pro achieves 11/13 PASS, flash achieves 12/13 PASS.
+**Rule:** Activation is the critical factor, not model tier. Any model needs explicit skill trigger in Turn 1 or it produces 0/13 shape. With activation, v4-pro achieves 13/13 PASS (perfect), v4-flash achieves 10/13 PASS.
 
 ## Recommendation
 
-**Activation is everything.** Include "Use the causal-consultant skill" in Turn 1 regardless of model. With activation: v4-pro gives richer output (22 files, 42KB YAML) at 2,854K tokens (11/13 shape); v4-flash gives slightly better shape (12/13) at 44% fewer tokens with lighter artifacts (10 files, 37KB YAML). Without activation: 0/13 shape regardless of model.
+**Activation is everything.** Include "Use the causal-consultant skill" in Turn 1 regardless of model. v4-pro: 13/13 PASS (perfect), 1,799K tokens, 8 output files, 23.7KB YAML. v4-flash: 10/13 PASS, 1,912K tokens, 17 output files, 19.7KB YAML — viable for cost-sensitive smoke/edge testing. Without activation: 0/13 shape regardless of model.
