@@ -1,21 +1,24 @@
 # interactive-test-cc
 
-Test a Claude Code skill by running multi-turn conversations and capturing results.
-The setup was created with a Hermes agent that controls and test the skill inside claude code. 
-Contains: 
-  * pre-flight setup
-  * turn-by-turn message delivery via `send_one.py` to claude code
-  * shape checking
-  * session archiving
+Reproducible multi-turn tests for the `causal-consultant` skill:
 
-It should be modifed when trying to fit a different target testing skill  
+- `smoke`: activation and state-controller health
+- `standard`: two analysis cycles, one HTML report, and one unexecuted derivative scope
+- `mechanical-edge`: stale/current scope approvals and duplicate protection
+- `causal-edge`: fixed causal-boundary challenges with a manual safety rubric
 
-**v3.5.0** — Simplified to ~140 lines following Karpathy guidelines.
-Added Setting B (12-turn with data at turn 3, two report cycles, HTML conversion).
-Extracted reference files for settings and gate test protocols.
+The batch runner uses one prompt registry, resumes the exact Claude Code session, validates the causal-consultant state after every turn, and saves responses, state snapshots, artifact manifests, a conversation transcript, and summaries.
 
-For the full procedure, see SKILL.md.
+```bash
+python3 scripts/run_all_turns.py \
+  --test standard \
+  --workdir <fresh-work-directory> \
+  --results-dir <empty-results-directory> \
+  --statectl <Claude-visible-causal-consultant-root>/scripts/statectl.cjs
+```
 
-The skill can be combined with a private operational details (datasets, proxy, infrastructure). 
-For my Hermes, that is a RULES.md file in the test-center folder.
-The file is stripped due to privacy issues. 
+`smoke` uses an empty work directory. The other tests require the 777-row College `data.csv` described by the registry. Dataset provisioning, proxy credentials, and other private infrastructure stay outside this repository.
+
+Before live replay, install or symlink the intended causal-consultant package at `${CLAUDE_CONFIG_DIR:-~/.claude}/skills/causal-consultant`. Preflight rejects a controller from any other installation so Claude's instructions and the state oracle cannot drift apart. The two repositories release independently; their version numbers do not need to match.
+
+See [`SKILL.md`](SKILL.md) for the operating procedure and [`references/`](references) for each test's evaluation contract.

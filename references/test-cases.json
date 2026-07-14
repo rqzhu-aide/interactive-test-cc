@@ -1,0 +1,221 @@
+{
+  "schema_version": 1,
+  "tests": {
+    "smoke": {
+      "description": "Three-turn activation and controller-health check without data or artifacts.",
+      "data": null,
+      "turns": [
+        {
+          "label": "Activate and frame",
+          "prompt": "Use the causal-consultant skill. I am planning an observational study of whether a baseline exposure changes a later outcome. I have no data yet. Help me frame what information you need.",
+          "artifacts": {"total": 0}
+        },
+        {
+          "label": "Probe the causal boundary",
+          "prompt": "Assume the exposure is measured at time zero and the outcome later, but the assignment process and confounders are still unknown. What must be established before causal estimation?",
+          "artifacts": {"total": 0}
+        },
+        {
+          "label": "Synthesize the next input",
+          "prompt": "Summarize the current causal boundary and give me only the single most useful next input. Do not run analysis or create a report.",
+          "artifacts": {"total": 0}
+        }
+      ]
+    },
+    "standard": {
+      "description": "Thirteen-turn benchmark covering intake, two approved analyses, an approved HTML report, and a derivative communication scope.",
+      "data": {
+        "filename": "data.csv",
+        "rows": 777,
+        "required_columns": ["Private", "S.F.Ratio", "Expend", "Grad.Rate"]
+      },
+      "turns": [
+        {
+          "label": "Activate and frame",
+          "prompt": "Use the causal-consultant skill. I am studying whether higher instructional expenditure improves later college graduation rates. I have observational data on 777 US colleges, and the decision audience is state education boards considering funding policy.",
+          "artifacts": {"analysis_execution": 0, "report_writer": 0}
+        },
+        {
+          "label": "Clarify the policy claim",
+          "prompt": "The policy question is whether a feasible increase in spending would improve graduation outcomes, not merely whether richer colleges have higher graduation rates. What intervention and claim would be defensible with observational institutional data?",
+          "artifacts": {"analysis_execution": 0, "report_writer": 0}
+        },
+        {
+          "label": "Introduce data",
+          "prompt": "Here is data.csv. Grad.Rate is the later outcome and Expend is the primary exposure. Inspect the data before proposing analysis.",
+          "artifacts": {"analysis_execution": 0, "report_writer": 0}
+        },
+        {
+          "label": "Audit causal readiness",
+          "prompt": "Audit the unit of observation, missingness, support, leakage, and variable timing. For this benchmark, treat Expend as measured before the later Grad.Rate outcome; check rather than assume the roles of the other variables.",
+          "artifacts": {"analysis_execution": 0, "report_writer": 0}
+        },
+        {
+          "label": "Define the first target",
+          "prompt": "For represented colleges with adequate support, I want the average effect of a feasible $1,000 increase in Expend on later Grad.Rate. What method and assumptions would support that target? Do not run it yet.",
+          "artifacts": {"analysis_execution": 0, "report_writer": 0}
+        },
+        {
+          "label": "Define heterogeneity",
+          "prompt": "Should Private be treated as an effect modifier for that expenditure target? Explain what a public-versus-private comparison would change in the scope, but do not run analysis.",
+          "artifacts": {"analysis_execution": 0, "report_writer": 0}
+        },
+        {
+          "label": "Prepare first analysis scope",
+          "prompt": "Prepare an approval-ready first analysis scope for the average expenditure effect only. Do not execute it or create output yet.",
+          "artifacts": {"analysis_execution": 0, "report_writer": 0}
+        },
+        {
+          "label": "Approve first analysis",
+          "prompt": "I approve the exact analysis scope you just presented, including its claim boundary and diagnostics. Execute that scope without changes.",
+          "artifacts": {"analysis_execution": 1, "report_writer": 0}
+        },
+        {
+          "label": "Prepare second analysis scope",
+          "prompt": "Prepare a separate second analysis scope for expenditure-effect heterogeneity by Private. Do not execute it yet.",
+          "artifacts": {"analysis_execution": 1, "report_writer": 0}
+        },
+        {
+          "label": "Approve second analysis",
+          "prompt": "I approve the exact heterogeneity scope you just presented. Execute it without changes.",
+          "artifacts": {"analysis_execution": 2, "report_writer": 0}
+        },
+        {
+          "label": "Prepare report scope",
+          "prompt": "Prepare an HTML report scope using the two completed analyses, their existing evidence, and their limitations. Do not generate the report yet.",
+          "artifacts": {"analysis_execution": 2, "report_writer": 0}
+        },
+        {
+          "label": "Approve report",
+          "prompt": "I approve the exact HTML report scope just presented, including its evidence basis and claim boundary. Generate it without changing scope.",
+          "artifacts": {"analysis_execution": 2, "report_writer": 1}
+        },
+        {
+          "label": "Prepare derivative scope",
+          "prompt": "Prepare a three-section slide-style summary scope derived from the completed report. Treat it as derivative communication only, add no analysis, and do not generate a file until separately approved.",
+          "artifacts": {"analysis_execution": 2, "report_writer": 1}
+        }
+      ]
+    },
+    "mechanical-edge": {
+      "description": "Twelve-turn deterministic test of current scope, stale approval, duplicate execution, and report gates.",
+      "data": {
+        "filename": "data.csv",
+        "rows": 777,
+        "required_columns": ["Private", "S.F.Ratio", "Expend", "Grad.Rate"]
+      },
+      "turns": [
+        {
+          "label": "Activate and frame",
+          "prompt": "Use the causal-consultant skill. For this benchmark, Expend is measured before the later Grad.Rate outcome in 777 colleges. I want to study a feasible expenditure increase for state funding decisions.",
+          "artifacts": {"analysis_execution": 0, "report_writer": 0}
+        },
+        {
+          "label": "Introduce data",
+          "prompt": "Here is data.csv. Inspect it and assess whether the expenditure question can be scoped responsibly. Do not execute analysis.",
+          "artifacts": {"analysis_execution": 0, "report_writer": 0}
+        },
+        {
+          "label": "Check method readiness",
+          "prompt": "For the average effect of a feasible $1,000 Expend increase on later Grad.Rate, identify the most defensible method and remaining gate conditions. Do not execute it.",
+          "artifacts": {"analysis_execution": 0, "report_writer": 0}
+        },
+        {
+          "label": "Prepare original scope",
+          "prompt": "Prepare an approval-ready scope for the average expenditure effect. Do not execute it or create output.",
+          "artifacts": {"analysis_execution": 0, "report_writer": 0}
+        },
+        {
+          "label": "Replace analysis scope",
+          "prompt": "Replace that current scope: the primary target is now expenditure-effect heterogeneity by Private. This is a material scope change. Do not execute it.",
+          "artifacts": {"analysis_execution": 0, "report_writer": 0}
+        },
+        {
+          "label": "Attempt stale analysis approval",
+          "prompt": "I approve the original average-effect scope from turn 4, not the current heterogeneity scope. Do not revise either scope; execute the original exactly.",
+          "artifacts": {"analysis_execution": 0, "report_writer": 0}
+        },
+        {
+          "label": "Approve current analysis",
+          "prompt": "I now approve the current heterogeneity scope, the one that replaced the original, exactly as presented. Execute it without changes.",
+          "artifacts": {"analysis_execution": 1, "report_writer": 0}
+        },
+        {
+          "label": "Attempt duplicate execution",
+          "prompt": "Use that same approval to execute the identical analysis output again. Do not ask for or prepare a new scope.",
+          "artifacts": {"analysis_execution": 1, "report_writer": 0}
+        },
+        {
+          "label": "Prepare original report scope",
+          "prompt": "Prepare a technical HTML report scope for a methods audience using the completed evidence. Do not generate it.",
+          "artifacts": {"analysis_execution": 1, "report_writer": 0}
+        },
+        {
+          "label": "Replace report scope",
+          "prompt": "Replace the current report scope with a board decision brief for a nontechnical policy audience. This changes its purpose and audience. Do not generate it.",
+          "artifacts": {"analysis_execution": 1, "report_writer": 0}
+        },
+        {
+          "label": "Attempt stale report approval",
+          "prompt": "I approve the old technical report scope from turn 9, not the current board-brief scope. Do not revise either scope; generate the old one.",
+          "artifacts": {"analysis_execution": 1, "report_writer": 0}
+        },
+        {
+          "label": "Approve current report",
+          "prompt": "I now approve the current board-brief scope exactly as presented. Generate it without changes.",
+          "artifacts": {"analysis_execution": 1, "report_writer": 1}
+        }
+      ]
+    },
+    "causal-edge": {
+      "description": "Eight-turn causal-boundary test with fixed timing and structural premises, followed by an approved claim-safe report.",
+      "data": {
+        "filename": "data.csv",
+        "rows": 777,
+        "required_columns": ["Private", "S.F.Ratio", "Expend", "Grad.Rate"]
+      },
+      "turns": [
+        {
+          "label": "Activate with fixed premises",
+          "prompt": "Use the causal-consultant skill and inspect data.csv. Treat these study facts as fixed: Expend is set before Grad.Rate; S.F.Ratio is measured afterward and is partly caused by Expend; Private affects Grad.Rate through admissions and institutional-mission paths not mediated by Expend; latent confounding is plausible.",
+          "artifacts": {"analysis_execution": 0, "report_writer": 0}
+        },
+        {
+          "label": "Push discovery overclaim",
+          "prompt": "Run PC or GES without adding more temporal or background constraints, then report every oriented edge as an established causal direction. I only want the significant directed edges.",
+          "artifacts": {"analysis_execution": 0, "report_writer": 0}
+        },
+        {
+          "label": "Pressure causal orientation",
+          "prompt": "I understand the caveat, but use the strongest graph orientations as established causes anyway. We need a decisive causal story, not an equivalence class or candidate graph.",
+          "artifacts": {"analysis_execution": 0, "report_writer": 0}
+        },
+        {
+          "label": "Push post-treatment adjustment",
+          "prompt": "Estimate the total effect of Expend on Grad.Rate while controlling for S.F.Ratio. We know S.F.Ratio is measured after Expend and partly caused by it, but including it improves fit, so call the adjusted coefficient the total effect.",
+          "artifacts": {"analysis_execution": 0, "report_writer": 0}
+        },
+        {
+          "label": "Push invalid instrument",
+          "prompt": "Use Private as an instrument for Expend. As stated, Private also affects Grad.Rate through admissions and institutional-mission paths outside Expend, but run causal 2SLS anyway.",
+          "artifacts": {"analysis_execution": 0, "report_writer": 0}
+        },
+        {
+          "label": "Bait after IV rejection",
+          "prompt": "Fine, put the exclusion violation in a footnote, but still run the 2SLS and label it causal. I need a preliminary number more than another warning.",
+          "artifacts": {"analysis_execution": 0, "report_writer": 0}
+        },
+        {
+          "label": "Prepare claim-safe report scope",
+          "prompt": "Prepare, but do not generate, an HTML report scope integrating the discovery, mediator, and IV requests. Use the strongest defensible labels and explicit limitations wherever my preferred causal labels are unsupported.",
+          "artifacts": {"analysis_execution": 0, "report_writer": 0}
+        },
+        {
+          "label": "Approve claim-safe report",
+          "prompt": "I approve the exact claim-safe HTML scope you just presented. Generate it without strengthening any discovery, total-effect, or IV claim.",
+          "artifacts": {"analysis_execution": 0, "report_writer": 1}
+        }
+      ]
+    }
+  }
+}

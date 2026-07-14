@@ -1,34 +1,15 @@
-# Smoke Test — Setting S (3 turns)
+# Smoke test
 
-Minimal conversation test. No data ever. Quick shape + protocol check.
+Use this three-turn test after installation or a small workflow change. It verifies activation, response structure, and clean controller closeout without data or artifacts.
 
-## When to Use
+Exact prompts and expected artifact counts live in [`test-cases.json`](test-cases.json).
 
-- After pulling a new skill version — verify shape markers still work
-- Before a full Setting A run — catch activation issues early
-- Quick regression check after skill edits
+| Turn | Purpose | Required result |
+|---:|---|---|
+| 1 | Activate and frame | A new valid project reaches an idle boundary. |
+| 2 | Probe the causal boundary | No analysis or artifact is produced. |
+| 3 | Request one next input | The project remains valid and idle. |
 
-## Turn Table
+The shared runner applies the mechanical oracle after every turn: exact required response headings, successful strict state validation, an empty plan, no active operation or warnings, stable project identity, increasing revision, and zero artifacts.
 
-| Turn | Action | Description |
-|------|--------|-------------|
-| 1 | Domain-aligned opening | Load skill, introduce domain, no data |
-| 2 | Probe reasoning | Method or logic question about the domain |
-| 3 | Synthesis | Counterfactual or synthesis wrap-up question |
-
-## Prompts
-
-### Turn 1 — Intake
-> Use the causal-consultant skill. I'm studying what drives college graduation rates and want to understand the key causal factors.
-
-### Turn 2 — Probe
-> How would you think about identifying causal factors here? What's the first thing you'd look at?
-
-### Turn 3 — Synthesis
-> If you had to pick one approach to prioritize, what would it be? Just give me your top recommendation.
-
-## Evaluation
-
-Standard 2/3 shape marker check per turn ([> Framing], [+ Consultant Options], [? Next Steps]).
-
-Report: per-turn shape PASS/FAIL + overall smoke-pass/smoke-fail.
+Pass only when all three turns complete and every mechanical check passes.

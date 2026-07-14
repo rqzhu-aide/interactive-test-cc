@@ -3,12 +3,6 @@ __pycache__/
 *.py[cod]
 *.egg-info/
 
-# Test artifacts
-interception/
-playground/
-*.zip
-*.log
-
 # OS
 .DS_Store
 Thumbs.db
