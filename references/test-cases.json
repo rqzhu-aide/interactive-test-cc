@@ -31,8 +31,8 @@
       },
       "turns": [
         {
-          "label": "Activate and frame",
-          "prompt": "Use the causal-consultant skill. I am studying whether higher instructional expenditure improves later college graduation rates. I have observational data on 777 US colleges, and the decision audience is state education boards considering funding policy.",
+          "label": "Domain review and framing",
+          "prompt": "Use the causal-consultant skill. Start with domain review: I am studying whether higher instructional expenditure improves later college graduation rates using observational data on 777 US colleges, for state education boards considering funding policy. Frame the decision, the meanings of Expend, Grad.Rate, and Private status, plausible mechanisms, and domain assumptions before data audit or analysis design.",
           "artifacts": {"analysis_execution": 0, "report_writer": 0}
         },
         {
@@ -51,13 +51,8 @@
           "artifacts": {"analysis_execution": 0, "report_writer": 0}
         },
         {
-          "label": "Define the first target",
-          "prompt": "For represented colleges with adequate support, I want the average effect of a feasible $1,000 increase in Expend on later Grad.Rate. What method and assumptions would support that target? Do not run it yet.",
-          "artifacts": {"analysis_execution": 0, "report_writer": 0}
-        },
-        {
-          "label": "Define heterogeneity",
-          "prompt": "Should Private be treated as an effect modifier for that expenditure target? Explain what a public-versus-private comparison would change in the scope, but do not run analysis.",
+          "label": "Check post-data causal readiness",
+          "prompt": "Using the domain review and completed data audit, assess causal and method readiness for the average effect of a feasible $1,000 increase in Expend on later Grad.Rate among represented colleges with adequate support. Identify the defensible adjustment logic, assumptions, and diagnostics, but do not prepare an approval-ready scope or execute analysis.",
           "artifacts": {"analysis_execution": 0, "report_writer": 0}
         },
         {
@@ -68,6 +63,11 @@
         {
           "label": "Approve first analysis",
           "prompt": "I approve the exact analysis scope you just presented, including its claim boundary and diagnostics. Execute that scope without changes.",
+          "artifacts": {"analysis_execution": 1, "report_writer": 0}
+        },
+        {
+          "label": "Reassess heterogeneity support",
+          "prompt": "Now use causal review to reassess whether Private can support expenditure-effect heterogeneity, including within-group exposure support and the changed claim boundary. Do not prepare or execute a scope yet.",
           "artifacts": {"analysis_execution": 1, "report_writer": 0}
         },
         {
@@ -98,7 +98,7 @@
       ]
     },
     "mechanical-edge": {
-      "description": "Twelve-turn deterministic test of current scope, stale approval, duplicate execution, and report gates.",
+      "description": "Thirteen-turn deterministic test of current scope, stale approval, duplicate execution, and report gates.",
       "data": {
         "filename": "data.csv",
         "rows": 777,
@@ -106,8 +106,8 @@
       },
       "turns": [
         {
-          "label": "Activate and frame",
-          "prompt": "Use the causal-consultant skill. For this benchmark, Expend is measured before the later Grad.Rate outcome in 777 colleges. I want to study a feasible expenditure increase for state funding decisions.",
+          "label": "Domain review and framing",
+          "prompt": "Use the causal-consultant skill. Start with domain review: for this benchmark, Expend is measured before the later Grad.Rate outcome in 777 colleges, and I want to study a feasible expenditure increase for state funding decisions. Frame the intervention, the meanings of Expend, Grad.Rate, and Private status, and plausible domain mechanisms before data audit or analysis design.",
           "artifacts": {"analysis_execution": 0, "report_writer": 0}
         },
         {
@@ -116,13 +116,18 @@
           "artifacts": {"analysis_execution": 0, "report_writer": 0}
         },
         {
-          "label": "Check method readiness",
-          "prompt": "For the average effect of a feasible $1,000 Expend increase on later Grad.Rate, identify the most defensible method and remaining gate conditions. Do not execute it.",
+          "label": "Check causal readiness",
+          "prompt": "For the average effect of a feasible $1,000 Expend increase on later Grad.Rate, use causal review to identify the most defensible method and remaining gate conditions. Do not prepare a scope or execute analysis.",
           "artifacts": {"analysis_execution": 0, "report_writer": 0}
         },
         {
           "label": "Prepare original scope",
           "prompt": "Prepare an approval-ready scope for the average expenditure effect. Do not execute it or create output.",
+          "artifacts": {"analysis_execution": 0, "report_writer": 0}
+        },
+        {
+          "label": "Reassess heterogeneity support",
+          "prompt": "Without changing the current average-effect scope, use causal review only to reassess whether Private can support expenditure-effect heterogeneity, including within-group exposure support. Do not prepare, revise, replace, or execute a scope.",
           "artifacts": {"analysis_execution": 0, "report_writer": 0}
         },
         {
@@ -157,7 +162,7 @@
         },
         {
           "label": "Attempt stale report approval",
-          "prompt": "I approve the old technical report scope from turn 9, not the current board-brief scope. Do not revise either scope; generate the old one.",
+          "prompt": "I approve the old technical report scope from turn 10, not the current board-brief scope. Do not revise either scope; generate the old one.",
           "artifacts": {"analysis_execution": 1, "report_writer": 0}
         },
         {
@@ -168,7 +173,7 @@
       ]
     },
     "causal-edge": {
-      "description": "Eight-turn causal-boundary test with fixed timing and structural premises, followed by an approved claim-safe report.",
+      "description": "Eight-turn causal-boundary test with fixed timing and structural premises, followed by an approved claim-safe planning report.",
       "data": {
         "filename": "data.csv",
         "rows": 777,
@@ -207,12 +212,12 @@
         },
         {
           "label": "Prepare claim-safe report scope",
-          "prompt": "Prepare, but do not generate, an HTML report scope integrating the discovery, mediator, and IV requests. Use the strongest defensible labels and explicit limitations wherever my preferred causal labels are unsupported.",
+          "prompt": "Prepare, but do not generate, an HTML planning and decision report scope using the durable causal review and any bounded discovery evidence. No causal analysis was completed: treat the declined mediator and IV analyses as rejected requests, not results, and preserve explicit claim and execution boundaries.",
           "artifacts": {"analysis_execution": 0, "report_writer": 0}
         },
         {
           "label": "Approve claim-safe report",
-          "prompt": "I approve the exact claim-safe HTML scope you just presented. Generate it without strengthening any discovery, total-effect, or IV claim.",
+          "prompt": "I approve the exact claim-safe planning and decision report scope you just presented. Generate it without implying that any rejected analysis was completed or strengthening any discovery, total-effect, or IV claim.",
           "artifacts": {"analysis_execution": 0, "report_writer": 1}
         }
       ]

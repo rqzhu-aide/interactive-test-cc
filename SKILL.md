@@ -5,7 +5,7 @@ description: Run reproducible multi-turn regression tests for the causal-consult
 
 # Interactive causal-consultant tests
 
-Version: `5.1.0`
+Version: `5.1.1`
 
 Choose one explicit test and load its reference:
 

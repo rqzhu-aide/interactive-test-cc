@@ -42,12 +42,14 @@ def send(workdir, message, session_id, max_turns, timeout, claude_bin):
     if session_id:
         command.extend(["--resume", session_id])
     command.append(message)
+    child_env = os.environ.copy()
+    child_env["CLAUDE_PROJECT_DIR"] = str(Path(workdir).resolve())
 
     try:
         completed = subprocess.run(
             command,
             cwd=workdir,
-            env=os.environ.copy(),
+            env=child_env,
             capture_output=True,
             text=True,
             encoding="utf-8",

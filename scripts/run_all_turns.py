@@ -4,6 +4,7 @@
 import argparse
 import csv
 from datetime import datetime, timezone
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -136,6 +137,15 @@ def preflight(case, workdir, results_dir, statectl, node_bin):
     code, payload, _ = run_json([node_bin, str(statectl), "validate", "--template"])
     if code != 0 or not payload.get("ok") or payload.get("code") != "VALID_TEMPLATE":
         raise RunError(f"state controller template validation failed: {payload}")
+    package_path = active_skill / "package.json"
+    try:
+        package = json.loads(package_path.read_text(encoding="utf-8"))
+        version = package.get("version") if isinstance(package, dict) else None
+        if not isinstance(version, str) or not version.strip():
+            raise ValueError("version must be a nonempty string")
+        statectl_sha256 = hashlib.sha256(statectl.read_bytes()).hexdigest()
+    except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as exc:
+        raise RunError(f"cannot read causal-consultant target provenance: {exc}") from exc
     if not workdir.is_dir():
         raise RunError(f"workdir not found: {workdir}")
     if paths_overlap(workdir, results_dir):
@@ -154,6 +164,10 @@ def preflight(case, workdir, results_dir, statectl, node_bin):
     if results_dir.exists() and (not results_dir.is_dir() or any(results_dir.iterdir())):
         raise RunError("results-dir must be missing or empty")
     results_dir.mkdir(parents=True, exist_ok=True)
+    return {
+        "causal_consultant_version": version.strip(),
+        "statectl_sha256": statectl_sha256,
+    }
 
 
 def check_headings(text):
@@ -360,7 +374,7 @@ def copy_playground(workdir, results_dir):
         shutil.copytree(output_path, destination / "output")
 
 
-def write_summary(results_dir, test_id, expected_turns, records, abort_reason):
+def write_summary(results_dir, test_id, expected_turns, records, abort_reason, target):
     completed = len(records)
     all_checks = all(
         record.get("shell", {}).get("ok")
@@ -397,6 +411,7 @@ def write_summary(results_dir, test_id, expected_turns, records, abort_reason):
     summary = {
         "schema_version": 1,
         "test": test_id,
+        "target": target,
         "completed_turns": completed,
         "expected_turns": expected_turns,
         "mechanics": "pass" if mechanics_pass else "fail",
@@ -417,6 +432,8 @@ def write_summary(results_dir, test_id, expected_turns, records, abort_reason):
         "",
         f"Mechanical result: **{'PASS' if mechanics_pass else 'FAIL'}**",
         f"Completed turns: {completed}/{expected_turns}",
+        f"Target: causal-consultant v{target['causal_consultant_version']} "
+        f"(`statectl` SHA-256: `{target['statectl_sha256']}`)",
     ]
     if test_id == "causal-edge":
         lines.append("Causal assessment: **not scored** (apply the reference rubric manually)")
@@ -444,7 +461,7 @@ def run_test(args, case):
     workdir = args.workdir.expanduser().resolve()
     results_dir = args.results_dir.expanduser().resolve()
     statectl = args.statectl.expanduser().resolve()
-    preflight(case, workdir, results_dir, statectl, args.node)
+    target = preflight(case, workdir, results_dir, statectl, args.node)
 
     records = []
     session_id = None
@@ -569,7 +586,7 @@ def run_test(args, case):
 
     write_conversation(results_dir, records)
     copy_playground(workdir, results_dir)
-    passed = write_summary(results_dir, args.test, len(case["turns"]), records, abort_reason)
+    passed = write_summary(results_dir, args.test, len(case["turns"]), records, abort_reason, target)
     if abort_reason:
         print(f"ABORTED: {abort_reason}", file=sys.stderr)
     print(f"Mechanical result: {'PASS' if passed else 'FAIL'}")
