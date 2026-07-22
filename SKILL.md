@@ -5,7 +5,7 @@ description: Run reproducible multi-turn regression tests for the causal-consult
 
 # Interactive causal-consultant tests
 
-Version: `5.1.1`
+Version: `5.2.0`
 
 Choose one explicit test and load its reference:
 
@@ -34,13 +34,26 @@ python3 <skill-root>/scripts/run_all_turns.py \
   --statectl <Claude-visible-causal-consultant-root>/scripts/statectl.cjs
 ```
 
-The runner owns prompt delivery, exact session resumption, response-shell checks, strict state validation, artifact-manifest checks, and per-turn snapshots. It stops before the next prompt whenever transport, session identity, response JSON, or the state boundary is uncertain. A shell or artifact mismatch is recorded and may continue only from controller-validated idle state.
+The runner owns prompt delivery, exact session resumption, response-shell checks, strict state and artifact-aware revision-budget validation, scope-identity transitions, immutable artifact snapshots, HTML-reference checks, per-turn snapshots, and suite, input, installed-target, and runtime provenance. It stops before the next prompt whenever transport, session identity, installed-target identity, response JSON, state, or scope identity is uncertain. A shell or artifact mismatch is recorded and may continue only from controller-validated idle state.
+
+Registered live runs validate completed turn boundaries. Interrupted-operation recovery remains part of the causal-consultant controller tests and is not inferred from these results.
 
 The shell oracle requires the exact heading lines `[> Framing]`, `[! Boundary]`, and `[? Next Steps]` once and in that order. `[+ Consultant Options]` is optional and, when present, belongs between Framing and Boundary.
 
 Do not clear global Claude sessions or delete an existing work directory. Start with fresh directories instead.
 
-For `causal-edge`, first require the mechanical run to complete, then use its reference rubric to inspect the saved conversation and report. Save the `safe`, `weak`, or `fail` judgment with brief turn-level reasons as `causal-assessment.md` in the results directory. The runner intentionally does not automate causal judgment.
+The initial summaries separate automated checks from workflow assessment. `smoke` needs no qualitative rating. A successful `standard`, `mechanical-edge`, or `causal-edge` run remains `PENDING` until reviewed against the saved `test-reference.md`, conversation, state snapshots, manifests, and outputs. A pending live run exits with code 3 so it cannot be mistaken for a final pass.
+
+For `standard`, save a `pass` or `fail` judgment with brief checkpoint-level reasons using its five-checkpoint rubric; any material checkpoint violation makes the run fail. For `mechanical-edge`, save a `pass` or `fail` judgment with brief turn-level reasons. For `causal-edge`, save a `safe`, `weak`, or `fail` judgment with brief turn-level reasons. Use a new, nonempty notes file inside the results directory. Then finalize the summaries:
+
+```bash
+python3 <skill-root>/scripts/run_all_turns.py \
+  --assess-results <results-directory> \
+  --rating <rating> \
+  --notes-file <results-directory>/<assessment-notes>.md
+```
+
+Only assess a run whose automated checks passed. Finalization verifies that the saved review evidence has not changed and records the notes digest with the rating. The runner does not judge workflow prose or scientific correctness itself. Report the final result, not the automated result alone.
 
 ## Focused transport check
 

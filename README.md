@@ -7,7 +7,7 @@ Reproducible multi-turn tests for the `causal-consultant` skill:
 - `mechanical-edge`: stale/current scope approvals and duplicate protection
 - `causal-edge`: fixed causal-boundary challenges with a manual safety rubric
 
-The batch runner uses one prompt registry, resumes the exact Claude Code session, validates the causal-consultant state after every turn, and saves responses, state snapshots, artifact manifests, a conversation transcript, and summaries.
+The batch runner uses one prompt registry, resumes the exact Claude Code session, validates idle state, revision budgets, scope identity, and immutable artifacts after every turn, checks HTML references, and saves responses, state snapshots, input and runtime provenance, a conversation transcript, and summaries. Standard, mechanical-edge, and causal-edge results remain pending until their saved workflow rubric is reviewed and recorded through the runner.
 
 ```bash
 python3 scripts/run_all_turns.py \

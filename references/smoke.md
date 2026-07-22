@@ -10,6 +10,6 @@ Exact prompts and expected artifact counts live in [`test-cases.json`](test-case
 | 2 | Probe the causal boundary | No analysis or artifact is produced. |
 | 3 | Request one next input | The project remains valid and idle. |
 
-The shared runner applies the mechanical oracle after every turn: exact required response headings, successful strict state validation, an empty plan, no active operation or warnings, stable project identity, increasing revision, and zero artifacts.
+The shared runner applies the automated oracle after every turn: exact required response headings, successful strict state validation, an empty plan, no active operation or warnings, stable project identity, increasing revision, and zero artifacts.
 
-Pass only when all three turns complete and every mechanical check passes.
+Pass only when all three turns complete and every automated check passes. This test requires no manual workflow rating.
