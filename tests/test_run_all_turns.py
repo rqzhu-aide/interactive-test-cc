@@ -44,7 +44,7 @@ class RunnerTests(unittest.TestCase):
 
     def summary_target(self):
         return {
-            "test_suite_version": "5.2.0",
+            "test_suite_version": "5.2.1",
             "test_suite_runtime_sha256": "suite123",
             "test_case_sha256": "case123",
             "causal_consultant_version": "5.1.4",
@@ -200,6 +200,40 @@ class RunnerTests(unittest.TestCase):
         )
         self.assertIn("Do not run causal review", turns[1]["prompt"])
         self.assertIn("create any durable artifact", turns[1]["prompt"])
+
+    def test_mechanical_edge_registry_primes_replacement_gate(self):
+        turns = RUNNER.load_cases()["mechanical-edge"]["turns"]
+        review_prompt = turns[4]["prompt"]
+        replacement_prompt = turns[5]["prompt"]
+
+        for requirement in (
+            "mature for later scope review",
+            "`single_time_observational`",
+            "`heterogeneous-effects`",
+            "without changing the current average-effect scope",
+            "Bound the claim to exploratory variation across Private strata",
+            "do not attribute that variation to Private status itself",
+        ):
+            self.assertIn(requirement, review_prompt)
+
+        for requirement in (
+            "Using only the current design and support recommendations",
+            "bounded claim established in the prior turn",
+            "replace the current average-effect scope",
+            "Do not rerun causal review",
+        ):
+            self.assertIn(requirement, replacement_prompt)
+
+    def test_mechanical_edge_reference_documents_gate_handoff(self):
+        reference = (ROOT / "references" / "mechanical-edge.md").read_text(encoding="utf-8")
+        for requirement in (
+            "`single_time_observational` + `heterogeneous-effects`",
+            "does not attribute variation to Private itself",
+            "original scope remains current",
+            "without another causal review",
+            "turn 6 consumed them without rerunning causal review",
+        ):
+            self.assertIn(requirement, reference)
 
     def test_standard_registry_allows_only_optional_data_audit_artifacts_on_turns_3_and_4(self):
         turns = RUNNER.load_cases()["standard"]["turns"]
@@ -420,6 +454,39 @@ class RunnerTests(unittest.TestCase):
             )
         errors = RUNNER.check_mechanical_edge_scopes(6, sequence[4], history)
         self.assertIn("turn 6 must replace or revise the original analysis scope", errors)
+
+    def test_mechanical_edge_scope_oracle_rejects_wrong_replacement_route(self):
+        history = {}
+        sequence = self.valid_scope_sequence()
+        for turn in range(1, 6):
+            self.assertEqual(
+                RUNNER.check_mechanical_edge_scopes(turn, sequence[turn], history),
+                [],
+            )
+        replacement = deepcopy(sequence[6])
+        entry = replacement["analysis"].pop("single_time_observational")
+        replacement["analysis"]["descriptive_association"] = entry
+        errors = RUNNER.check_mechanical_edge_scopes(6, replacement, history)
+        self.assertIn(
+            "turn 6 replacement must use the single_time_observational route",
+            errors,
+        )
+
+    def test_mechanical_edge_scope_oracle_rejects_wrong_replacement_support(self):
+        history = {}
+        sequence = self.valid_scope_sequence()
+        for turn in range(1, 6):
+            self.assertEqual(
+                RUNNER.check_mechanical_edge_scopes(turn, sequence[turn], history),
+                [],
+            )
+        replacement = deepcopy(sequence[6])
+        replacement["analysis"]["single_time_observational"]["support"] = None
+        errors = RUNNER.check_mechanical_edge_scopes(6, replacement, history)
+        self.assertIn(
+            "turn 6 replacement must use heterogeneous-effects support",
+            errors,
+        )
 
     def test_mechanical_edge_scope_oracle_rejects_shape_drift(self):
         snapshot = self.analysis_snapshot("analysis-1", 1, "ready", "2026-01-01T00:00:04Z")

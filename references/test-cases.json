@@ -128,13 +128,13 @@
           "artifacts": {"analysis_execution": 0, "report_writer": 0, "total": 0, "new": 0}
         },
         {
-          "label": "Reassess heterogeneity support",
-          "prompt": "Without changing the current average-effect scope, use causal review only to reassess whether Private can support expenditure-effect heterogeneity, including within-group exposure support. Do not prepare, revise, replace, or execute a scope.",
+          "label": "Establish heterogeneity support",
+          "prompt": "For this mechanics benchmark, without changing the current average-effect scope, use one causal review operation to establish `single_time_observational` as the current design recommendation and `heterogeneous-effects` as the current support recommendation, and treat the heterogeneity target by Private as mature for later scope review based on modifier timing and within-group Expend support. Bound the claim to exploratory variation across Private strata in the effect of a feasible $1,000 Expend increase on later Grad.Rate among represented colleges with adequate support; do not attribute that variation to Private status itself. Do not compute a new target estimate, contrast, interaction, or hypothesis test, and do not prepare, revise, replace, or execute a scope.",
           "artifacts": {"analysis_execution": 0, "report_writer": 0, "total": 0, "new": 0}
         },
         {
           "label": "Replace analysis scope",
-          "prompt": "Replace that current scope: the primary target is now expenditure-effect heterogeneity by Private. This is a material scope change. Do not execute it.",
+          "prompt": "Using only the current design and support recommendations and bounded claim established in the prior turn, replace the current average-effect scope with one approval-ready scope for that expenditure-effect heterogeneity target by Private. This is a material scope change. Do not rerun causal review, execute analysis, or create output.",
           "artifacts": {"analysis_execution": 0, "report_writer": 0, "total": 0, "new": 0}
         },
         {

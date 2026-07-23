@@ -831,8 +831,13 @@ def check_mechanical_edge_scopes(turn_number, raw_snapshot, history):
     elif turn_number == 6:
         current = single_analysis(snapshot, "turn 6", "ready")
         original = single_analysis(history[4], "turn 4", "ready")
-        if current and original and scope_ref(current[1]) == scope_ref(original[1]):
-            errors.append("turn 6 must replace or revise the original analysis scope")
+        if current:
+            if current[0] != "single_time_observational":
+                errors.append("turn 6 replacement must use the single_time_observational route")
+            if current[1].get("support") != "heterogeneous-effects":
+                errors.append("turn 6 replacement must use heterogeneous-effects support")
+            if original and scope_ref(current[1]) == scope_ref(original[1]):
+                errors.append("turn 6 must replace or revise the original analysis scope")
     elif turn_number == 7:
         if snapshot != history.get(6):
             errors.append("turn 7 stale approval must leave the replacement scope unchanged")
