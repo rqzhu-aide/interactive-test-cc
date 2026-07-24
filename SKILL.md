@@ -5,7 +5,7 @@ description: Run reproducible multi-turn regression tests for the causal-consult
 
 # Interactive causal-consultant tests
 
-Version: `5.2.1`
+Version: `5.2.2`
 
 Choose one explicit test and load its reference:
 
@@ -38,7 +38,7 @@ The runner owns prompt delivery, exact session resumption, response-shell checks
 
 Registered live runs validate completed turn boundaries. Interrupted-operation recovery remains part of the causal-consultant controller tests and is not inferred from these results.
 
-The shell oracle requires the exact heading lines `[> Framing]`, `[! Boundary]`, and `[? Next Steps]` once and in that order. `[+ Consultant Options]` is optional and, when present, belongs between Framing and Boundary.
+The shell oracle requires the exact heading lines `[> Framing]`, `[! Boundary]`, and `[? Next Steps]` once and in that order. `[+ Consultant Options]` is structurally optional and, when present, belongs between Framing and Boundary. During manual review, require it only when the response asks the user to choose among two or more materially distinct legal next operations. Each option should represent one next operation, and Next Steps should only ask for the choice. Do not fail a response merely because another conceivable action was not offered.
 
 Do not clear global Claude sessions or delete an existing work directory. Start with fresh directories instead.
 

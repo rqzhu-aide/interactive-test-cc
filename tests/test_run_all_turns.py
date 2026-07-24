@@ -44,7 +44,7 @@ class RunnerTests(unittest.TestCase):
 
     def summary_target(self):
         return {
-            "test_suite_version": "5.2.1",
+            "test_suite_version": "5.2.2",
             "test_suite_runtime_sha256": "suite123",
             "test_case_sha256": "case123",
             "causal_consultant_version": "5.1.4",
@@ -88,10 +88,29 @@ class RunnerTests(unittest.TestCase):
                 "[OK Confirmed] Previous state archived.\n\n"
                 "[Causal-Consultant Loaded] This is a new project. Causal analysis team ready.\n\n"
             ),
+            (
+                "[Causal-Consultant Loaded] This is a new project. Causal analysis team ready.\n\n"
+                "[OK Confirmed] Project initialized.\n\n"
+            ),
         ]
         for opening in openings:
             with self.subTest(opening=opening):
                 self.assertEqual(RUNNER.check_headings(opening + shell)["errors"], [])
+
+    def test_heading_shell_accepts_structured_consultant_options(self):
+        response = (
+            "[> Framing]\nFraming.\n\n"
+            "[+ Consultant Options]\n"
+            "    1. Audit the data.\n"
+            "       Consultant read: Establish data readiness.\n"
+            "       Tradeoff: Defers causal review.\n"
+            "    2. Review the causal design.\n"
+            "       Consultant read: Establish claim boundaries.\n"
+            "       Tradeoff: Defers data-specific checks.\n\n"
+            "[! Boundary]\nBoundary.\n\n"
+            "[? Next Steps]\nChoose option 1 or 2."
+        )
+        self.assertEqual(RUNNER.check_headings(response)["errors"], [])
 
     def state_payload(self, revision):
         return {

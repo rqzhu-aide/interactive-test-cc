@@ -464,7 +464,13 @@ def check_headings(text):
         allowed_prefix = (
             not prefix
             or (len(prefix) == 1 and (prefix[0].startswith("[OK Confirmed]") or prefix[0] == welcome))
-            or (len(prefix) == 2 and prefix[0].startswith("[OK Confirmed]") and prefix[1] == welcome)
+            or (
+                len(prefix) == 2
+                and (
+                    (prefix[0].startswith("[OK Confirmed]") and prefix[1] == welcome)
+                    or (prefix[0] == welcome and prefix[1].startswith("[OK Confirmed]"))
+                )
+            )
         )
         if not allowed_prefix:
             errors.append("prose appears before the heading shell")
