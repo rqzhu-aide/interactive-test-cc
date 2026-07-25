@@ -5,7 +5,7 @@ description: Run reproducible multi-turn regression tests for the causal-consult
 
 # Interactive causal-consultant tests
 
-Version: `5.2.2`
+Version: `5.2.3`
 
 Choose one explicit test and load its reference:
 
@@ -34,7 +34,7 @@ python3 <skill-root>/scripts/run_all_turns.py \
   --statectl <Claude-visible-causal-consultant-root>/scripts/statectl.cjs
 ```
 
-The runner owns prompt delivery, exact session resumption, response-shell checks, strict state and artifact-aware revision-budget validation, scope-identity transitions, immutable artifact snapshots, HTML-reference checks, per-turn snapshots, and suite, input, installed-target, and runtime provenance. It stops before the next prompt whenever transport, session identity, installed-target identity, response JSON, state, or scope identity is uncertain. A shell or artifact mismatch is recorded and may continue only from controller-validated idle state.
+The runner owns prompt delivery, exact session resumption, response-shell checks, strict state and artifact-aware revision-budget validation, scope-identity transitions, immutable artifact snapshots, HTML-reference checks, per-turn snapshots, and suite, input, installed-target, and runtime provenance. It binds each delivered response and numbered menu to the controller's persisted receipt and pending decision. It stops before the next prompt whenever transport, session identity, installed-target identity, response JSON, state, or scope identity is uncertain. A shell or artifact mismatch is recorded and may continue only from controller-validated idle state.
 
 Registered live runs validate completed turn boundaries. Interrupted-operation recovery remains part of the causal-consultant controller tests and is not inferred from these results.
 

@@ -44,7 +44,7 @@ class RunnerTests(unittest.TestCase):
 
     def summary_target(self):
         return {
-            "test_suite_version": "5.2.2",
+            "test_suite_version": "5.2.3",
             "test_suite_runtime_sha256": "suite123",
             "test_case_sha256": "case123",
             "causal_consultant_version": "5.1.4",
@@ -70,7 +70,8 @@ class RunnerTests(unittest.TestCase):
                     preamble
                     + "[> Framing]\nFraming.\n\n"
                     "[! Boundary]\nBoundary.\n\n"
-                    "[? Next Steps]\nNext step."
+                    "[? Next Steps]\nNext step.",
+                    2,
                 )
                 self.assertIn("prose appears before the heading shell", result["errors"])
 
@@ -80,9 +81,7 @@ class RunnerTests(unittest.TestCase):
             "[! Boundary]\nBoundary.\n\n"
             "[? Next Steps]\nNext step."
         )
-        openings = [
-            "",
-            "[OK Confirmed] Work completed.\n\n",
+        first_turn_openings = [
             "[Causal-Consultant Loaded] This is a new project. Causal analysis team ready.\n\n",
             (
                 "[OK Confirmed] Previous state archived.\n\n"
@@ -93,9 +92,29 @@ class RunnerTests(unittest.TestCase):
                 "[OK Confirmed] Project initialized.\n\n"
             ),
         ]
-        for opening in openings:
+        for opening in first_turn_openings:
             with self.subTest(opening=opening):
-                self.assertEqual(RUNNER.check_headings(opening + shell)["errors"], [])
+                self.assertEqual(RUNNER.check_headings(opening + shell, 1)["errors"], [])
+        for opening in ("", "[OK Confirmed] Work completed.\n\n"):
+            with self.subTest(opening=opening):
+                self.assertEqual(RUNNER.check_headings(opening + shell, 2)["errors"], [])
+
+    def test_heading_shell_requires_welcome_only_on_first_turn(self):
+        shell = (
+            "[> Framing]\nFraming.\n\n"
+            "[! Boundary]\nBoundary.\n\n"
+            "[? Next Steps]\nNext step."
+        )
+        missing = RUNNER.check_headings(shell, 1)
+        self.assertIn(
+            "fresh-project welcome appears 0 times; expected 1 on turn 1",
+            missing["errors"],
+        )
+        repeated = RUNNER.check_headings(f"{RUNNER.WELCOME_LINE}\n\n{shell}", 2)
+        self.assertIn(
+            "fresh-project welcome appears 1 times; expected 0 on turn 2",
+            repeated["errors"],
+        )
 
     def test_heading_shell_accepts_structured_consultant_options(self):
         response = (
@@ -110,7 +129,113 @@ class RunnerTests(unittest.TestCase):
             "[! Boundary]\nBoundary.\n\n"
             "[? Next Steps]\nChoose option 1 or 2."
         )
-        self.assertEqual(RUNNER.check_headings(response)["errors"], [])
+        self.assertEqual(RUNNER.check_headings(response, 2)["errors"], [])
+
+    def test_response_state_accepts_exact_receipt_and_matching_menu(self):
+        response = (
+            "[> Framing]\nFraming.\n\n"
+            "[+ Consultant Options]\n"
+            "    1. Audit the data.\n"
+            "       Consultant read: Establish data readiness.\n"
+            "       Tradeoff: Defers causal review.\n"
+            "    2. Review the causal design.\n"
+            "       Consultant read: Establish claim boundaries.\n"
+            "       Tradeoff: Defers data-specific checks.\n\n"
+            "[! Boundary]\nBoundary.\n\n"
+            "[? Next Steps]\nChoose option 1 or 2."
+        )
+        validator = {
+            "response_receipt": {"response_markdown": response},
+            "pending_decision": {
+                "options": [{"number": 1}, {"number": 2}],
+            },
+        }
+        self.assertEqual(RUNNER.check_response_state(response, validator), [])
+
+    def test_response_state_accepts_exact_receipt_without_menu(self):
+        response = (
+            "[> Framing]\nFraming.\n\n"
+            "[! Boundary]\nBoundary.\n\n"
+            "[? Next Steps]\nContinue."
+        )
+        validator = {
+            "response_receipt": {"response_markdown": response},
+            "pending_decision": None,
+        }
+        self.assertEqual(RUNNER.check_response_state(response, validator), [])
+
+    def test_response_state_rejects_missing_or_mismatched_receipt(self):
+        response = "Rendered response"
+        missing = RUNNER.check_response_state(
+            response,
+            {"response_receipt": None, "pending_decision": None},
+        )
+        self.assertIn("response_receipt is missing", missing)
+        mismatched = RUNNER.check_response_state(
+            response,
+            {
+                "response_receipt": {"response_markdown": "Different response"},
+                "pending_decision": None,
+            },
+        )
+        self.assertIn(
+            "delivered response does not match response_receipt.response_markdown",
+            mismatched,
+        )
+
+    def test_response_state_rejects_menu_and_pending_presence_mismatch(self):
+        menu = (
+            "[> Framing]\nFrame.\n"
+            "[+ Consultant Options]\n"
+            "    1. First.\n"
+            "    2. Second.\n"
+            "[! Boundary]\nBoundary.\n"
+            "[? Next Steps]\nChoose."
+        )
+        without_menu = (
+            "[> Framing]\nFrame.\n"
+            "[! Boundary]\nBoundary.\n"
+            "[? Next Steps]\nContinue."
+        )
+        for response, pending in (
+            (menu, None),
+            (without_menu, {"options": [{"number": 1}, {"number": 2}]}),
+        ):
+            with self.subTest(response=response):
+                errors = RUNNER.check_response_state(
+                    response,
+                    {
+                        "response_receipt": {"response_markdown": response},
+                        "pending_decision": pending,
+                    },
+                )
+                self.assertIn(
+                    "Consultant Options and pending_decision presence do not match",
+                    errors,
+                )
+
+    def test_response_state_rejects_visible_option_number_mismatch(self):
+        response = (
+            "[> Framing]\nFrame.\n"
+            "[+ Consultant Options]\n"
+            "    1. First.\n"
+            "    3. Third.\n"
+            "[! Boundary]\nBoundary.\n"
+            "[? Next Steps]\nChoose."
+        )
+        errors = RUNNER.check_response_state(
+            response,
+            {
+                "response_receipt": {"response_markdown": response},
+                "pending_decision": {
+                    "options": [{"number": 1}, {"number": 2}],
+                },
+            },
+        )
+        self.assertIn(
+            "Consultant Options numbers do not match pending_decision.options",
+            errors,
+        )
 
     def state_payload(self, revision):
         return {
@@ -182,16 +307,42 @@ class RunnerTests(unittest.TestCase):
             errors,
         )
 
+    def test_all_suites_require_response_state_capabilities(self):
+        required = {
+            "response_rendering": 1,
+            "pending_decision": 1,
+            "response_receipt": 1,
+            "startup_notice": 1,
+        }
+        for capability in required:
+            capabilities = dict(required)
+            del capabilities[capability]
+            with self.subTest(capability=capability):
+                with self.assertRaisesRegex(RUNNER.RunError, f"{capability} 1"):
+                    RUNNER.require_controller_capabilities(
+                        "smoke",
+                        {"capabilities": capabilities},
+                    )
+        RUNNER.require_controller_capabilities("smoke", {"capabilities": required})
+
     def test_scope_oracle_suites_require_scope_snapshot_capability(self):
+        base = {
+            "response_rendering": 1,
+            "pending_decision": 1,
+            "response_receipt": 1,
+            "startup_notice": 1,
+        }
         for test_id in ("standard", "mechanical-edge", "causal-edge"):
             with self.subTest(test_id=test_id):
                 with self.assertRaisesRegex(RUNNER.RunError, "scope_snapshot 1"):
-                    RUNNER.require_controller_capabilities(test_id, {"capabilities": {}})
+                    RUNNER.require_controller_capabilities(
+                        test_id,
+                        {"capabilities": base},
+                    )
                 RUNNER.require_controller_capabilities(
                     test_id,
-                    {"capabilities": {"scope_snapshot": 1}},
+                    {"capabilities": {**base, "scope_snapshot": 1}},
                 )
-        RUNNER.require_controller_capabilities("smoke", {"capabilities": {}})
 
     def test_registry_rejects_unknown_artifact_expectation(self):
         registry = json.loads(RUNNER.CASES_PATH.read_text(encoding="utf-8"))

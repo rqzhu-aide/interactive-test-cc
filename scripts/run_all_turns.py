@@ -58,6 +58,8 @@ ARTIFACT_RECORD_REQUIRED = {
 }
 REQUIRED_HEADINGS = ("[> Framing]", "[! Boundary]", "[? Next Steps]")
 OPTIONAL_HEADING = "[+ Consultant Options]"
+WELCOME_LINE = "[Causal-Consultant Loaded] This is a new project. Causal analysis team ready."
+OPTION_NUMBER_PATTERN = re.compile(r"^\s*(\d+)\.\s+\S")
 VERSION_PATTERN = re.compile(r"^Version: `([^`]+)`$", re.MULTILINE)
 WINDOWS_ABSOLUTE_REFERENCE = re.compile(r"^[A-Za-z]:[\\/]")
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
@@ -376,11 +378,18 @@ def validate_data(path, requirement):
 
 
 def require_controller_capabilities(test_id, template_result):
-    if test_id == "smoke":
-        return
     capabilities = template_result.get("capabilities")
-    if not isinstance(capabilities, dict) or capabilities.get("scope_snapshot") != 1:
-        raise RunError(f"{test_id} requires controller capability scope_snapshot 1")
+    required = [
+        "response_rendering",
+        "pending_decision",
+        "response_receipt",
+        "startup_notice",
+    ]
+    if test_id != "smoke":
+        required.append("scope_snapshot")
+    for capability in required:
+        if not isinstance(capabilities, dict) or capabilities.get(capability) != 1:
+            raise RunError(f"{test_id} requires controller capability {capability} 1")
 
 
 def preflight(test_id, case, workdir, results_dir, statectl, node_bin):
@@ -447,7 +456,7 @@ def preflight(test_id, case, workdir, results_dir, statectl, node_bin):
     }
 
 
-def check_headings(text):
+def check_headings(text, turn_number):
     lines = [line.strip() for line in text.splitlines()]
     errors = []
     positions = []
@@ -460,20 +469,29 @@ def check_headings(text):
     framing_hits = [index for index, line in enumerate(lines) if line == REQUIRED_HEADINGS[0]]
     if len(framing_hits) == 1:
         prefix = [line for line in lines[: framing_hits[0]] if line]
-        welcome = "[Causal-Consultant Loaded] This is a new project. Causal analysis team ready."
         allowed_prefix = (
             not prefix
-            or (len(prefix) == 1 and (prefix[0].startswith("[OK Confirmed]") or prefix[0] == welcome))
+            or (
+                len(prefix) == 1
+                and (prefix[0].startswith("[OK Confirmed]") or prefix[0] == WELCOME_LINE)
+            )
             or (
                 len(prefix) == 2
                 and (
-                    (prefix[0].startswith("[OK Confirmed]") and prefix[1] == welcome)
-                    or (prefix[0] == welcome and prefix[1].startswith("[OK Confirmed]"))
+                    (prefix[0].startswith("[OK Confirmed]") and prefix[1] == WELCOME_LINE)
+                    or (prefix[0] == WELCOME_LINE and prefix[1].startswith("[OK Confirmed]"))
                 )
             )
         )
         if not allowed_prefix:
             errors.append("prose appears before the heading shell")
+    welcome_count = sum(line == WELCOME_LINE for line in lines)
+    expected_welcome_count = 1 if turn_number == 1 else 0
+    if welcome_count != expected_welcome_count:
+        errors.append(
+            f"fresh-project welcome appears {welcome_count} times; "
+            f"expected {expected_welcome_count} on turn {turn_number}"
+        )
     option_hits = [index for index, line in enumerate(lines) if line == OPTIONAL_HEADING]
     if len(option_hits) > 1:
         errors.append(f"{OPTIONAL_HEADING} appears {len(option_hits)} times")
@@ -483,6 +501,54 @@ def check_headings(text):
         if not positions[0] < option_hits[0] < positions[1]:
             errors.append(f"{OPTIONAL_HEADING} is outside the Framing-to-Boundary position")
     return {"ok": not errors, "errors": errors}
+
+
+def check_response_state(text, validator):
+    errors = []
+    receipt = validator.get("response_receipt")
+    if not isinstance(receipt, dict):
+        errors.append("response_receipt is missing")
+    elif receipt.get("response_markdown") != text:
+        errors.append("delivered response does not match response_receipt.response_markdown")
+
+    lines = text.splitlines()
+    option_positions = [
+        index for index, line in enumerate(lines) if line.strip() == OPTIONAL_HEADING
+    ]
+    has_visible_options = len(option_positions) == 1
+    pending = validator.get("pending_decision")
+    has_pending_decision = pending is not None
+    if has_visible_options != has_pending_decision:
+        errors.append("Consultant Options and pending_decision presence do not match")
+
+    if has_visible_options and isinstance(pending, dict):
+        options = pending.get("options")
+        if not isinstance(options, list):
+            errors.append("pending_decision.options is missing or invalid")
+        else:
+            start = option_positions[0] + 1
+            boundary = next(
+                (
+                    index
+                    for index in range(start, len(lines))
+                    if lines[index].strip() == REQUIRED_HEADINGS[1]
+                ),
+                len(lines),
+            )
+            visible_numbers = []
+            for line in lines[start:boundary]:
+                match = OPTION_NUMBER_PATTERN.match(line)
+                if match:
+                    visible_numbers.append(int(match.group(1)))
+            stored_numbers = [
+                option.get("number") if isinstance(option, dict) else None
+                for option in options
+            ]
+            if visible_numbers != stored_numbers:
+                errors.append(
+                    "Consultant Options numbers do not match pending_decision.options"
+                )
+    return errors
 
 
 def validate_state(
@@ -1916,7 +1982,7 @@ def run_test(args, case):
             }
         )
 
-        shell = check_headings(response_text)
+        shell = check_headings(response_text, number)
         artifacts = inspect_artifacts(workdir, turn["artifacts"], previous_artifacts)
         try:
             validator, state_errors = validate_state(
@@ -1942,6 +2008,7 @@ def run_test(args, case):
             )
             write_json(results_dir / f"artifacts-turn-{number:02d}.json", artifacts)
             break
+        state_errors.extend(check_response_state(response_text, validator))
         scope_errors = check_new_manifest_scope_bindings(
             validator.get("scope_snapshot"),
             previous_scope_snapshot,
