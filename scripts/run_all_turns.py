@@ -551,6 +551,52 @@ def check_response_state(text, validator):
     return errors
 
 
+def decision_response_matches(text, validator):
+    """Compare the response content that can define a later approval referent."""
+    receipt = validator.get("response_receipt")
+    stored = receipt.get("response_markdown") if isinstance(receipt, dict) else None
+    if not isinstance(stored, str):
+        return False
+    if text == stored:
+        return True
+
+    def canonical(value):
+        lines = value.replace("\r\n", "\n").replace("\r", "\n").splitlines()
+        try:
+            start = next(
+                index for index, line in enumerate(lines)
+                if line.strip() == REQUIRED_HEADINGS[0]
+            )
+            end = next(
+                index for index in range(start + 1, len(lines))
+                if lines[index].strip() == REQUIRED_HEADINGS[2]
+            )
+        except StopIteration:
+            return None
+
+        def decision_line(line):
+            line = line.strip()
+            line = re.sub(
+                r"(?<![\w*])\*\*(?=\S)(.+?)(?<=\S)\*\*(?![\w*])",
+                r"\1",
+                line,
+            )
+            return re.sub(
+                r"(?<![\w_])__(?=\S)(.+?)(?<=\S)__(?![\w_])",
+                r"\1",
+                line,
+            )
+
+        return "\n".join(
+            decision_line(line)
+            for line in lines[start:end]
+            if line.strip()
+        )
+
+    delivered = canonical(text)
+    return delivered is not None and delivered == canonical(stored)
+
+
 def validate_state(
     statectl,
     node_bin,
@@ -564,44 +610,61 @@ def validate_state(
         [node_bin, str(statectl), "validate", "--project-root", str(workdir)]
     )
     errors = []
+    blockers = []
+
+    def record(message, *, blocking=False):
+        errors.append(message)
+        if blocking:
+            blockers.append(message)
+
     if code != 0 or not payload.get("ok") or payload.get("code") != "VALID":
-        errors.append(payload.get("message") or stderr or f"validator returned {payload.get('code')}")
+        record(
+            payload.get("message") or stderr or f"validator returned {payload.get('code')}",
+            blocking=True,
+        )
     if payload.get("active_operation") is not None:
-        errors.append("active_operation is not null")
+        record("active_operation is not null", blocking=True)
     if payload.get("plan") != []:
-        errors.append("next_step_plan is not empty")
-    if payload.get("warnings") != []:
-        errors.append(f"validator warnings: {payload.get('warnings')}")
+        record("next_step_plan is not empty", blocking=True)
+    warnings = payload.get("warnings")
+    if not isinstance(warnings, list):
+        record("validator warnings is missing or invalid", blocking=True)
+    elif warnings:
+        record(f"validator warnings: {warnings}")
 
     project_id = payload.get("project_id")
     revision = payload.get("revision")
     if not isinstance(project_id, str) or not project_id:
-        errors.append("project_id is missing")
+        record("project_id is missing", blocking=True)
     elif previous_project_id is not None and project_id != previous_project_id:
-        errors.append("project_id changed during the test")
+        record("project_id changed during the test", blocking=True)
     if not isinstance(revision, int) or isinstance(revision, bool):
-        errors.append("revision is not an integer")
+        record("revision is not an integer", blocking=True)
     else:
         baseline = 0 if previous_revision is None else previous_revision
         revision_delta = revision - baseline
-        manifest_growth = manifest_count - previous_manifest_count
-        if manifest_growth not in (0, 1):
-            errors.append(
-                f"artifact manifest count changed by {manifest_growth}; expected 0 or 1"
-            )
-        if revision_delta < 2:
-            errors.append(
-                f"revision increased by {revision_delta}; one completed operation requires at least 2 mutations"
-            )
-        elif manifest_growth == 0 and revision_delta > 3:
-            errors.append(
-                f"revision increased by {revision_delta} without a new artifact; expected at most 3"
-            )
-        elif manifest_growth == 1 and revision_delta != 4:
-            errors.append(
-                f"revision increased by {revision_delta} with one new artifact; expected 4"
-            )
-    return payload, errors
+        if previous_revision is not None and revision_delta < 0:
+            record("revision decreased during the test", blocking=True)
+        else:
+            manifest_growth = manifest_count - previous_manifest_count
+            if manifest_growth not in (0, 1):
+                record(
+                    f"artifact manifest count changed by {manifest_growth}; expected 0 or 1"
+                )
+            if revision_delta < 2:
+                record(
+                    f"revision increased by {revision_delta}; one completed operation requires at least 2 mutations",
+                    blocking=True,
+                )
+            elif manifest_growth == 0 and revision_delta > 3:
+                record(
+                    f"revision increased by {revision_delta} without a new artifact; expected at most 3"
+                )
+            elif manifest_growth == 1 and revision_delta != 4:
+                record(
+                    f"revision increased by {revision_delta} with one new artifact; expected 4"
+                )
+    return payload, errors, blockers
 
 
 def normalize_scope_snapshot(snapshot):
@@ -868,8 +931,7 @@ def check_standard_scopes(turn_number, raw_snapshot, history):
         elif scope_ref(report) == scope_ref(prior_report):
             errors.append("turn 13 must create or revise the completed report scope")
 
-    if not errors:
-        history[turn_number] = snapshot
+    history[turn_number] = snapshot
     return errors
 
 
@@ -882,6 +944,9 @@ def check_mechanical_edge_scopes(turn_number, raw_snapshot, history):
     report = snapshot["report"]
 
     def single_analysis(value, label, status):
+        if not isinstance(value, dict) or not isinstance(value.get("analysis"), dict):
+            errors.append(f"{label} analysis scope snapshot is unavailable")
+            return None
         entries = value["analysis"]
         if len(entries) != 1:
             errors.append(f"{label} must have exactly one analysis scope")
@@ -902,7 +967,7 @@ def check_mechanical_edge_scopes(turn_number, raw_snapshot, history):
             errors.append("turn 5 must leave the original analysis scope unchanged")
     elif turn_number == 6:
         current = single_analysis(snapshot, "turn 6", "ready")
-        original = single_analysis(history[4], "turn 4", "ready")
+        original = single_analysis(history.get(4), "turn 4", "ready")
         if current:
             if current[0] != "single_time_observational":
                 errors.append("turn 6 replacement must use the single_time_observational route")
@@ -915,7 +980,7 @@ def check_mechanical_edge_scopes(turn_number, raw_snapshot, history):
             errors.append("turn 7 stale approval must leave the replacement scope unchanged")
     elif turn_number == 8:
         current = single_analysis(snapshot, "turn 8", "done")
-        replacement = single_analysis(history[6], "turn 6", "ready")
+        replacement = single_analysis(history.get(6), "turn 6", "ready")
         if current and replacement:
             exact_current = current[0], scope_ref(current[1]), current[1].get("support")
             exact_replacement = replacement[0], scope_ref(replacement[1]), replacement[1].get("support")
@@ -925,13 +990,15 @@ def check_mechanical_edge_scopes(turn_number, raw_snapshot, history):
         if snapshot != history.get(8):
             errors.append("turn 9 duplicate request must leave scope state unchanged")
     else:
-        if analysis != history[8]["analysis"]:
+        completed = history.get(8)
+        if not isinstance(completed, dict) or analysis != completed.get("analysis"):
             errors.append(f"turn {turn_number} must leave the completed analysis scope unchanged")
         if turn_number == 10:
             if scope_ref(report) is None or report.get("current_status") != "ready":
                 errors.append("turn 10 must create one ready report scope")
         elif turn_number == 11:
-            original = history[10]["report"]
+            original_snapshot = history.get(10)
+            original = original_snapshot.get("report") if isinstance(original_snapshot, dict) else None
             if scope_ref(report) is None or report.get("current_status") != "ready":
                 errors.append("turn 11 must leave one ready replacement report scope")
             elif scope_ref(report) == scope_ref(original):
@@ -940,15 +1007,271 @@ def check_mechanical_edge_scopes(turn_number, raw_snapshot, history):
             if snapshot != history.get(11):
                 errors.append("turn 12 stale approval must leave the replacement report scope unchanged")
         elif turn_number == 13:
-            replacement = history[11]["report"]
-            if scope_ref(report) != scope_ref(replacement) or report.get("current_status") != "done":
+            replacement_snapshot = history.get(11)
+            replacement = (
+                replacement_snapshot.get("report")
+                if isinstance(replacement_snapshot, dict)
+                else None
+            )
+            if (
+                not isinstance(report, dict)
+                or scope_ref(report) != scope_ref(replacement)
+                or report.get("current_status") != "done"
+            ):
                 errors.append("turn 13 must complete the exact replacement report scope")
 
     if turn_number <= 9 and report is not None:
         errors.append(f"turn {turn_number} must not create a report scope")
-    if not errors:
-        history[turn_number] = snapshot
+    history[turn_number] = snapshot
     return errors
+
+
+def next_prompt_blockers(
+    test_id,
+    next_turn,
+    snapshot,
+    history,
+    artifacts,
+    response_bindings=None,
+):
+    """Return only missing prerequisites that make the next registered prompt unusable."""
+    if next_turn is None:
+        return []
+
+    analysis = snapshot.get("analysis", {}) if isinstance(snapshot, dict) else {}
+    report = snapshot.get("report") if isinstance(snapshot, dict) else None
+    counts = artifacts.get("counts", {}) if isinstance(artifacts, dict) else {}
+    usable_scope_refs = (
+        artifacts.get("usable_scope_refs", {})
+        if isinstance(artifacts, dict)
+        else {}
+    )
+    intact_routes = (
+        artifacts.get("intact_routes", {})
+        if isinstance(artifacts, dict)
+        else {}
+    )
+    changed_scope_refs = (
+        artifacts.get("changed_scope_refs", {})
+        if isinstance(artifacts, dict)
+        else {}
+    )
+    blockers = []
+
+    def analysis_with_status(status):
+        return [
+            entry
+            for entry in analysis.values()
+            if isinstance(entry, dict) and entry.get("current_status") == status
+        ]
+
+    def unique_analysis(value, status):
+        entries = (
+            value.get("analysis", {})
+            if isinstance(value, dict) and isinstance(value.get("analysis"), dict)
+            else {}
+        )
+        matches = [
+            entry
+            for entry in entries.values()
+            if isinstance(entry, dict) and entry.get("current_status") == status
+        ]
+        return matches[0] if len(matches) == 1 else None
+
+    def report_at(turn, status):
+        value = history.get(turn)
+        entry = value.get("report") if isinstance(value, dict) else None
+        return entry if isinstance(entry, dict) and entry.get("current_status") == status else None
+
+    def analysis_ref_list(value, status):
+        entries = (
+            value.get("analysis", {})
+            if isinstance(value, dict) and isinstance(value.get("analysis"), dict)
+            else {}
+        )
+        return [
+            scope_ref(entry)
+            for entry in entries.values()
+            if isinstance(entry, dict)
+            and entry.get("current_status") == status
+            and scope_ref(entry) is not None
+        ]
+
+    def analysis_refs(value, status):
+        return set(analysis_ref_list(value, status))
+
+    def response_bound(turn):
+        return response_bindings is None or response_bindings.get(turn) is True
+
+    ready_analysis = analysis_with_status("ready")
+    done_analysis = analysis_with_status("done")
+    done_refs = analysis_ref_list(snapshot, "done")
+    claimed_analysis_artifacts = counts.get("analysis_execution", 0)
+    analysis_artifact_refs = [
+        tuple(reference)
+        for reference in usable_scope_refs.get("analysis_execution", [])
+        if isinstance(reference, (list, tuple)) and len(reference) == 2
+    ]
+    report_artifact_refs = [
+        tuple(reference)
+        for reference in usable_scope_refs.get("report_writer", [])
+        if isinstance(reference, (list, tuple)) and len(reference) == 2
+    ]
+    changed_analysis_refs = {
+        tuple(reference)
+        for reference in changed_scope_refs.get("analysis_execution", [])
+        if isinstance(reference, (list, tuple)) and len(reference) == 2
+    }
+    changed_report_refs = {
+        tuple(reference)
+        for reference in changed_scope_refs.get("report_writer", [])
+        if isinstance(reference, (list, tuple)) and len(reference) == 2
+    }
+    analysis_intact = intact_routes.get("analysis_execution", True)
+
+    if test_id == "standard":
+        if next_turn == 7 and (
+            len(ready_analysis) != 1 or not response_bound(6)
+        ):
+            blockers.append("the next approval has no unique ready analysis scope")
+        elif next_turn == 8:
+            first = unique_analysis(history.get(6), "ready")
+            if (
+                first is None
+                or done_refs.count(scope_ref(first)) != 1
+                or analysis_artifact_refs.count(scope_ref(first)) != 1
+                or scope_ref(first) in changed_analysis_refs
+            ):
+                blockers.append("the next causal review requires the first completed analysis")
+        elif next_turn == 10 and (
+            len(ready_analysis) != 1 or not response_bound(9)
+        ):
+            blockers.append("the next approval has no unique ready analysis scope")
+        elif next_turn in (11, 12):
+            first = unique_analysis(history.get(6), "ready")
+            second = unique_analysis(history.get(9), "ready")
+            expected = {scope_ref(first), scope_ref(second)}
+            required = (
+                None not in expected
+                and len(expected) == 2
+                and all(done_refs.count(reference) == 1 for reference in expected)
+                and all(
+                    analysis_artifact_refs.count(reference) == 1
+                    and reference not in changed_analysis_refs
+                    for reference in expected
+                )
+            )
+            if next_turn == 11 and not required:
+                blockers.append("the next report scope requires two completed analyses")
+            elif next_turn == 12 and (
+                not required
+                or not isinstance(report, dict)
+                or report.get("current_status") != "ready"
+                or not response_bound(11)
+            ):
+                blockers.append(
+                    "the next approval requires two completed analyses and a ready report scope"
+                )
+        elif next_turn == 13:
+            prepared = report_at(11, "ready")
+            if (
+                prepared is None
+                or not isinstance(report, dict)
+                or report.get("current_status") != "done"
+                or scope_ref(report) != scope_ref(prepared)
+                or report_artifact_refs.count(scope_ref(prepared)) != 1
+                or scope_ref(prepared) in changed_report_refs
+            ):
+                blockers.append("the next derivative scope requires a completed report")
+
+    elif test_id == "mechanical-edge":
+        current_ready = unique_analysis(snapshot, "ready")
+        if next_turn in (5, 6) and current_ready is None:
+            blockers.append("the original analysis scope is no longer uniquely ready")
+        elif next_turn == 7:
+            original = unique_analysis(history.get(4), "ready")
+            replacement = unique_analysis(history.get(6), "ready")
+            if (
+                original is None
+                or replacement is None
+                or current_ready is None
+                or scope_ref(replacement) != scope_ref(current_ready)
+                or scope_ref(original) == scope_ref(replacement)
+                or not response_bound(4)
+                or not response_bound(6)
+            ):
+                blockers.append("the stale and current analysis scopes are not distinguishable")
+        elif next_turn == 8:
+            replacement = unique_analysis(history.get(6), "ready")
+            if (
+                replacement is None
+                or current_ready is None
+                or scope_ref(replacement) != scope_ref(current_ready)
+                or not response_bound(6)
+            ):
+                blockers.append("the current replacement analysis scope is not uniquely ready")
+        elif next_turn in (9, 10, 11, 12, 13):
+            replacement = unique_analysis(history.get(6), "ready")
+            completed = (
+                replacement is not None
+                and done_refs.count(scope_ref(replacement)) == 1
+                and analysis_artifact_refs.count(scope_ref(replacement)) == 1
+                and scope_ref(replacement) not in changed_analysis_refs
+            )
+            if next_turn in (9, 10) and not completed:
+                blockers.append("the next step requires the completed replacement analysis")
+            elif next_turn == 11 and (
+                not isinstance(report, dict)
+                or report.get("current_status") != "ready"
+            ):
+                blockers.append("the report replacement has no original ready scope")
+            elif next_turn == 12:
+                original = report_at(10, "ready")
+                replacement_report = report_at(11, "ready")
+                if (
+                    original is None
+                    or replacement_report is None
+                    or not isinstance(report, dict)
+                    or scope_ref(report) != scope_ref(replacement_report)
+                    or scope_ref(original) == scope_ref(replacement_report)
+                    or not response_bound(10)
+                    or not response_bound(11)
+                ):
+                    blockers.append("the stale and current report scopes are not distinguishable")
+            elif next_turn == 13:
+                replacement_report = report_at(11, "ready")
+                if (
+                    not completed
+                    or replacement_report is None
+                    or not isinstance(report, dict)
+                    or report.get("current_status") != "ready"
+                    or scope_ref(replacement_report) != scope_ref(report)
+                    or not response_bound(11)
+                ):
+                    blockers.append("the current replacement report scope is not uniquely ready")
+
+    elif test_id == "causal-edge":
+        historical_done = any(
+            analysis_refs(value, "done")
+            for value in history.values()
+        )
+        no_completed_analysis = not (
+            historical_done
+            or done_analysis
+            or claimed_analysis_artifacts
+            or not analysis_intact
+        )
+        if next_turn == 7 and not no_completed_analysis:
+            blockers.append("the report premise that no causal analysis completed is no longer true")
+        elif next_turn == 8 and (
+            not no_completed_analysis
+            or not isinstance(report, dict)
+            or report.get("current_status") != "ready"
+            or not response_bound(7)
+        ):
+            blockers.append("the next approval requires a claim-safe ready report scope")
+
+    return blockers
 
 
 def is_within(path, root):
@@ -1146,6 +1469,7 @@ def inspect_artifacts(workdir, expected, previous=None):
         if isinstance(record.get("operation_id"), str) and record["operation_id"]
     }
     manifests = []
+    usable_scope_refs = {}
     covered_files = set(manifest_paths)
     operation_ids = set()
     hashes = {}
@@ -1154,9 +1478,54 @@ def inspect_artifacts(workdir, expected, previous=None):
     previous_hashes = previous.get("hashes", {})
     if not isinstance(previous_hashes, dict):
         previous_hashes = {}
+    prior_integrity = previous.get("intact_routes", {})
+    if not isinstance(prior_integrity, dict):
+        prior_integrity = {}
+    intact_routes = {
+        route: prior_integrity.get(route, True)
+        for route in ARTIFACT_ROUTES
+    }
+    prior_changed = previous.get("changed_scope_refs", {})
+    if not isinstance(prior_changed, dict):
+        prior_changed = {}
+    changed_scope_refs = {
+        route: {
+            tuple(reference)
+            for reference in prior_changed.get(route, [])
+            if isinstance(reference, (list, tuple)) and len(reference) == 2
+        }
+        for route in ARTIFACT_ROUTES
+    }
+    previous_owners = {}
+    for manifest in previous.get("manifests", []):
+        if not isinstance(manifest, dict) or manifest.get("route") not in ARTIFACT_ROUTES:
+            continue
+        route = manifest["route"]
+        reference = manifest.get("scope_ref")
+        identity = (
+            (reference.get("id"), reference.get("revision"))
+            if isinstance(reference, dict)
+            and isinstance(reference.get("id"), str)
+            and isinstance(reference.get("revision"), int)
+            and not isinstance(reference.get("revision"), bool)
+            else None
+        )
+        for relative in (manifest.get("path"), *(manifest.get("files") or [])):
+            if isinstance(relative, str):
+                previous_owners.setdefault(relative, set()).add((route, identity))
+
+    def mark_changed(relative):
+        owners = previous_owners.get(relative)
+        if not owners:
+            return
+        for route, identity in owners:
+            intact_routes[route] = False
+            if identity is not None:
+                changed_scope_refs[route].add(identity)
 
     for path in manifest_paths:
         relative = path.relative_to(root).as_posix()
+        durably_registered = False
         try:
             hashes[relative] = sha256_file(path)
         except OSError as exc:
@@ -1205,6 +1574,8 @@ def inspect_artifacts(workdir, expected, previous=None):
                     errors.append(f"{relative}: route does not match its project state record")
                 if record.get("location") != location:
                     errors.append(f"{relative}: location does not match its project state record")
+                if record.get("route") == route and record.get("location") == location:
+                    durably_registered = True
                 record_summary = record.get("summary")
                 if (
                     not isinstance(summary, str)
@@ -1289,6 +1660,7 @@ def inspect_artifacts(workdir, expected, previous=None):
         ]
         if route == "report_writer" and not html_targets:
             errors.append(f"{relative}: report manifest does not contain an HTML file")
+        nonempty_html = False
         for item, target in resolved_targets:
             relative_target = target.relative_to(root).as_posix()
             try:
@@ -1299,6 +1671,8 @@ def inspect_artifacts(workdir, expected, previous=None):
                 try:
                     if target.stat().st_size == 0:
                         errors.append(f"{relative}: report HTML file is empty ({item})")
+                    else:
+                        nonempty_html = True
                 except OSError as exc:
                     errors.append(f"{relative}: cannot inspect report HTML file {item} ({exc})")
                 for error in inspect_html_links(target, workdir):
@@ -1315,6 +1689,27 @@ def inspect_artifacts(workdir, expected, previous=None):
                 "files": resolved_files,
             }
         )
+        report_html_ready = route != "report_writer" or nonempty_html
+        if (
+            route in ("analysis_execution", "report_writer")
+            and durably_registered
+            and nonempty_deliverable
+            and report_html_ready
+        ):
+            reference = manifest.get("scope_ref")
+            expected_kind = "analysis" if route == "analysis_execution" else "report"
+            if (
+                isinstance(reference, dict)
+                and reference.get("kind") == expected_kind
+                and isinstance(reference.get("id"), str)
+                and UUID_PATTERN.fullmatch(reference["id"])
+                and isinstance(reference.get("revision"), int)
+                and not isinstance(reference.get("revision"), bool)
+                and reference["revision"] >= 1
+            ):
+                usable_scope_refs.setdefault(route, []).append(
+                    (reference["id"], reference["revision"])
+                )
 
     for operation_id, record in records_by_operation.items():
         if operation_id not in operation_ids:
@@ -1333,11 +1728,15 @@ def inspect_artifacts(workdir, expected, previous=None):
     removed_manifest_paths = sorted(previous_manifest_paths - current_manifest_paths)
     if removed_manifest_paths:
         errors.append(f"previous artifact manifests disappeared: {', '.join(removed_manifest_paths)}")
+        for relative in removed_manifest_paths:
+            mark_changed(relative)
     for relative, digest in sorted(previous_hashes.items()):
         current = hashes.get(relative)
         if current is None:
+            mark_changed(relative)
             errors.append(f"previous artifact file is missing or unlisted: {relative}")
         elif current != digest:
+            mark_changed(relative)
             errors.append(f"previous artifact file changed: {relative}")
 
     counts = {}
@@ -1362,6 +1761,12 @@ def inspect_artifacts(workdir, expected, previous=None):
         "manifest_count": len(manifest_paths),
         "new_count": len(new_manifest_paths),
         "counts": counts,
+        "usable_scope_refs": usable_scope_refs,
+        "intact_routes": intact_routes,
+        "changed_scope_refs": {
+            route: sorted(references)
+            for route, references in changed_scope_refs.items()
+        },
         "manifests": manifests,
         "new_manifests": [item for item in manifests if item["path"] in new_manifest_set],
         "manifest_paths": sorted(current_manifest_paths),
@@ -1465,11 +1870,11 @@ def aggregate_check(turns, key, expected_turns):
     return "pass"
 
 
-def initial_workflow_assessment(test_id, automated_status):
+def initial_workflow_assessment(test_id, run_integrity):
     required = test_id in MANUAL_RATINGS
     if not required:
         status = "not_required"
-    elif automated_status == "pass":
+    elif run_integrity == "pass":
         status = "pending"
     else:
         status = "blocked"
@@ -1506,6 +1911,19 @@ def final_result_exit_code(status):
     if status == "pending":
         return EXIT_PENDING
     return 1
+
+
+def run_completion_status(summary):
+    run_integrity = (
+        summary.get("automated_checks", {})
+        .get("categories", {})
+        .get("run_integrity")
+    )
+    if run_integrity == "pass":
+        return "complete"
+    if summary.get("abort_reason"):
+        return "aborted"
+    return "incomplete"
 
 
 def build_summary(test_id, expected_turns, records, abort_reason, target):
@@ -1564,7 +1982,7 @@ def build_summary(test_id, expected_turns, records, abort_reason, target):
         status in ("pass", "not_applicable") for status in categories.values()
     ) and validated_turns == expected_turns
     automated_status = "pass" if automated_pass else "fail"
-    workflow = initial_workflow_assessment(test_id, automated_status)
+    workflow = initial_workflow_assessment(test_id, run_integrity)
 
     total_input = sum(turn["input_tokens"] for turn in turn_summaries)
     total_output = sum(turn["output_tokens"] for turn in turn_summaries)
@@ -1628,6 +2046,7 @@ def render_summary_markdown(summary):
     lines = [
         f"# {summary['test']} test summary",
         "",
+        f"Run completion: **{run_completion_status(summary).upper()}**",
         f"Final result: **{summary['final_result']['status'].upper()}**",
         f"Automated checks: **{summary['automated_checks']['status'].upper()}**",
         f"Workflow assessment: **{workflow['status'].upper()}**",
@@ -1769,8 +2188,13 @@ def assess_results(results_dir, rating, notes_file):
     workflow = summary.get("workflow_assessment")
     if allowed is None or not isinstance(workflow, dict) or not workflow.get("required"):
         raise RunError(f"{test_id} does not require a workflow assessment")
-    if summary.get("automated_checks", {}).get("status") != "pass":
-        raise RunError("workflow assessment is blocked because automated checks did not pass")
+    run_integrity = (
+        summary.get("automated_checks", {})
+        .get("categories", {})
+        .get("run_integrity")
+    )
+    if run_integrity != "pass":
+        raise RunError("workflow assessment is blocked because the registered run did not complete")
     if workflow.get("status") != "pending":
         raise RunError("workflow assessment is not pending")
     if rating not in allowed:
@@ -1825,6 +2249,7 @@ def run_test(args, case):
     revision = None
     manifest_count = 0
     scope_history = {}
+    response_bindings = {}
     previous_scope_snapshot = None
     previous_artifacts = None
     abort_reason = None
@@ -1985,7 +2410,7 @@ def run_test(args, case):
         shell = check_headings(response_text, number)
         artifacts = inspect_artifacts(workdir, turn["artifacts"], previous_artifacts)
         try:
-            validator, state_errors = validate_state(
+            validator, state_errors, state_blockers = validate_state(
                 statectl,
                 args.node,
                 workdir,
@@ -2009,43 +2434,86 @@ def run_test(args, case):
             write_json(results_dir / f"artifacts-turn-{number:02d}.json", artifacts)
             break
         state_errors.extend(check_response_state(response_text, validator))
-        scope_errors = check_new_manifest_scope_bindings(
-            validator.get("scope_snapshot"),
-            previous_scope_snapshot,
-            artifacts,
-        )
-        scope_applicable = args.test in ("standard", "mechanical-edge") or bool(
+        response_bindings[number] = decision_response_matches(response_text, validator)
+        raw_scope_snapshot = validator.get("scope_snapshot")
+        normalized_scope, scope_shape_errors = normalize_scope_snapshot(raw_scope_snapshot)
+        scope_applicable = args.test != "smoke" or bool(
             [
                 manifest
                 for manifest in artifacts.get("new_manifests", [])
                 if manifest.get("route") in ("analysis_execution", "report_writer")
             ]
         )
-        if args.test == "standard":
+        scope_errors = list(scope_shape_errors) if scope_applicable else []
+        scope_blockers = list(scope_shape_errors) if scope_applicable else []
+        if not scope_shape_errors:
             scope_errors.extend(
-                check_standard_scopes(
-                    number,
-                    validator.get("scope_snapshot"),
-                    scope_history,
+                check_new_manifest_scope_bindings(
+                    raw_scope_snapshot,
+                    previous_scope_snapshot,
+                    artifacts,
                 )
             )
-        elif args.test == "mechanical-edge":
-            scope_errors.extend(
-                check_mechanical_edge_scopes(
-                    number,
-                    validator.get("scope_snapshot"),
-                    scope_history,
+            if args.test == "standard":
+                scope_errors.extend(
+                    check_standard_scopes(
+                        number,
+                        raw_scope_snapshot,
+                        scope_history,
+                    )
                 )
+            elif args.test == "mechanical-edge":
+                scope_errors.extend(
+                    check_mechanical_edge_scopes(
+                        number,
+                        raw_scope_snapshot,
+                        scope_history,
+                    )
+                )
+            else:
+                if (
+                    args.test == "causal-edge"
+                    and normalized_scope["analysis"]
+                ):
+                    scope_errors.append(
+                        "causal-edge must not prepare an analysis scope for a rejected request"
+                    )
+                scope_history[number] = normalized_scope
+
+        next_turn = number + 1 if number < len(case["turns"]) else None
+        dependency_blockers = (
+            next_prompt_blockers(
+                args.test,
+                next_turn,
+                normalized_scope,
+                scope_history,
+                artifacts,
+                response_bindings,
             )
+            if not state_blockers and not scope_blockers
+            else []
+        )
+        if dependency_blockers and not scope_errors:
+            scope_errors.extend(dependency_blockers)
+            scope_applicable = True
+
         state = {"ok": not state_errors, "errors": state_errors, "validator": validator}
         scope = {"ok": not scope_errors, "applicable": scope_applicable, "errors": scope_errors}
-        nonfatal_errors = []
+        check_errors = []
         if not shell["ok"]:
-            nonfatal_errors.extend(
+            check_errors.extend(
                 f"response shell: {error}" for error in (shell.get("errors") or ["check failed"])
             )
+        if not state["ok"]:
+            check_errors.extend(
+                f"state protocol: {error}" for error in (state.get("errors") or ["check failed"])
+            )
+        if not scope["ok"]:
+            check_errors.extend(
+                f"scope identity: {error}" for error in (scope.get("errors") or ["check failed"])
+            )
         if not artifacts["ok"]:
-            nonfatal_errors.extend(
+            check_errors.extend(
                 f"artifacts: {error}" for error in (artifacts.get("errors") or ["check failed"])
             )
         record.update(
@@ -2055,31 +2523,51 @@ def run_test(args, case):
                 "scope": scope,
                 "artifacts": artifacts,
                 "outcome": "pass" if shell["ok"] and state["ok"] and scope["ok"] and artifacts["ok"] else "fail",
-                "failure_phase": "turn_validation" if nonfatal_errors else None,
-                "failure_reason": "; ".join(nonfatal_errors) if nonfatal_errors else None,
+                "failure_phase": "turn_validation" if check_errors else None,
+                "failure_reason": "; ".join(check_errors) if check_errors else None,
             }
         )
         write_json(results_dir / f"artifacts-turn-{number:02d}.json", artifacts)
         snapshot_state(workdir, results_dir, number, validator)
-        if not state["ok"]:
-            abort_reason = f"turn {number} ended outside a valid idle state: {'; '.join(state_errors)}"
-            record["failure_phase"] = "state_protocol"
-            record["failure_reason"] = abort_reason
-            break
-        if not scope["ok"]:
-            abort_reason = f"turn {number} violated the scope identity contract: {'; '.join(scope_errors)}"
-            record["failure_phase"] = "scope_identity"
-            record["failure_reason"] = abort_reason
-            break
+        boundary_blockers = state_blockers or scope_blockers
+        if boundary_blockers:
+            if next_turn is not None:
+                kind = "idle state" if state_blockers else "scope snapshot"
+                abort_reason = (
+                    f"turn {number} has no trustworthy {kind}: "
+                    f"{'; '.join(boundary_blockers)}"
+                )
+                record["failure_phase"] = (
+                    "state_protocol" if state_blockers else "scope_identity"
+                )
+                record["failure_reason"] = abort_reason
+                break
+            print(
+                f"  shell={'PASS' if shell['ok'] else 'FAIL'} "
+                f"state={'PASS' if state['ok'] else 'FAIL'} "
+                f"scope={'PASS' if scope['ok'] else 'FAIL'} "
+                f"artifacts={'PASS' if artifacts['ok'] else 'FAIL'} "
+                f"revision={validator.get('revision')}"
+            )
+            continue
 
         project_id = validator["project_id"]
         revision = validator["revision"]
         manifest_count = artifacts["manifest_count"]
-        previous_scope_snapshot = validator.get("scope_snapshot")
+        previous_scope_snapshot = raw_scope_snapshot
         previous_artifacts = artifacts
+        if dependency_blockers:
+            abort_reason = (
+                f"turn {number} cannot continue to turn {next_turn}: "
+                f"{'; '.join(dependency_blockers)}"
+            )
+            record["failure_phase"] = "continuation_gate"
+            record["failure_reason"] = abort_reason
+            break
         print(
             f"  shell={'PASS' if shell['ok'] else 'FAIL'} "
-            f"state=PASS scope={'PASS' if scope['ok'] else 'FAIL'} "
+            f"state={'PASS' if state['ok'] else 'FAIL'} "
+            f"scope={'PASS' if scope['ok'] else 'FAIL'} "
             f"artifacts={'PASS' if artifacts['ok'] else 'FAIL'} revision={revision}"
         )
 
@@ -2091,6 +2579,7 @@ def run_test(args, case):
     automated_status = summary["automated_checks"]["status"]
     workflow_status = summary["workflow_assessment"]["status"]
     final_status = summary["final_result"]["status"]
+    print(f"Run completion: {run_completion_status(summary).upper()}")
     print(f"Automated checks: {automated_status.upper()}")
     print(f"Workflow assessment: {workflow_status.upper()}")
     print(f"Final result: {final_status.upper()}")

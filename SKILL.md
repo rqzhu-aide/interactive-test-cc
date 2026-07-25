@@ -5,7 +5,7 @@ description: Run reproducible multi-turn regression tests for the causal-consult
 
 # Interactive causal-consultant tests
 
-Version: `5.2.3`
+Version: `5.2.4`
 
 Choose one explicit test and load its reference:
 
@@ -34,7 +34,7 @@ python3 <skill-root>/scripts/run_all_turns.py \
   --statectl <Claude-visible-causal-consultant-root>/scripts/statectl.cjs
 ```
 
-The runner owns prompt delivery, exact session resumption, response-shell checks, strict state and artifact-aware revision-budget validation, scope-identity transitions, immutable artifact snapshots, HTML-reference checks, per-turn snapshots, and suite, input, installed-target, and runtime provenance. It binds each delivered response and numbered menu to the controller's persisted receipt and pending decision. It stops before the next prompt whenever transport, session identity, installed-target identity, response JSON, state, or scope identity is uncertain. A shell or artifact mismatch is recorded and may continue only from controller-validated idle state.
+The runner owns prompt delivery, exact session resumption, response-shell checks, strict state and artifact-aware revision-budget validation, scope-identity transitions, immutable artifact snapshots, HTML-reference checks, per-turn snapshots, and suite, input, installed-target, and runtime provenance. It checks each delivered response and numbered menu against the controller's persisted receipt and pending decision. Every failed check remains recorded. The run continues from a trustworthy idle boundary when the next registered prompt still has its required scope or evidence, and stops only when continuity is uncertain or a required prerequisite is absent.
 
 Registered live runs validate completed turn boundaries. Interrupted-operation recovery remains part of the causal-consultant controller tests and is not inferred from these results.
 
@@ -42,7 +42,7 @@ The shell oracle requires the exact heading lines `[> Framing]`, `[! Boundary]`,
 
 Do not clear global Claude sessions or delete an existing work directory. Start with fresh directories instead.
 
-The initial summaries separate automated checks from workflow assessment. `smoke` needs no qualitative rating. A successful `standard`, `mechanical-edge`, or `causal-edge` run remains `PENDING` until reviewed against the saved `test-reference.md`, conversation, state snapshots, manifests, and outputs. A pending live run exits with code 3 so it cannot be mistaken for a final pass.
+The initial summaries separate automated checks from workflow assessment. `smoke` needs no qualitative rating. Every completed `standard`, `mechanical-edge`, or `causal-edge` run awaits review against the saved `test-reference.md`, conversation, state snapshots, manifests, and outputs. An automated pass remains `PENDING` and exits with code 3 until reviewed; an automated failure remains `FAIL` and exits with code 1.
 
 For `standard`, save a `pass` or `fail` judgment with brief checkpoint-level reasons using its five-checkpoint rubric; any material checkpoint violation makes the run fail. For `mechanical-edge`, save a `pass` or `fail` judgment with brief turn-level reasons. For `causal-edge`, save a `safe`, `weak`, or `fail` judgment with brief turn-level reasons. Use a new, nonempty notes file inside the results directory. Then finalize the summaries:
 
@@ -53,7 +53,7 @@ python3 <skill-root>/scripts/run_all_turns.py \
   --notes-file <results-directory>/<assessment-notes>.md
 ```
 
-Only assess a run whose automated checks passed. Finalization verifies that the saved review evidence has not changed and records the notes digest with the rating. The runner does not judge workflow prose or scientific correctness itself. Report the final result, not the automated result alone.
+Assess any completed registered run. A workflow rating never overrides an automated failure. Finalization verifies that the saved review evidence has not changed and records the notes digest with the rating. The runner does not judge workflow prose or scientific correctness itself. Report the final result, not the automated result alone.
 
 ## Focused transport check
 

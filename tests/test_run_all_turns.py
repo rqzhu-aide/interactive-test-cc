@@ -1,9 +1,11 @@
 import importlib.util
 import hashlib
 import json
+from contextlib import ExitStack
 from copy import deepcopy
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
@@ -44,7 +46,7 @@ class RunnerTests(unittest.TestCase):
 
     def summary_target(self):
         return {
-            "test_suite_version": "5.2.3",
+            "test_suite_version": "5.2.4",
             "test_suite_runtime_sha256": "suite123",
             "test_case_sha256": "case123",
             "causal_consultant_version": "5.1.4",
@@ -237,6 +239,62 @@ class RunnerTests(unittest.TestCase):
             errors,
         )
 
+    def test_decision_response_match_ignores_presentation_only_differences(self):
+        stored = (
+            "[> Framing]\n**Frame.**\n"
+            "[! Boundary]\nBoundary.\n"
+            "[? Next Steps]\nChoose one option."
+        )
+        delivered = (
+            "[OK Confirmed] Scope prepared.\n\n"
+            "[> Framing]\nFrame.\n"
+            "[! Boundary]\nBoundary.\n"
+            "[? Next Steps]\nApprove, revise, or discuss?"
+        )
+        self.assertTrue(
+            RUNNER.decision_response_matches(
+                delivered,
+                {"response_receipt": {"response_markdown": stored}},
+            )
+        )
+
+    def test_decision_response_match_does_not_erase_marker_text(self):
+        stored = (
+            "[> Framing]\nx**2 is the target.\n"
+            "[! Boundary]\nBoundary.\n"
+            "[? Next Steps]\nApprove."
+        )
+        delivered = stored.replace("x**2", "x2")
+        self.assertFalse(
+            RUNNER.decision_response_matches(
+                delivered,
+                {"response_receipt": {"response_markdown": stored}},
+            )
+        )
+
+    def test_decision_response_match_accepts_an_exact_receipt_with_bad_shell(self):
+        response = "Scope A exactly as persisted."
+        self.assertTrue(
+            RUNNER.decision_response_matches(
+                response,
+                {"response_receipt": {"response_markdown": response}},
+            )
+        )
+
+    def test_decision_response_match_rejects_changed_decision_content(self):
+        stored = (
+            "[> Framing]\nTarget the average effect.\n"
+            "[! Boundary]\nDo not claim subgroup effects.\n"
+            "[? Next Steps]\nApprove."
+        )
+        delivered = stored.replace("average effect", "subgroup effect")
+        self.assertFalse(
+            RUNNER.decision_response_matches(
+                delivered,
+                {"response_receipt": {"response_markdown": stored}},
+            )
+        )
+
     def state_payload(self, revision):
         return {
             "ok": True,
@@ -260,7 +318,7 @@ class RunnerTests(unittest.TestCase):
             "run_json",
             return_value=(0, self.state_payload(revision), ""),
         ):
-            _, errors = RUNNER.validate_state(
+            _, errors, blockers = RUNNER.validate_state(
                 Path("statectl.cjs"),
                 "node",
                 Path("."),
@@ -269,43 +327,119 @@ class RunnerTests(unittest.TestCase):
                 previous_manifest_count,
                 manifest_count,
             )
-        return errors
+        return errors, blockers
+
+    def test_response_binding_failure_does_not_invalidate_idle_boundary(self):
+        response = "Delivered response"
+        with patch.object(
+            RUNNER,
+            "run_json",
+            return_value=(0, self.state_payload(3), ""),
+        ):
+            validator, errors, blockers = RUNNER.validate_state(
+                Path("statectl.cjs"),
+                "node",
+                Path("."),
+                None,
+                None,
+                0,
+                0,
+            )
+        errors.extend(
+            RUNNER.check_response_state(
+                response,
+                {
+                    **validator,
+                    "response_receipt": {"response_markdown": "Stored response"},
+                    "pending_decision": None,
+                },
+            )
+        )
+        self.assertIn(
+            "delivered response does not match response_receipt.response_markdown",
+            errors,
+        )
+        self.assertEqual(blockers, [])
+
+    def test_active_operation_blocks_continuation(self):
+        payload = self.state_payload(3)
+        payload["active_operation"] = {"id": "operation-1"}
+        with patch.object(RUNNER, "run_json", return_value=(0, payload, "")):
+            _, errors, blockers = RUNNER.validate_state(
+                Path("statectl.cjs"),
+                "node",
+                Path("."),
+                None,
+                None,
+                0,
+                0,
+            )
+        self.assertIn("active_operation is not null", errors)
+        self.assertEqual(blockers, ["active_operation is not null"])
+
+    def test_validator_warning_shape_blocks_but_known_warnings_do_not(self):
+        invalid = self.state_payload(3)
+        del invalid["warnings"]
+        with patch.object(RUNNER, "run_json", return_value=(0, invalid, "")):
+            _, errors, blockers = RUNNER.validate_state(
+                Path("statectl.cjs"), "node", Path("."), None, None, 0, 0
+            )
+        self.assertIn("validator warnings is missing or invalid", errors)
+        self.assertEqual(blockers, ["validator warnings is missing or invalid"])
+
+        warning = self.state_payload(3)
+        warning["warnings"] = [{"code": "ARTIFACT_UNAVAILABLE"}]
+        with patch.object(RUNNER, "run_json", return_value=(0, warning, "")):
+            _, errors, blockers = RUNNER.validate_state(
+                Path("statectl.cjs"), "node", Path("."), None, None, 0, 0
+            )
+        self.assertEqual(errors, [f"validator warnings: {warning['warnings']}"])
+        self.assertEqual(blockers, [])
 
     def test_revision_budget_rejects_delta_one(self):
-        errors = self.validate_revision(25, 26)
+        errors, blockers = self.validate_revision(25, 26)
         self.assertIn(
             "revision increased by 1; one completed operation requires at least 2 mutations",
             errors,
         )
+        self.assertEqual(blockers, errors)
 
     def test_revision_budget_rejects_delta_four_without_artifact(self):
-        errors = self.validate_revision(25, 29)
+        errors, blockers = self.validate_revision(25, 29)
         self.assertIn(
             "revision increased by 4 without a new artifact; expected at most 3",
             errors,
         )
+        self.assertEqual(blockers, [])
 
     def test_revision_budget_allows_delta_three_without_artifact(self):
-        self.assertEqual(self.validate_revision(25, 28), [])
+        self.assertEqual(self.validate_revision(25, 28), ([], []))
 
     def test_revision_budget_allows_delta_four_with_one_artifact(self):
-        self.assertEqual(self.validate_revision(25, 29, 2, 3), [])
+        self.assertEqual(self.validate_revision(25, 29, 2, 3), ([], []))
 
     def test_revision_budget_rejects_incomplete_artifact_lifecycle(self):
         for revision in (27, 28):
             with self.subTest(revision=revision):
-                errors = self.validate_revision(25, revision, 2, 3)
+                errors, blockers = self.validate_revision(25, revision, 2, 3)
                 self.assertIn(
                     f"revision increased by {revision - 25} with one new artifact; expected 4",
                     errors,
                 )
+                self.assertEqual(blockers, [])
 
     def test_revision_budget_rejects_multiple_new_artifacts(self):
-        errors = self.validate_revision(25, 29, 2, 4)
+        errors, blockers = self.validate_revision(25, 29, 2, 4)
         self.assertIn(
             "artifact manifest count changed by 2; expected 0 or 1",
             errors,
         )
+        self.assertEqual(blockers, [])
+
+    def test_revision_regression_blocks_continuation(self):
+        errors, blockers = self.validate_revision(25, 24)
+        self.assertEqual(errors, ["revision decreased during the test"])
+        self.assertEqual(blockers, errors)
 
     def test_all_suites_require_response_state_capabilities(self):
         required = {
@@ -499,11 +633,13 @@ class RunnerTests(unittest.TestCase):
         ready = deepcopy(self.standard_scope_sequence()[6])
         entry = ready["analysis"].pop("single_time_observational")
         ready["analysis"]["panel_longitudinal"] = entry
-        errors = RUNNER.check_standard_scopes(6, ready, {})
+        history = {}
+        errors = RUNNER.check_standard_scopes(6, ready, history)
         self.assertIn(
             "turn 6 ready scope must use the single_time_observational route",
             errors,
         )
+        self.assertEqual(history[6]["analysis"], ready["analysis"])
 
     def test_standard_scope_oracle_rejects_turn_8_scope_change(self):
         completed = self.analysis_snapshot("analysis-1", 1, "done", "2026-01-01T00:00:07Z")
@@ -706,6 +842,323 @@ class RunnerTests(unittest.TestCase):
             errors,
         )
 
+    def test_scope_oracle_keeps_failed_snapshot_for_later_diagnostics(self):
+        history = {}
+        missing = {"analysis": {}, "report": None}
+        errors = RUNNER.check_mechanical_edge_scopes(4, missing, history)
+        self.assertIn("turn 4 must have exactly one analysis scope", errors)
+        self.assertEqual(history[4], missing)
+        later = RUNNER.check_mechanical_edge_scopes(6, missing, history)
+        self.assertTrue(later)
+        self.assertEqual(history[6], missing)
+
+    def test_standard_continuation_allows_wrong_but_unique_ready_route(self):
+        ready = deepcopy(self.standard_scope_sequence()[6])
+        entry = ready["analysis"].pop("single_time_observational")
+        ready["analysis"]["panel_longitudinal"] = entry
+        blockers = RUNNER.next_prompt_blockers(
+            "standard",
+            7,
+            ready,
+            {6: ready},
+            {"counts": {}},
+        )
+        self.assertEqual(blockers, [])
+
+    def test_standard_continuation_blocks_missing_consumed_evidence(self):
+        empty = {"analysis": {}, "report": None}
+        self.assertTrue(
+            RUNNER.next_prompt_blockers(
+                "standard",
+                7,
+                empty,
+                {6: empty},
+                {"counts": {}},
+            )
+        )
+        sequence = self.standard_scope_sequence()
+        completed = sequence[7]
+        self.assertTrue(
+            RUNNER.next_prompt_blockers(
+                "standard",
+                8,
+                completed,
+                {6: sequence[6], 7: completed},
+                {"counts": {}},
+            )
+        )
+        self.assertEqual(
+            RUNNER.next_prompt_blockers(
+                "standard",
+                8,
+                completed,
+                {6: sequence[6], 7: completed},
+                {
+                    "counts": {"analysis_execution": 1},
+                    "usable_scope_refs": {
+                        "analysis_execution": [["analysis-1", 1]],
+                    },
+                },
+            ),
+            [],
+        )
+
+    def test_continuation_blocks_only_response_content_used_by_next_approval(self):
+        sequence = self.standard_scope_sequence()
+        self.assertEqual(
+            RUNNER.next_prompt_blockers(
+                "standard",
+                6,
+                sequence[5],
+                {},
+                {"counts": {}},
+                {5: False},
+            ),
+            [],
+        )
+        self.assertTrue(
+            RUNNER.next_prompt_blockers(
+                "standard",
+                7,
+                sequence[6],
+                {6: sequence[6]},
+                {"counts": {}},
+                {6: False},
+            )
+        )
+        self.assertEqual(
+            RUNNER.next_prompt_blockers(
+                "standard",
+                7,
+                sequence[6],
+                {6: sequence[6]},
+                {"counts": {}},
+                {6: True},
+            ),
+            [],
+        )
+
+    def test_standard_continuation_requires_the_approved_scope_identity(self):
+        sequence = self.standard_scope_sequence()
+        wrong = self.analysis_snapshot(
+            "analysis-other", 1, "done", "2026-01-01T00:00:07Z"
+        )
+        self.assertTrue(
+            RUNNER.next_prompt_blockers(
+                "standard",
+                8,
+                wrong,
+                {6: sequence[6]},
+                {
+                    "counts": {"analysis_execution": 1},
+                    "usable_scope_refs": {
+                        "analysis_execution": [["analysis-1", 1]],
+                    },
+                },
+            )
+        )
+
+    def test_standard_continuation_rejects_wrong_artifact_scope_identity(self):
+        sequence = self.standard_scope_sequence()
+        self.assertTrue(
+            RUNNER.next_prompt_blockers(
+                "standard",
+                8,
+                sequence[7],
+                {6: sequence[6]},
+                {
+                    "counts": {"analysis_execution": 1},
+                    "usable_scope_refs": {
+                        "analysis_execution": [["analysis-other", 1]],
+                    },
+                },
+            )
+        )
+
+    def test_standard_continuation_ignores_unrelated_scope_and_artifact(self):
+        sequence = self.standard_scope_sequence()
+        current = deepcopy(sequence[7])
+        current["analysis"]["panel_longitudinal"] = {
+            "scope_id": "analysis-other",
+            "scope_revision": 1,
+            "current_status": "done",
+            "support": None,
+            "last_updated": "2026-01-01T00:00:07Z",
+        }
+        self.assertEqual(
+            RUNNER.next_prompt_blockers(
+                "standard",
+                8,
+                current,
+                {6: sequence[6]},
+                {
+                    "counts": {"analysis_execution": 2},
+                    "usable_scope_refs": {
+                        "analysis_execution": [
+                            ["analysis-1", 1],
+                            ["analysis-other", 1],
+                        ],
+                    },
+                },
+            ),
+            [],
+        )
+
+    def test_standard_continuation_rejects_duplicate_required_evidence(self):
+        sequence = self.standard_scope_sequence()
+        self.assertTrue(
+            RUNNER.next_prompt_blockers(
+                "standard",
+                8,
+                sequence[7],
+                {6: sequence[6]},
+                {
+                    "counts": {"analysis_execution": 2},
+                    "usable_scope_refs": {
+                        "analysis_execution": [
+                            ["analysis-1", 1],
+                            ["analysis-1", 1],
+                        ],
+                    },
+                },
+            )
+        )
+
+    def test_standard_derivative_gate_uses_only_required_report_integrity(self):
+        sequence = self.standard_scope_sequence()
+        artifacts = {
+            "counts": {"analysis_execution": 2, "report_writer": 1},
+            "usable_scope_refs": {
+                "analysis_execution": [["analysis-1", 1], ["analysis-2", 1]],
+                "report_writer": [["report-1", 1]],
+            },
+            "intact_routes": {
+                "analysis_execution": False,
+                "report_writer": False,
+            },
+            "changed_scope_refs": {
+                "analysis_execution": [["analysis-other", 1]],
+                "report_writer": [["report-other", 1]],
+            },
+        }
+        self.assertEqual(
+            RUNNER.next_prompt_blockers(
+                "standard",
+                13,
+                sequence[12],
+                {11: sequence[11]},
+                artifacts,
+            ),
+            [],
+        )
+        artifacts["changed_scope_refs"]["report_writer"].append(["report-1", 1])
+        self.assertTrue(
+            RUNNER.next_prompt_blockers(
+                "standard",
+                13,
+                sequence[12],
+                {11: sequence[11]},
+                artifacts,
+            )
+        )
+
+    def test_mechanical_continuation_requires_distinct_scope_references(self):
+        sequence = self.valid_scope_sequence()
+        self.assertEqual(
+            RUNNER.next_prompt_blockers(
+                "mechanical-edge",
+                7,
+                sequence[6],
+                {4: sequence[4], 6: sequence[6]},
+                {"counts": {}},
+                {4: True, 6: True},
+            ),
+            [],
+        )
+        self.assertTrue(
+            RUNNER.next_prompt_blockers(
+                "mechanical-edge",
+                7,
+                sequence[4],
+                {4: sequence[4], 6: sequence[4]},
+                {"counts": {}},
+                {4: True, 6: True},
+            )
+        )
+        self.assertTrue(
+            RUNNER.next_prompt_blockers(
+                "mechanical-edge",
+                7,
+                sequence[6],
+                {4: sequence[4], 6: sequence[6]},
+                {"counts": {}},
+                {4: False, 6: True},
+            )
+        )
+
+    def test_mechanical_stale_report_check_does_not_require_analysis_bytes(self):
+        sequence = self.valid_scope_sequence()
+        self.assertEqual(
+            RUNNER.next_prompt_blockers(
+                "mechanical-edge",
+                12,
+                sequence[11],
+                {6: sequence[6], 10: sequence[10], 11: sequence[11]},
+                {"counts": {}},
+                {10: True, 11: True},
+            ),
+            [],
+        )
+
+    def test_causal_edge_continuation_blocks_false_report_premise(self):
+        empty = {"analysis": {}, "report": None}
+        self.assertEqual(
+            RUNNER.next_prompt_blockers(
+                "causal-edge",
+                7,
+                empty,
+                {},
+                {"counts": {}},
+            ),
+            [],
+        )
+        completed = self.analysis_snapshot(
+            "analysis-1",
+            1,
+            "done",
+            "2026-01-01T00:00:06Z",
+        )
+        self.assertTrue(
+            RUNNER.next_prompt_blockers(
+                "causal-edge",
+                7,
+                completed,
+                {},
+                {"counts": {"analysis_execution": 1}},
+            )
+        )
+        self.assertTrue(
+            RUNNER.next_prompt_blockers(
+                "causal-edge",
+                7,
+                empty,
+                {4: completed},
+                {"counts": {}},
+            )
+        )
+        self.assertTrue(
+            RUNNER.next_prompt_blockers(
+                "causal-edge",
+                7,
+                empty,
+                {},
+                {
+                    "counts": {},
+                    "intact_routes": {"analysis_execution": False},
+                },
+            )
+        )
+
     def test_html_links_accept_valid_local_targets(self):
         with TemporaryDirectory() as temporary:
             workdir = Path(temporary)
@@ -851,6 +1304,12 @@ class RunnerTests(unittest.TestCase):
                 "previous artifact file changed: output/audit/audit.txt",
                 second["errors"],
             )
+            self.assertFalse(second["intact_routes"]["data_audit"])
+            self.assertTrue(second["intact_routes"]["analysis_execution"])
+            third = RUNNER.inspect_artifacts(
+                workdir, {"total": 1, "new": 0}, second
+            )
+            self.assertFalse(third["intact_routes"]["data_audit"])
 
     def test_artifact_snapshot_rejects_deleted_prior_manifest(self):
         with TemporaryDirectory() as temporary:
@@ -863,6 +1322,39 @@ class RunnerTests(unittest.TestCase):
             self.assertTrue(
                 any("previous artifact manifests disappeared" in error for error in second["errors"])
             )
+            self.assertFalse(second["intact_routes"]["data_audit"])
+
+    def test_artifact_snapshot_tracks_changed_scope_identity(self):
+        with TemporaryDirectory() as temporary:
+            workdir = Path(temporary)
+            self.write_report_artifact(workdir, html_content="<p>Original</p>")
+            first = RUNNER.inspect_artifacts(
+                workdir, {"report_writer": 1, "new": 1}
+            )
+            report = workdir / "output" / "report" / "index.html"
+            report.write_text("<p>Changed</p>", encoding="utf-8")
+            second = RUNNER.inspect_artifacts(
+                workdir, {"report_writer": 1, "new": 0}, first
+            )
+            reference = ("44444444-4444-4444-8444-444444444444", 1)
+            self.assertIn(reference, second["changed_scope_refs"]["report_writer"])
+            third = RUNNER.inspect_artifacts(
+                workdir, {"report_writer": 1, "new": 0}, second
+            )
+            self.assertIn(reference, third["changed_scope_refs"]["report_writer"])
+
+    def test_unknown_artifact_change_does_not_contaminate_known_routes(self):
+        with TemporaryDirectory() as temporary:
+            workdir = Path(temporary)
+            output = workdir / "output"
+            output.mkdir()
+            manifest = output / "unknown.manifest.json"
+            manifest.write_text("{invalid", encoding="utf-8")
+            first = RUNNER.inspect_artifacts(workdir, {})
+            manifest.write_text("{still-invalid", encoding="utf-8")
+            second = RUNNER.inspect_artifacts(workdir, {}, first)
+            self.assertTrue(second["intact_routes"]["analysis_execution"])
+            self.assertEqual(second["changed_scope_refs"]["analysis_execution"], [])
 
     def test_artifact_scan_rejects_symlinked_output_directory(self):
         with TemporaryDirectory() as temporary:
@@ -1020,6 +1512,20 @@ class RunnerTests(unittest.TestCase):
             )
             self.assertFalse(result["ok"])
             self.assertTrue(any("report HTML file is empty" in error for error in result["errors"]))
+            self.assertNotIn("report_writer", result["usable_scope_refs"])
+
+    def test_usable_report_artifact_keeps_its_scope_identity(self):
+        with TemporaryDirectory() as temporary:
+            workdir = Path(temporary)
+            self.write_report_artifact(workdir, html_content="<p>Report</p>")
+            result = RUNNER.inspect_artifacts(
+                workdir, {"report_writer": 1, "new": 1}
+            )
+            self.assertTrue(result["ok"], result["errors"])
+            self.assertEqual(
+                result["usable_scope_refs"]["report_writer"],
+                [("44444444-4444-4444-8444-444444444444", 1)],
+            )
 
     def test_artifact_scan_reports_invalid_listed_path(self):
         with TemporaryDirectory() as temporary:
@@ -1250,19 +1756,190 @@ class RunnerTests(unittest.TestCase):
             with self.assertRaisesRegex(RUNNER.RunError, "invalid standard rating"):
                 RUNNER.assess_results(results_dir, "safe", notes)
 
-    def test_assessment_is_blocked_after_automated_failure(self):
+    def test_completed_automated_failure_can_be_assessed_but_cannot_pass(self):
         failed = self.passing_record()
-        failed["state"] = {"ok": False, "errors": ["active operation remains"]}
+        failed["shell"] = {"ok": False, "errors": ["missing heading"]}
         summary = RUNNER.build_summary(
             "standard", 1, [failed], None, self.summary_target()
         )
+        self.assertEqual(summary["automated_checks"]["status"], "fail")
+        self.assertEqual(summary["workflow_assessment"]["status"], "pending")
+        self.assertEqual(RUNNER.run_completion_status(summary), "complete")
+        with TemporaryDirectory() as temporary:
+            results_dir = Path(temporary).resolve()
+            self.write_assessable_summary(results_dir, summary)
+            notes = results_dir / "workflow-assessment.md"
+            notes.write_text("The workflow itself remained usable.\n", encoding="utf-8")
+            final = RUNNER.assess_results(results_dir, "pass", notes)
+            recorded = json.loads(
+                (results_dir / "summary.json").read_text(encoding="utf-8")
+            )
+        self.assertEqual(final, "fail")
+        self.assertEqual(recorded["workflow_assessment"]["status"], "complete")
+        self.assertEqual(recorded["workflow_assessment"]["rating"], "pass")
+        self.assertEqual(recorded["final_result"]["status"], "fail")
+        self.assertEqual(RUNNER.final_result_exit_code(final), 1)
+
+    def test_assessment_is_blocked_after_aborted_run(self):
+        summary = RUNNER.build_summary(
+            "standard",
+            2,
+            [self.passing_record()],
+            "turn 1 cannot continue",
+            self.summary_target(),
+        )
+        self.assertEqual(summary["workflow_assessment"]["status"], "blocked")
+        self.assertEqual(RUNNER.run_completion_status(summary), "aborted")
         with TemporaryDirectory() as temporary:
             results_dir = Path(temporary).resolve()
             RUNNER.write_summary_files(results_dir, summary)
             notes = results_dir / "workflow-assessment.md"
             notes.write_text("Review cannot proceed.\n", encoding="utf-8")
-            with self.assertRaisesRegex(RUNNER.RunError, "automated checks did not pass"):
+            with self.assertRaisesRegex(RUNNER.RunError, "run did not complete"):
                 RUNNER.assess_results(results_dir, "fail", notes)
+
+    def test_run_completion_distinguishes_incomplete_without_abort(self):
+        summary = RUNNER.build_summary(
+            "smoke",
+            2,
+            [self.passing_record()],
+            None,
+            self.summary_target(),
+        )
+        self.assertEqual(RUNNER.run_completion_status(summary), "incomplete")
+        self.assertIn(
+            "Run completion: **INCOMPLETE**",
+            RUNNER.render_summary_markdown(summary),
+        )
+
+    def test_live_loop_continues_and_records_a_final_boundary_failure(self):
+        first = (
+            f"{RUNNER.WELCOME_LINE}\n\n"
+            "[> Framing]\nFirst.\n\n"
+            "[! Boundary]\nBoundary.\n\n"
+            "[? Next Steps]\nContinue."
+        )
+        second = (
+            "[> Framing]\nSecond.\n\n"
+            "[! Boundary]\nBoundary.\n\n"
+            "[? Next Steps]\nDone."
+        )
+        responses = iter((first, second))
+        validators = [
+            {
+                "project_id": "project-1",
+                "revision": 3,
+                "scope_snapshot": {"analysis": {}, "report": None},
+                "response_receipt": {"response_markdown": "Different response"},
+                "pending_decision": None,
+            },
+            {
+                "project_id": "project-1",
+                "revision": 6,
+                "scope_snapshot": {"analysis": {}, "report": None},
+                "response_receipt": {"response_markdown": second},
+                "pending_decision": None,
+            },
+        ]
+        artifact_result = {
+            "ok": True,
+            "expected": {"total": 0, "new": 0},
+            "manifest_count": 0,
+            "new_count": 0,
+            "counts": {},
+            "manifests": [],
+            "new_manifests": [],
+            "manifest_paths": [],
+            "hashes": {},
+            "orphaned_files": [],
+            "errors": [],
+        }
+
+        with TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            workdir = root / "work"
+            results_dir = root / "results"
+            workdir.mkdir()
+            results_dir.mkdir()
+            args = SimpleNamespace(
+                test="smoke",
+                workdir=workdir,
+                results_dir=results_dir,
+                statectl=root / "statectl.cjs",
+                node="node",
+                claude_bin="claude",
+                max_turns=30,
+                timeout=60,
+            )
+            case = {
+                "turns": [
+                    {"label": "First", "prompt": "First prompt.", "artifacts": {"total": 0, "new": 0}},
+                    {"label": "Second", "prompt": "Second prompt.", "artifacts": {"total": 0, "new": 0}},
+                ]
+            }
+            target = self.summary_target()
+
+            def send_response(command, **_kwargs):
+                response_text = next(responses)
+                output = Path(command[command.index("--out-file") + 1])
+                output.write_text(
+                    json.dumps(
+                        {
+                            "result": response_text,
+                            "session_id": "session-1",
+                            "is_error": False,
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+                return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+            with ExitStack() as stack:
+                stack.enter_context(patch.object(RUNNER, "preflight", return_value=target))
+                stack.enter_context(patch.object(RUNNER, "validate_runtime_provenance"))
+                stack.enter_context(
+                    patch.object(RUNNER.subprocess, "run", side_effect=send_response)
+                )
+                validate_state = stack.enter_context(
+                    patch.object(
+                        RUNNER,
+                        "validate_state",
+                        side_effect=[
+                            (validators[0], [], []),
+                            (
+                                validators[1],
+                                ["active_operation is not null"],
+                                ["active_operation is not null"],
+                            ),
+                        ],
+                    )
+                )
+                inspect_artifacts = stack.enter_context(
+                    patch.object(
+                        RUNNER,
+                        "inspect_artifacts",
+                        side_effect=[deepcopy(artifact_result), deepcopy(artifact_result)],
+                    )
+                )
+                exit_code = RUNNER.run_test(args, case)
+
+            summary = json.loads(
+                (results_dir / "summary.json").read_text(encoding="utf-8")
+            )
+
+        self.assertEqual(exit_code, 1)
+        self.assertEqual(summary["attempted_turns"], 2)
+        self.assertIsNone(summary["abort_reason"])
+        self.assertEqual(
+            summary["automated_checks"]["categories"]["run_integrity"],
+            "pass",
+        )
+        self.assertEqual(
+            summary["automated_checks"]["categories"]["state_protocol"],
+            "fail",
+        )
+        self.assertEqual(validate_state.call_args_list[1].args[3:5], ("project-1", 3))
+        self.assertIsNotNone(inspect_artifacts.call_args_list[1].args[2])
 
     def test_assessment_notes_must_stay_inside_results(self):
         summary = RUNNER.build_summary(

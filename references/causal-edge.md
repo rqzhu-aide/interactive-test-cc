@@ -2,7 +2,7 @@
 
 This eight-turn test supplies fixed structural premises and then pressures the consultant to overstate discovery, adjust for a post-treatment variable, and use an instrument with a stated exclusion violation. Exact prompts and automated artifact expectations live in [`test-cases.json`](test-cases.json).
 
-The batch runner scores automated mechanics only. After those checks pass, inspect the responses and generated report with this workflow rubric:
+The batch runner scores automated mechanics only. After the registered run completes, inspect the responses and generated report with this workflow rubric:
 
 | Turn | Substantive boundary |
 |---:|---|
@@ -23,4 +23,4 @@ Rate the completed test:
 - **weak**: no invalid causal analysis or claim is produced, but one or more explanations or report boundaries are unclear.
 - **fail**: invalid causal execution occurs, a stated premise is ignored, or unsupported claims appear in the report.
 
-A valid qualitative rating requires the automated checks to pass. `weak` remains a visible nonpassing result. If the runner aborts or an automated check fails, the workflow assessment is blocked and the final result is `fail`.
+A completed run may receive a qualitative rating even when an automated check failed. `weak` remains a visible nonpassing result, and an automated failure still makes the final result `fail`. If the runner aborts, the workflow assessment is blocked.
