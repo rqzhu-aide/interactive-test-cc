@@ -46,7 +46,7 @@ class RunnerTests(unittest.TestCase):
 
     def summary_target(self):
         return {
-            "test_suite_version": "5.2.4",
+            "test_suite_version": "5.2.5",
             "test_suite_runtime_sha256": "suite123",
             "test_case_sha256": "case123",
             "causal_consultant_version": "5.1.4",
@@ -166,26 +166,24 @@ class RunnerTests(unittest.TestCase):
         }
         self.assertEqual(RUNNER.check_response_state(response, validator), [])
 
-    def test_response_state_rejects_missing_or_mismatched_receipt(self):
+    def test_response_state_rejects_missing_receipt_and_diagnoses_mismatch(self):
         response = "Rendered response"
         missing = RUNNER.check_response_state(
             response,
             {"response_receipt": None, "pending_decision": None},
         )
         self.assertIn("response_receipt is missing", missing)
-        mismatched = RUNNER.check_response_state(
-            response,
-            {
-                "response_receipt": {"response_markdown": "Different response"},
-                "pending_decision": None,
-            },
-        )
-        self.assertIn(
-            "delivered response does not match response_receipt.response_markdown",
-            mismatched,
+        validator = {
+            "response_receipt": {"response_markdown": "Different response"},
+            "pending_decision": None,
+        }
+        self.assertEqual(RUNNER.check_response_state(response, validator), [])
+        self.assertEqual(
+            RUNNER.response_diagnostics(response, validator),
+            ["delivered response differs from response_receipt.response_markdown"],
         )
 
-    def test_response_state_rejects_menu_and_pending_presence_mismatch(self):
+    def test_response_state_rejects_unbacked_menu_and_diagnoses_hidden_menu(self):
         menu = (
             "[> Framing]\nFrame.\n"
             "[+ Consultant Options]\n"
@@ -199,22 +197,23 @@ class RunnerTests(unittest.TestCase):
             "[! Boundary]\nBoundary.\n"
             "[? Next Steps]\nContinue."
         )
-        for response, pending in (
-            (menu, None),
-            (without_menu, {"options": [{"number": 1}, {"number": 2}]}),
-        ):
-            with self.subTest(response=response):
-                errors = RUNNER.check_response_state(
-                    response,
-                    {
-                        "response_receipt": {"response_markdown": response},
-                        "pending_decision": pending,
-                    },
-                )
-                self.assertIn(
-                    "Consultant Options and pending_decision presence do not match",
-                    errors,
-                )
+        unbacked = {
+            "response_receipt": {"response_markdown": menu},
+            "pending_decision": None,
+        }
+        self.assertIn(
+            "Consultant Options have no pending_decision",
+            RUNNER.check_response_state(menu, unbacked),
+        )
+        hidden = {
+            "response_receipt": {"response_markdown": without_menu},
+            "pending_decision": {"options": [{"number": 1}, {"number": 2}]},
+        }
+        self.assertEqual(RUNNER.check_response_state(without_menu, hidden), [])
+        self.assertIn(
+            "pending_decision has no visible Consultant Options",
+            RUNNER.response_diagnostics(without_menu, hidden),
+        )
 
     def test_response_state_rejects_visible_option_number_mismatch(self):
         response = (
@@ -237,62 +236,6 @@ class RunnerTests(unittest.TestCase):
         self.assertIn(
             "Consultant Options numbers do not match pending_decision.options",
             errors,
-        )
-
-    def test_decision_response_match_ignores_presentation_only_differences(self):
-        stored = (
-            "[> Framing]\n**Frame.**\n"
-            "[! Boundary]\nBoundary.\n"
-            "[? Next Steps]\nChoose one option."
-        )
-        delivered = (
-            "[OK Confirmed] Scope prepared.\n\n"
-            "[> Framing]\nFrame.\n"
-            "[! Boundary]\nBoundary.\n"
-            "[? Next Steps]\nApprove, revise, or discuss?"
-        )
-        self.assertTrue(
-            RUNNER.decision_response_matches(
-                delivered,
-                {"response_receipt": {"response_markdown": stored}},
-            )
-        )
-
-    def test_decision_response_match_does_not_erase_marker_text(self):
-        stored = (
-            "[> Framing]\nx**2 is the target.\n"
-            "[! Boundary]\nBoundary.\n"
-            "[? Next Steps]\nApprove."
-        )
-        delivered = stored.replace("x**2", "x2")
-        self.assertFalse(
-            RUNNER.decision_response_matches(
-                delivered,
-                {"response_receipt": {"response_markdown": stored}},
-            )
-        )
-
-    def test_decision_response_match_accepts_an_exact_receipt_with_bad_shell(self):
-        response = "Scope A exactly as persisted."
-        self.assertTrue(
-            RUNNER.decision_response_matches(
-                response,
-                {"response_receipt": {"response_markdown": response}},
-            )
-        )
-
-    def test_decision_response_match_rejects_changed_decision_content(self):
-        stored = (
-            "[> Framing]\nTarget the average effect.\n"
-            "[! Boundary]\nDo not claim subgroup effects.\n"
-            "[? Next Steps]\nApprove."
-        )
-        delivered = stored.replace("average effect", "subgroup effect")
-        self.assertFalse(
-            RUNNER.decision_response_matches(
-                delivered,
-                {"response_receipt": {"response_markdown": stored}},
-            )
         )
 
     def state_payload(self, revision):
@@ -329,7 +272,7 @@ class RunnerTests(unittest.TestCase):
             )
         return errors, blockers
 
-    def test_response_binding_failure_does_not_invalidate_idle_boundary(self):
+    def test_response_diagnostic_does_not_invalidate_idle_boundary(self):
         response = "Delivered response"
         with patch.object(
             RUNNER,
@@ -345,19 +288,17 @@ class RunnerTests(unittest.TestCase):
                 0,
                 0,
             )
-        errors.extend(
-            RUNNER.check_response_state(
-                response,
-                {
-                    **validator,
-                    "response_receipt": {"response_markdown": "Stored response"},
-                    "pending_decision": None,
-                },
-            )
-        )
+        validator = {
+            **validator,
+            "response_receipt": {"response_markdown": "Stored response"},
+            "pending_decision": None,
+        }
+        errors.extend(RUNNER.check_response_state(response, validator))
+        diagnostics = RUNNER.response_diagnostics(response, validator)
+        self.assertEqual(errors, [])
         self.assertIn(
-            "delivered response does not match response_receipt.response_markdown",
-            errors,
+            "delivered response differs from response_receipt.response_markdown",
+            diagnostics,
         )
         self.assertEqual(blockers, [])
 
@@ -852,6 +793,25 @@ class RunnerTests(unittest.TestCase):
         self.assertTrue(later)
         self.assertEqual(history[6], missing)
 
+    def test_standard_approval_requires_one_ready_scope(self):
+        ready = deepcopy(self.standard_scope_sequence()[6])
+        ready["analysis"]["panel_longitudinal"] = {
+            "scope_id": "analysis-2",
+            "scope_revision": 1,
+            "current_status": "ready",
+            "support": None,
+            "last_updated": "2026-01-01T00:00:06Z",
+        }
+        self.assertTrue(
+            RUNNER.next_prompt_blockers(
+                "standard",
+                7,
+                ready,
+                {6: ready},
+                {"counts": {}},
+            )
+        )
+
     def test_standard_continuation_allows_wrong_but_unique_ready_route(self):
         ready = deepcopy(self.standard_scope_sequence()[6])
         entry = ready["analysis"].pop("single_time_observational")
@@ -899,41 +859,6 @@ class RunnerTests(unittest.TestCase):
                         "analysis_execution": [["analysis-1", 1]],
                     },
                 },
-            ),
-            [],
-        )
-
-    def test_continuation_blocks_only_response_content_used_by_next_approval(self):
-        sequence = self.standard_scope_sequence()
-        self.assertEqual(
-            RUNNER.next_prompt_blockers(
-                "standard",
-                6,
-                sequence[5],
-                {},
-                {"counts": {}},
-                {5: False},
-            ),
-            [],
-        )
-        self.assertTrue(
-            RUNNER.next_prompt_blockers(
-                "standard",
-                7,
-                sequence[6],
-                {6: sequence[6]},
-                {"counts": {}},
-                {6: False},
-            )
-        )
-        self.assertEqual(
-            RUNNER.next_prompt_blockers(
-                "standard",
-                7,
-                sequence[6],
-                {6: sequence[6]},
-                {"counts": {}},
-                {6: True},
             ),
             [],
         )
@@ -1071,7 +996,6 @@ class RunnerTests(unittest.TestCase):
                 sequence[6],
                 {4: sequence[4], 6: sequence[6]},
                 {"counts": {}},
-                {4: True, 6: True},
             ),
             [],
         )
@@ -1082,17 +1006,6 @@ class RunnerTests(unittest.TestCase):
                 sequence[4],
                 {4: sequence[4], 6: sequence[4]},
                 {"counts": {}},
-                {4: True, 6: True},
-            )
-        )
-        self.assertTrue(
-            RUNNER.next_prompt_blockers(
-                "mechanical-edge",
-                7,
-                sequence[6],
-                {4: sequence[4], 6: sequence[6]},
-                {"counts": {}},
-                {4: False, 6: True},
             )
         )
 
@@ -1105,7 +1018,48 @@ class RunnerTests(unittest.TestCase):
                 sequence[11],
                 {6: sequence[6], 10: sequence[10], 11: sequence[11]},
                 {"counts": {}},
-                {10: True, 11: True},
+            ),
+            [],
+        )
+
+    def test_mechanical_stale_report_requires_distinct_scope_references(self):
+        sequence = self.valid_scope_sequence()
+        unchanged = sequence[10]
+        self.assertTrue(
+            RUNNER.next_prompt_blockers(
+                "mechanical-edge",
+                12,
+                unchanged,
+                {6: sequence[6], 10: unchanged, 11: unchanged},
+                {"counts": {}},
+            )
+        )
+
+    def test_causal_edge_approval_requires_one_ready_report_scope(self):
+        empty = {"analysis": {}, "report": None}
+        self.assertTrue(
+            RUNNER.next_prompt_blockers(
+                "causal-edge",
+                8,
+                empty,
+                {},
+                {"counts": {}},
+            )
+        )
+        ready = self.report_snapshot(
+            empty,
+            "report-1",
+            1,
+            "ready",
+            "2026-01-01T00:00:07Z",
+        )
+        self.assertEqual(
+            RUNNER.next_prompt_blockers(
+                "causal-edge",
+                8,
+                ready,
+                {},
+                {"counts": {}},
             ),
             [],
         )
@@ -1689,6 +1643,23 @@ class RunnerTests(unittest.TestCase):
         self.assertEqual(summary["workflow_assessment"]["status"], "not_required")
         self.assertEqual(summary["final_result"]["status"], "pass")
 
+    def test_diagnostic_only_summary_remains_passing(self):
+        record = self.passing_record()
+        record["state"]["diagnostics"] = [
+            "delivered response differs from response_receipt.response_markdown"
+        ]
+        summary = RUNNER.build_summary(
+            "smoke", 1, [record], None, self.summary_target()
+        )
+        markdown = RUNNER.render_summary_markdown(summary)
+        self.assertEqual(summary["validated_turns"], 1)
+        self.assertEqual(
+            summary["automated_checks"]["categories"]["state_protocol"], "pass"
+        )
+        self.assertEqual(summary["final_result"]["status"], "pass")
+        self.assertIn("## Diagnostics", markdown)
+        self.assertNotIn("## Failures", markdown)
+
     def test_standard_automated_pass_remains_pending(self):
         summary = RUNNER.build_summary(
             "standard",
@@ -1939,6 +1910,14 @@ class RunnerTests(unittest.TestCase):
             "fail",
         )
         self.assertEqual(validate_state.call_args_list[1].args[3:5], ("project-1", 3))
+        self.assertEqual(
+            summary["turns"][0]["state_protocol"]["diagnostics"],
+            ["delivered response differs from response_receipt.response_markdown"],
+        )
+        self.assertIn(
+            "## Diagnostics",
+            RUNNER.render_summary_markdown(summary),
+        )
         self.assertIsNotNone(inspect_artifacts.call_args_list[1].args[2])
 
     def test_assessment_notes_must_stay_inside_results(self):

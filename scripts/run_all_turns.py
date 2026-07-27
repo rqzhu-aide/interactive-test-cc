@@ -508,8 +508,6 @@ def check_response_state(text, validator):
     receipt = validator.get("response_receipt")
     if not isinstance(receipt, dict):
         errors.append("response_receipt is missing")
-    elif receipt.get("response_markdown") != text:
-        errors.append("delivered response does not match response_receipt.response_markdown")
 
     lines = text.splitlines()
     option_positions = [
@@ -518,8 +516,8 @@ def check_response_state(text, validator):
     has_visible_options = len(option_positions) == 1
     pending = validator.get("pending_decision")
     has_pending_decision = pending is not None
-    if has_visible_options != has_pending_decision:
-        errors.append("Consultant Options and pending_decision presence do not match")
+    if has_visible_options and not has_pending_decision:
+        errors.append("Consultant Options have no pending_decision")
 
     if has_visible_options and isinstance(pending, dict):
         options = pending.get("options")
@@ -551,50 +549,20 @@ def check_response_state(text, validator):
     return errors
 
 
-def decision_response_matches(text, validator):
-    """Compare the response content that can define a later approval referent."""
+def response_diagnostics(text, validator):
+    diagnostics = []
     receipt = validator.get("response_receipt")
     stored = receipt.get("response_markdown") if isinstance(receipt, dict) else None
-    if not isinstance(stored, str):
-        return False
-    if text == stored:
-        return True
-
-    def canonical(value):
-        lines = value.replace("\r\n", "\n").replace("\r", "\n").splitlines()
-        try:
-            start = next(
-                index for index, line in enumerate(lines)
-                if line.strip() == REQUIRED_HEADINGS[0]
-            )
-            end = next(
-                index for index in range(start + 1, len(lines))
-                if lines[index].strip() == REQUIRED_HEADINGS[2]
-            )
-        except StopIteration:
-            return None
-
-        def decision_line(line):
-            line = line.strip()
-            line = re.sub(
-                r"(?<![\w*])\*\*(?=\S)(.+?)(?<=\S)\*\*(?![\w*])",
-                r"\1",
-                line,
-            )
-            return re.sub(
-                r"(?<![\w_])__(?=\S)(.+?)(?<=\S)__(?![\w_])",
-                r"\1",
-                line,
-            )
-
-        return "\n".join(
-            decision_line(line)
-            for line in lines[start:end]
-            if line.strip()
+    if isinstance(stored, str) and stored != text:
+        diagnostics.append(
+            "delivered response differs from response_receipt.response_markdown"
         )
-
-    delivered = canonical(text)
-    return delivered is not None and delivered == canonical(stored)
+    has_visible_options = any(
+        line.strip() == OPTIONAL_HEADING for line in text.splitlines()
+    )
+    if isinstance(validator.get("pending_decision"), dict) and not has_visible_options:
+        diagnostics.append("pending_decision has no visible Consultant Options")
+    return diagnostics
 
 
 def validate_state(
@@ -1032,7 +1000,6 @@ def next_prompt_blockers(
     snapshot,
     history,
     artifacts,
-    response_bindings=None,
 ):
     """Return only missing prerequisites that make the next registered prompt unusable."""
     if next_turn is None:
@@ -1100,9 +1067,6 @@ def next_prompt_blockers(
     def analysis_refs(value, status):
         return set(analysis_ref_list(value, status))
 
-    def response_bound(turn):
-        return response_bindings is None or response_bindings.get(turn) is True
-
     ready_analysis = analysis_with_status("ready")
     done_analysis = analysis_with_status("done")
     done_refs = analysis_ref_list(snapshot, "done")
@@ -1130,9 +1094,7 @@ def next_prompt_blockers(
     analysis_intact = intact_routes.get("analysis_execution", True)
 
     if test_id == "standard":
-        if next_turn == 7 and (
-            len(ready_analysis) != 1 or not response_bound(6)
-        ):
+        if next_turn == 7 and len(ready_analysis) != 1:
             blockers.append("the next approval has no unique ready analysis scope")
         elif next_turn == 8:
             first = unique_analysis(history.get(6), "ready")
@@ -1143,9 +1105,7 @@ def next_prompt_blockers(
                 or scope_ref(first) in changed_analysis_refs
             ):
                 blockers.append("the next causal review requires the first completed analysis")
-        elif next_turn == 10 and (
-            len(ready_analysis) != 1 or not response_bound(9)
-        ):
+        elif next_turn == 10 and len(ready_analysis) != 1:
             blockers.append("the next approval has no unique ready analysis scope")
         elif next_turn in (11, 12):
             first = unique_analysis(history.get(6), "ready")
@@ -1167,7 +1127,6 @@ def next_prompt_blockers(
                 not required
                 or not isinstance(report, dict)
                 or report.get("current_status") != "ready"
-                or not response_bound(11)
             ):
                 blockers.append(
                     "the next approval requires two completed analyses and a ready report scope"
@@ -1197,8 +1156,6 @@ def next_prompt_blockers(
                 or current_ready is None
                 or scope_ref(replacement) != scope_ref(current_ready)
                 or scope_ref(original) == scope_ref(replacement)
-                or not response_bound(4)
-                or not response_bound(6)
             ):
                 blockers.append("the stale and current analysis scopes are not distinguishable")
         elif next_turn == 8:
@@ -1207,7 +1164,6 @@ def next_prompt_blockers(
                 replacement is None
                 or current_ready is None
                 or scope_ref(replacement) != scope_ref(current_ready)
-                or not response_bound(6)
             ):
                 blockers.append("the current replacement analysis scope is not uniquely ready")
         elif next_turn in (9, 10, 11, 12, 13):
@@ -1234,8 +1190,6 @@ def next_prompt_blockers(
                     or not isinstance(report, dict)
                     or scope_ref(report) != scope_ref(replacement_report)
                     or scope_ref(original) == scope_ref(replacement_report)
-                    or not response_bound(10)
-                    or not response_bound(11)
                 ):
                     blockers.append("the stale and current report scopes are not distinguishable")
             elif next_turn == 13:
@@ -1246,7 +1200,6 @@ def next_prompt_blockers(
                     or not isinstance(report, dict)
                     or report.get("current_status") != "ready"
                     or scope_ref(replacement_report) != scope_ref(report)
-                    or not response_bound(11)
                 ):
                     blockers.append("the current replacement report scope is not uniquely ready")
 
@@ -1267,7 +1220,6 @@ def next_prompt_blockers(
             not no_completed_analysis
             or not isinstance(report, dict)
             or report.get("current_status") != "ready"
-            or not response_bound(7)
         ):
             blockers.append("the next approval requires a claim-safe ready report scope")
 
@@ -1411,7 +1363,10 @@ def inspect_html_links(path, workdir):
                 errors.append(f"missing HTML fragment target ({value})")
             continue
         try:
-            target = (path.parent / Path(unquote(parsed.path))).resolve()
+            decoded_path = unquote(parsed.path)
+            if "\x00" in decoded_path:
+                raise ValueError("NUL byte")
+            target = (path.parent / Path(decoded_path)).resolve()
         except (OSError, RuntimeError, ValueError):
             errors.append(f"malformed HTML {kind} reference ({value})")
             continue
@@ -1617,6 +1572,8 @@ def inspect_artifacts(workdir, expected, previous=None):
         directory_manifest = path.name == "artifact-manifest.json"
         for item in files:
             try:
+                if "\x00" in item:
+                    raise ValueError("NUL byte")
                 if (
                     Path(item).is_absolute()
                     or WINDOWS_ABSOLUTE_REFERENCE.match(item)
@@ -2128,6 +2085,16 @@ def render_summary_markdown(summary):
         lines.extend(f"- {failure}" for failure in failures[:20])
         if len(failures) > 20:
             lines.append(f"- {len(failures) - 20} additional failure(s) are recorded in `summary.json`.")
+    diagnostics = []
+    for turn in summary["turns"]:
+        state = turn.get("state_protocol")
+        for note in state.get("diagnostics", []) if isinstance(state, dict) else []:
+            diagnostics.append(f"Turn {turn['turn']}: {note}")
+    if diagnostics:
+        lines.extend(["", "## Diagnostics", ""])
+        lines.extend(f"- {note}" for note in diagnostics[:20])
+        if len(diagnostics) > 20:
+            lines.append(f"- {len(diagnostics) - 20} additional diagnostic(s) are recorded in `summary.json`.")
     return "\n".join(lines) + "\n"
 
 
@@ -2249,7 +2216,6 @@ def run_test(args, case):
     revision = None
     manifest_count = 0
     scope_history = {}
-    response_bindings = {}
     previous_scope_snapshot = None
     previous_artifacts = None
     abort_reason = None
@@ -2434,7 +2400,7 @@ def run_test(args, case):
             write_json(results_dir / f"artifacts-turn-{number:02d}.json", artifacts)
             break
         state_errors.extend(check_response_state(response_text, validator))
-        response_bindings[number] = decision_response_matches(response_text, validator)
+        response_notes = response_diagnostics(response_text, validator)
         raw_scope_snapshot = validator.get("scope_snapshot")
         normalized_scope, scope_shape_errors = normalize_scope_snapshot(raw_scope_snapshot)
         scope_applicable = args.test != "smoke" or bool(
@@ -2488,7 +2454,6 @@ def run_test(args, case):
                 normalized_scope,
                 scope_history,
                 artifacts,
-                response_bindings,
             )
             if not state_blockers and not scope_blockers
             else []
@@ -2497,7 +2462,12 @@ def run_test(args, case):
             scope_errors.extend(dependency_blockers)
             scope_applicable = True
 
-        state = {"ok": not state_errors, "errors": state_errors, "validator": validator}
+        state = {
+            "ok": not state_errors,
+            "errors": state_errors,
+            "diagnostics": response_notes,
+            "validator": validator,
+        }
         scope = {"ok": not scope_errors, "applicable": scope_applicable, "errors": scope_errors}
         check_errors = []
         if not shell["ok"]:

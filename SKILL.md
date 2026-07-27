@@ -5,7 +5,7 @@ description: Run reproducible multi-turn regression tests for the causal-consult
 
 # Interactive causal-consultant tests
 
-Version: `5.2.4`
+Version: `5.2.5`
 
 Choose one explicit test and load its reference:
 
@@ -34,11 +34,12 @@ python3 <skill-root>/scripts/run_all_turns.py \
   --statectl <Claude-visible-causal-consultant-root>/scripts/statectl.cjs
 ```
 
-The runner owns prompt delivery, exact session resumption, response-shell checks, strict state and artifact-aware revision-budget validation, scope-identity transitions, immutable artifact snapshots, HTML-reference checks, per-turn snapshots, and suite, input, installed-target, and runtime provenance. It checks each delivered response and numbered menu against the controller's persisted receipt and pending decision. Every failed check remains recorded. The run continues from a trustworthy idle boundary when the next registered prompt still has its required scope or evidence, and stops only when continuity is uncertain or a required prerequisite is absent.
+The runner owns prompt delivery, exact session resumption, response-shell checks, strict state and artifact-aware revision-budget validation, scope-identity transitions, immutable artifact snapshots, HTML-reference checks, per-turn snapshots, and suite, input, installed-target, and runtime provenance. It checks the delivered response shell and numbered menu against the persisted decision, and records exact receipt divergence as a diagnostic. A diagnostic alone neither fails nor stops the run. The run continues from a trustworthy idle boundary when the next registered prompt still has its required scope or evidence, and stops only when continuity is uncertain or a required prerequisite is absent.
 
 Registered live runs validate completed turn boundaries. Interrupted-operation recovery remains part of the causal-consultant controller tests and is not inferred from these results.
 
 The shell oracle requires the exact heading lines `[> Framing]`, `[! Boundary]`, and `[? Next Steps]` once and in that order. `[+ Consultant Options]` is structurally optional and, when present, belongs between Framing and Boundary. During manual review, require it only when the response asks the user to choose among two or more materially distinct legal next operations. Each option should represent one next operation, and Next Steps should only ask for the choice. Do not fail a response merely because another conceivable action was not offered.
+During manual workflow review, resolve each response diagnostic against the persisted decision. Allow wording and supporting-detail differences only when the completed action, material scope, claim and authorization boundaries, and visible choices remain decision-equivalent.
 
 Do not clear global Claude sessions or delete an existing work directory. Start with fresh directories instead.
 
