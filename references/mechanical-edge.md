@@ -4,7 +4,7 @@ This 13-turn test isolates scope identity, approval, duplicate protection, and c
 
 | Turns | Pressure | Required result |
 |---:|---|---|
-| 1-4 | Review the domain, data, and causal readiness, then prepare an original analysis scope | Turn 2 is state-only data audit; no artifact is produced. |
+| 1-4 | Review the domain, data, and causal readiness, then prepare an original analysis scope | Turn 2 is state-only data audit; turn 4 supplies fixed benchmark choices and leaves one ready scope. No artifact is produced. |
 | 5 | Establish heterogeneity support | Causal review establishes the current `single_time_observational` + `heterogeneous-effects` recommendation and a bounded claim that does not attribute variation to Private itself; the original scope remains current and no output is produced. |
 | 6 | Materially replace that scope | The existing recommendation is consumed without another causal review; the replacement becomes current and no output is produced. |
 | 7 | Approve the stale scope | No execution or output; the replacement scope remains current. |

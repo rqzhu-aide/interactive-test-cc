@@ -46,7 +46,7 @@ class RunnerTests(unittest.TestCase):
 
     def summary_target(self):
         return {
-            "test_suite_version": "5.2.6",
+            "test_suite_version": "5.2.7",
             "test_suite_runtime_sha256": "suite123",
             "test_case_sha256": "case123",
             "causal_consultant_version": "5.1.4",
@@ -194,18 +194,146 @@ class RunnerTests(unittest.TestCase):
             RUNNER.response_matches_receipt("First line - Second line", validator)
         )
 
-    def test_receipt_mismatch_blocks_only_registered_approval_turns(self):
-        ready = self.standard_scope_sequence()[6]
+    def test_scope_id_omission_does_not_block_bound_menu_approval(self):
+        receipt = (
+            "[> Framing]\nThe current report scope `f91e1e5c` is ready.\n\n"
+            "[+ Consultant Options]\n"
+            "    1. Revise the report scope.\n"
+            "       Consultant read: Prepare a replacement.\n"
+            "       Tradeoff: Defers report generation.\n"
+            "    2. Generate the current report.\n"
+            "       Consultant read: Use the exact ready scope.\n"
+            "       Tradeoff: Produces the report now.\n\n"
+            "[! Boundary]\nNo report was generated.\n\n"
+            "[? Next Steps]\nChoose option 1 or 2."
+        )
+        delivered = receipt.replace("scope `f91e1e5c` is", "scope is")
+        scope_id = "f91e1e5c-1111-4111-8111-111111111111"
+        validator = {
+            "response_receipt": {"response_markdown": receipt},
+            "pending_decision": {
+                "options": [
+                    {
+                        "number": 1,
+                        "assignment": {"route": "report_writer", "scope_ref": None},
+                    },
+                    {
+                        "number": 2,
+                        "assignment": {
+                            "route": "report_writer",
+                            "scope_ref": {
+                                "kind": "report",
+                                "id": scope_id,
+                                "revision": 1,
+                            },
+                        },
+                    },
+                ],
+            },
+        }
+        self.assertFalse(RUNNER.response_matches_receipt(delivered, validator))
+        approval_receipt_matches = RUNNER.response_matches_approval_receipt(
+            delivered, validator
+        )
+        self.assertTrue(approval_receipt_matches)
+        unbound = deepcopy(validator)
+        unbound["pending_decision"]["options"][1]["assignment"]["scope_ref"]["id"] = (
+            "aaaaaaaa-1111-4111-8111-111111111111"
+        )
+        self.assertFalse(
+            RUNNER.response_matches_approval_receipt(delivered, unbound)
+        )
+
+        sequence = self.valid_scope_sequence()
+        artifacts = {
+            "counts": {"analysis_execution": 1},
+            "usable_scope_refs": {
+                "analysis_execution": [["analysis-2", 1]],
+            },
+            "changed_scope_refs": {"analysis_execution": []},
+        }
+        self.assertEqual(
+            RUNNER.next_prompt_blockers(
+                "mechanical-edge",
+                13,
+                sequence[12],
+                {6: sequence[6], 11: sequence[11]},
+                artifacts,
+                approval_receipt_matches=approval_receipt_matches,
+            ),
+            [],
+        )
+
+    def test_scope_id_exception_rejects_multiple_omissions(self):
+        first = "aaaaaaaa-1111-4111-8111-111111111111"
+        second = "bbbbbbbb-2222-4222-8222-222222222222"
+        receipt = (
+            "The report scope `aaaaaaaa` is ready. "
+            "The analysis scope `bbbbbbbb` is ready."
+        )
+        delivered = receipt.replace(" `aaaaaaaa`", "").replace(" `bbbbbbbb`", "")
+        validator = {
+            "response_receipt": {"response_markdown": receipt},
+            "pending_decision": {
+                "options": [
+                    {
+                        "number": 1,
+                        "assignment": {
+                            "route": "report_writer",
+                            "scope_ref": {"kind": "report", "id": first, "revision": 1},
+                        },
+                    },
+                    {
+                        "number": 2,
+                        "assignment": {
+                            "route": "analysis_execution.single_time_observational",
+                            "scope_ref": {"kind": "analysis", "id": second, "revision": 1},
+                        },
+                    },
+                ],
+            },
+        }
+        self.assertFalse(
+            RUNNER.response_matches_approval_receipt(delivered, validator)
+        )
+
+    def test_material_receipt_mismatch_blocks_registered_approval_turns(self):
+        receipt = (
+            "[> Framing]\nThe current report scope `f91e1e5c` is ready.\n"
+            "[+ Consultant Options]\n"
+            "    1. Revise the scope.\n"
+            "    2. Generate the scope.\n"
+            "[! Boundary]\nNo report was generated.\n"
+            "[? Next Steps]\nChoose option 1 or 2."
+        )
+        delivered = receipt.replace("is ready.", "is not ready.")
+        validator = {
+            "response_receipt": {"response_markdown": receipt},
+            "pending_decision": {
+                "options": [{"number": 1}, {"number": 2}],
+            },
+        }
+        approval_receipt_matches = RUNNER.response_matches_approval_receipt(
+            delivered, validator
+        )
+        self.assertFalse(approval_receipt_matches)
+        sequence = self.valid_scope_sequence()
         blockers = RUNNER.next_prompt_blockers(
-            "standard",
-            7,
-            ready,
-            {6: ready},
-            {"counts": {}},
-            receipt_matches=False,
+            "mechanical-edge",
+            13,
+            sequence[12],
+            {6: sequence[6], 11: sequence[11]},
+            {
+                "counts": {"analysis_execution": 1},
+                "usable_scope_refs": {
+                    "analysis_execution": [["analysis-2", 1]],
+                },
+                "changed_scope_refs": {"analysis_execution": []},
+            },
+            approval_receipt_matches=approval_receipt_matches,
         )
         self.assertIn(
-            "the next approval requires the delivered response to match its committed receipt",
+            "the next approval does not match its committed response",
             blockers,
         )
         self.assertEqual(
@@ -215,9 +343,31 @@ class RunnerTests(unittest.TestCase):
                 {"analysis": {}, "report": None},
                 {},
                 {"counts": {}},
-                receipt_matches=False,
+                approval_receipt_matches=False,
             ),
             [],
+        )
+
+    def test_direct_approval_still_requires_exact_receipt(self):
+        validator = {
+            "response_receipt": {"response_markdown": "Committed response"},
+            "pending_decision": None,
+        }
+        approval_receipt_matches = RUNNER.response_matches_approval_receipt(
+            "Different response", validator
+        )
+        self.assertFalse(approval_receipt_matches)
+        ready = self.standard_scope_sequence()[6]
+        self.assertIn(
+            "the next approval does not match its committed response",
+            RUNNER.next_prompt_blockers(
+                "standard",
+                7,
+                ready,
+                {6: ready},
+                {"counts": {}},
+                approval_receipt_matches=approval_receipt_matches,
+            ),
         )
 
     def test_response_state_rejects_unbacked_menu_and_diagnoses_hidden_menu(self):
@@ -444,7 +594,7 @@ class RunnerTests(unittest.TestCase):
             "response_receipt": 1,
             "startup_notice": 1,
         }
-        for test_id in ("standard", "mechanical-edge", "causal-edge"):
+        for test_id in ("standard", "discovery", "mechanical-edge", "causal-edge"):
             with self.subTest(test_id=test_id):
                 with self.assertRaisesRegex(RUNNER.RunError, "scope_snapshot 1"):
                     RUNNER.require_controller_capabilities(
@@ -474,6 +624,40 @@ class RunnerTests(unittest.TestCase):
                 with self.assertRaisesRegex(RUNNER.RunError, "schema_version 1"):
                     RUNNER.load_cases()
 
+    def test_discovery_registry_tracks_handoff(self):
+        turns = RUNNER.load_cases()["discovery"]["turns"]
+        self.assertEqual(
+            [turn["artifacts"]["total"] for turn in turns],
+            [0, 0, 0, 1, 1, 1, 2, 2],
+        )
+        self.assertEqual(
+            [turn["artifacts"]["causal_discovery"] for turn in turns],
+            [0, 0, 0, 1, 1, 1, 1, 1],
+        )
+        self.assertEqual(RUNNER.APPROVAL_BOUND_TURNS["discovery"], {7})
+        for requirement in (
+            "hypothesis generation only",
+            "exactly one durable discovery artifact",
+            "must not determine adjustment",
+            "approve the exact current analysis scope",
+            "Separate hypothesis-generating structure",
+        ):
+            self.assertTrue(
+                any(requirement in turn["prompt"] for turn in turns),
+                requirement,
+            )
+
+        reference = (ROOT / "references" / "discovery.md").read_text(
+            encoding="utf-8"
+        )
+        for requirement in (
+            "candidate-only",
+            "does not validate an adjustment set",
+            "ready scope at turn 6",
+            "Rate `pass`",
+        ):
+            self.assertIn(requirement, reference)
+
     def test_mechanical_edge_registry_tracks_all_artifacts(self):
         turns = RUNNER.load_cases()["mechanical-edge"]["turns"]
         self.assertEqual(
@@ -485,8 +669,21 @@ class RunnerTests(unittest.TestCase):
 
     def test_mechanical_edge_registry_primes_replacement_gate(self):
         turns = RUNNER.load_cases()["mechanical-edge"]["turns"]
+        original_prompt = turns[3]["prompt"]
         review_prompt = turns[4]["prompt"]
         replacement_prompt = turns[5]["prompt"]
+
+        for requirement in (
+            "single_time_observational",
+            "dose-response",
+            "all represented colleges within common support",
+            "cap impossible percentage values above 100 at 100",
+            "accept the stated Expend-before-outcome timing",
+            "plausibly pre-exposure",
+            "exclude variables with unresolved timing or causal role",
+            "fixed benchmark choices, not open questions",
+        ):
+            self.assertIn(requirement, original_prompt)
 
         for requirement in (
             "mature for later scope review",
@@ -660,14 +857,13 @@ class RunnerTests(unittest.TestCase):
         errors = RUNNER.check_standard_scopes(9, ready, history)
         self.assertIn("turn 9 new analysis scope must start at revision 1", errors)
 
-    def test_standard_scope_oracle_rejects_wrong_support(self):
+    def test_standard_scope_oracle_accepts_optional_support(self):
         sequence = self.standard_scope_sequence()
         history = {7: sequence[7]}
         ready = deepcopy(sequence[9])
         ready["analysis"]["descriptive_association"]["support"] = None
         self.assertEqual(RUNNER.check_standard_scopes(8, sequence[8], history), [])
-        errors = RUNNER.check_standard_scopes(9, ready, history)
-        self.assertIn("turn 9 ready scope must use heterogeneous-effects support", errors)
+        self.assertEqual(RUNNER.check_standard_scopes(9, ready, history), [])
 
     def test_standard_scope_oracle_accepts_controller_selected_second_route(self):
         sequence = self.standard_scope_sequence()
@@ -703,6 +899,65 @@ class RunnerTests(unittest.TestCase):
             },
             "report": None,
         }
+
+    def discovery_scope_sequence(self):
+        empty = {"analysis": {}, "report": None}
+        ready = self.analysis_snapshot(
+            "discovery-analysis", 1, "ready", "2026-01-01T00:00:06Z"
+        )
+        ready["analysis"]["single_time_observational"]["support"] = None
+        completed = deepcopy(ready)
+        completed["analysis"]["single_time_observational"].update(
+            {
+                "current_status": "done",
+                "last_updated": "2026-01-01T00:00:07Z",
+            }
+        )
+        return {
+            1: empty,
+            2: empty,
+            3: empty,
+            4: empty,
+            5: empty,
+            6: ready,
+            7: completed,
+            8: completed,
+        }
+
+    def test_discovery_scope_oracle_accepts_fixed_sequence(self):
+        history = {}
+        for turn, snapshot in self.discovery_scope_sequence().items():
+            self.assertEqual(
+                RUNNER.check_discovery_scopes(turn, snapshot, history),
+                [],
+            )
+
+    def test_discovery_scope_oracle_rejects_wrong_boundaries(self):
+        early = self.analysis_snapshot(
+            "early", 1, "ready", "2026-01-01T00:00:04Z"
+        )
+        self.assertIn(
+            "turn 4 must not prepare an analysis scope",
+            RUNNER.check_discovery_scopes(4, early, {}),
+        )
+
+        sequence = self.discovery_scope_sequence()
+        wrong = self.analysis_snapshot(
+            "other", 1, "done", "2026-01-01T00:00:07Z"
+        )
+        self.assertIn(
+            "turn 7 must complete the exact ready analysis scope",
+            RUNNER.check_discovery_scopes(7, wrong, {6: sequence[6]}),
+        )
+
+        changed = deepcopy(sequence[8])
+        changed["analysis"]["single_time_observational"]["support"] = (
+            "heterogeneous-effects"
+        )
+        self.assertIn(
+            "turn 8 must leave the completed analysis scope unchanged",
+            RUNNER.check_discovery_scopes(8, changed, {7: sequence[7]}),
+        )
 
     def report_snapshot(self, analysis, scope_id, revision, status, last_updated):
         return {
@@ -843,7 +1098,7 @@ class RunnerTests(unittest.TestCase):
         history = {}
         missing = {"analysis": {}, "report": None}
         errors = RUNNER.check_mechanical_edge_scopes(4, missing, history)
-        self.assertIn("turn 4 must have exactly one analysis scope", errors)
+        self.assertIn("turn 4 must have one analysis scope; found none", errors)
         self.assertEqual(history[4], missing)
         later = RUNNER.check_mechanical_edge_scopes(6, missing, history)
         self.assertTrue(later)
@@ -865,6 +1120,77 @@ class RunnerTests(unittest.TestCase):
                 ready,
                 {6: ready},
                 {"counts": {}},
+            )
+        )
+
+    def test_discovery_continuation_requires_its_durable_handoff(self):
+        sequence = self.discovery_scope_sequence()
+        discovery = {
+            "counts": {"causal_discovery": 1},
+            "intact_routes": {
+                "causal_discovery": True,
+                "analysis_execution": True,
+            },
+            "usable_scope_refs": {},
+            "changed_scope_refs": {"analysis_execution": []},
+        }
+        self.assertEqual(
+            RUNNER.next_prompt_blockers(
+                "discovery",
+                5,
+                sequence[4],
+                {4: sequence[4]},
+                discovery,
+            ),
+            [],
+        )
+
+        missing = deepcopy(discovery)
+        missing["counts"]["causal_discovery"] = 0
+        self.assertTrue(
+            RUNNER.next_prompt_blockers(
+                "discovery",
+                5,
+                sequence[4],
+                {4: sequence[4]},
+                missing,
+            )
+        )
+        self.assertEqual(
+            RUNNER.next_prompt_blockers(
+                "discovery",
+                7,
+                sequence[6],
+                {6: sequence[6]},
+                discovery,
+            ),
+            [],
+        )
+
+        completed = deepcopy(discovery)
+        completed["counts"]["analysis_execution"] = 1
+        completed["usable_scope_refs"]["analysis_execution"] = [
+            ["discovery-analysis", 1]
+        ]
+        self.assertEqual(
+            RUNNER.next_prompt_blockers(
+                "discovery",
+                8,
+                sequence[7],
+                {6: sequence[6]},
+                completed,
+            ),
+            [],
+        )
+
+        completed["usable_scope_refs"]["analysis_execution"] = [["other", 1]]
+        self.assertTrue(
+            RUNNER.next_prompt_blockers(
+                "discovery",
+                8,
+                sequence[7],
+                {6: sequence[6]},
+                completed,
             )
         )
 
@@ -1788,6 +2114,18 @@ class RunnerTests(unittest.TestCase):
         self.assertEqual(summary["workflow_assessment"]["status"], "pending")
         self.assertEqual(summary["final_result"]["status"], "pending")
 
+    def test_discovery_automated_pass_remains_pending(self):
+        summary = RUNNER.build_summary(
+            "discovery",
+            1,
+            [self.passing_record()],
+            None,
+            self.summary_target(),
+        )
+        self.assertEqual(summary["automated_checks"]["status"], "pass")
+        self.assertEqual(summary["workflow_assessment"]["status"], "pending")
+        self.assertEqual(summary["final_result"]["status"], "pending")
+
     def test_mechanical_edge_automated_pass_remains_pending(self):
         summary = RUNNER.build_summary(
             "mechanical-edge",
@@ -2171,6 +2509,16 @@ class RunnerTests(unittest.TestCase):
         self.assertIn("_No completed response._", conversation)
         self.assertIn("Phase: `transport`", conversation)
         self.assertIn("transport exited before a response was returned", conversation)
+
+    def test_matching_release_versions_are_required(self):
+        self.assertIsNone(
+            RUNNER.require_matching_release_versions("5.2.7", "5.2.7")
+        )
+        with self.assertRaisesRegex(
+            RUNNER.RunError,
+            "interactive-test-cc v5.2.7 requires causal-consultant v5.2.7",
+        ):
+            RUNNER.require_matching_release_versions("5.2.7", "5.2.6")
 
     def test_suite_version_comes_from_skill_metadata(self):
         self.assertRegex(RUNNER.load_test_suite_version(), r"^\d+\.\d+\.\d+$")

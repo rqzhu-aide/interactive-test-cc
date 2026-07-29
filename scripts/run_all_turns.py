@@ -21,7 +21,7 @@ from urllib.parse import unquote, urlsplit
 ROOT = Path(__file__).resolve().parent.parent
 CASES_PATH = ROOT / "references" / "test-cases.json"
 SEND_ONE = Path(__file__).resolve().with_name("send_one.py")
-TEST_IDS = ("smoke", "standard", "mechanical-edge", "causal-edge")
+TEST_IDS = ("smoke", "standard", "discovery", "mechanical-edge", "causal-edge")
 ARTIFACT_ROUTES = {
     "data_audit",
     "causal_discovery",
@@ -67,16 +67,22 @@ UUID_PATTERN = re.compile(
     r"^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
     re.IGNORECASE,
 )
+DISPLAYED_SCOPE_ID_PATTERN = re.compile(
+    r"(\bscope)\s+`([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}|[0-9a-f]{8})`(?=\s+is\b)",
+    re.IGNORECASE,
+)
 RFC3339_UTC_PATTERN = re.compile(
     r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$"
 )
 MANUAL_RATINGS = {
     "mechanical-edge": {"pass", "fail"},
     "standard": {"pass", "fail"},
+    "discovery": {"pass", "fail"},
     "causal-edge": {"safe", "weak", "fail"},
 }
-RECEIPT_BOUND_TURNS = {
+APPROVAL_BOUND_TURNS = {
     "standard": {7, 10, 12},
+    "discovery": {7},
     "mechanical-edge": {7, 8, 12, 13},
     "causal-edge": {8},
 }
@@ -112,6 +118,14 @@ def load_test_suite_version():
     if match is None or not match.group(1).strip():
         raise RunError("interactive-test-cc SKILL.md has no valid Version line")
     return match.group(1).strip()
+
+
+def require_matching_release_versions(test_suite_version, target_version):
+    if target_version != test_suite_version:
+        raise RunError(
+            f"interactive-test-cc v{test_suite_version} requires "
+            f"causal-consultant v{test_suite_version}; active target is v{target_version}"
+        )
 
 
 def skill_runtime_sha256(skill_root):
@@ -417,6 +431,7 @@ def preflight(test_id, case, workdir, results_dir, statectl, node_bin):
     if code != 0 or not payload.get("ok") or payload.get("code") != "VALID_TEMPLATE":
         raise RunError(f"state controller template validation failed: {payload}")
     require_controller_capabilities(test_id, payload)
+    test_suite_version = load_test_suite_version()
     package_path = active_skill / "package.json"
     try:
         package = json.loads(package_path.read_text(encoding="utf-8"))
@@ -427,6 +442,8 @@ def preflight(test_id, case, workdir, results_dir, statectl, node_bin):
         runtime_sha256 = skill_runtime_sha256(active_skill)
     except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as exc:
         raise RunError(f"cannot read causal-consultant target provenance: {exc}") from exc
+    target_version = version.strip()
+    require_matching_release_versions(test_suite_version, target_version)
     if not workdir.is_dir():
         raise RunError(f"workdir not found: {workdir}")
     if paths_overlap(workdir, results_dir):
@@ -447,12 +464,12 @@ def preflight(test_id, case, workdir, results_dir, statectl, node_bin):
         raise RunError("results-dir must be missing or empty")
     results_dir.mkdir(parents=True, exist_ok=True)
     return {
-        "test_suite_version": load_test_suite_version(),
+        "test_suite_version": test_suite_version,
         "test_suite_runtime_sha256": suite_runtime_sha256(),
         "test_case_sha256": hashlib.sha256(
             json.dumps(case, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
         ).hexdigest(),
-        "causal_consultant_version": version.strip(),
+        "causal_consultant_version": target_version,
         "statectl_sha256": statectl_sha256,
         "skill_runtime_sha256": runtime_sha256,
         "skill_root": str(active_skill),
@@ -562,6 +579,34 @@ def response_matches_receipt(text, validator):
     stored = stored.replace("\r\n", "\n").replace("\r", "\n")
     text = text.replace("\r\n", "\n").replace("\r", "\n")
     return stored == text
+
+
+def response_matches_approval_receipt(text, validator):
+    if response_matches_receipt(text, validator):
+        return True
+    decision = validator.get("pending_decision")
+    if not isinstance(decision, dict) or not isinstance(decision.get("options"), list):
+        return False
+    receipt = validator.get("response_receipt")
+    stored = receipt.get("response_markdown") if isinstance(receipt, dict) else None
+    if not isinstance(stored, str):
+        return False
+    allowed_scope_ids = set()
+    for option in decision["options"]:
+        assignment = option.get("assignment") if isinstance(option, dict) else None
+        reference = assignment.get("scope_ref") if isinstance(assignment, dict) else None
+        scope_id = reference.get("id") if isinstance(reference, dict) else None
+        if isinstance(scope_id, str) and UUID_PATTERN.fullmatch(scope_id):
+            allowed_scope_ids.update((scope_id.lower(), scope_id[:8].lower()))
+    stored = stored.replace("\r\n", "\n").replace("\r", "\n")
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
+    for match in DISPLAYED_SCOPE_ID_PATTERN.finditer(stored):
+        if match.group(2).lower() not in allowed_scope_ids:
+            continue
+        candidate = stored[: match.start()] + match.group(1) + stored[match.end() :]
+        if candidate == text:
+            return True
+    return False
 
 
 def response_diagnostics(text, validator):
@@ -849,8 +894,6 @@ def check_standard_scopes(turn_number, raw_snapshot, history):
                     errors.append("turn 9 must create a new analysis scope identity")
                 if current.get("scope_revision") != 1:
                     errors.append("turn 9 new analysis scope must start at revision 1")
-                if current.get("support") != "heterogeneous-effects":
-                    errors.append("turn 9 ready scope must use heterogeneous-effects support")
         if snapshot["report"] is not None:
             errors.append("turn 9 must not create a report scope")
     elif turn_number == 10:
@@ -912,6 +955,52 @@ def check_standard_scopes(turn_number, raw_snapshot, history):
     return errors
 
 
+def check_discovery_scopes(turn_number, raw_snapshot, history):
+    """Check the discovery-to-analysis scope lifecycle."""
+    snapshot, errors = normalize_scope_snapshot(raw_snapshot)
+    if errors:
+        return errors
+    analysis = snapshot["analysis"]
+    report = snapshot["report"]
+
+    def single_analysis(value, label, status):
+        if not isinstance(value, dict) or not isinstance(value.get("analysis"), dict):
+            errors.append(f"{label} analysis scope snapshot is unavailable")
+            return None
+        entries = value["analysis"]
+        if len(entries) != 1:
+            errors.append(f"{label} must contain exactly one analysis scope")
+            return None
+        route, entry = next(iter(entries.items()))
+        if scope_ref(entry) is None or entry.get("current_status") != status:
+            errors.append(f"{label} analysis scope must be valid and {status}")
+            return None
+        return route, entry
+
+    if turn_number <= 5:
+        if analysis:
+            errors.append(f"turn {turn_number} must not prepare an analysis scope")
+    elif turn_number == 6:
+        current = single_analysis(snapshot, "turn 6", "ready")
+        if current and current[1].get("scope_revision") != 1:
+            errors.append("turn 6 new analysis scope must start at revision 1")
+    elif turn_number == 7:
+        current = single_analysis(snapshot, "turn 7", "done")
+        prepared = single_analysis(history.get(6), "turn 6", "ready")
+        if current and prepared:
+            current_identity = current[0], scope_ref(current[1]), current[1].get("support")
+            prepared_identity = prepared[0], scope_ref(prepared[1]), prepared[1].get("support")
+            if current_identity != prepared_identity:
+                errors.append("turn 7 must complete the exact ready analysis scope")
+    elif turn_number == 8 and snapshot != history.get(7):
+        errors.append("turn 8 must leave the completed analysis scope unchanged")
+
+    if report is not None:
+        errors.append(f"turn {turn_number} must not create a report scope")
+    history[turn_number] = snapshot
+    return errors
+
+
 def check_mechanical_edge_scopes(turn_number, raw_snapshot, history):
     """Check the fixed scope transitions exercised by mechanical-edge."""
     snapshot, errors = normalize_scope_snapshot(raw_snapshot)
@@ -925,8 +1014,11 @@ def check_mechanical_edge_scopes(turn_number, raw_snapshot, history):
             errors.append(f"{label} analysis scope snapshot is unavailable")
             return None
         entries = value["analysis"]
-        if len(entries) != 1:
-            errors.append(f"{label} must have exactly one analysis scope")
+        if not entries:
+            errors.append(f"{label} must have one analysis scope; found none")
+            return None
+        if len(entries) > 1:
+            errors.append(f"{label} must have exactly one analysis scope; found {len(entries)}")
             return None
         route, entry = next(iter(entries.items()))
         if scope_ref(entry) is None or entry.get("current_status") != status:
@@ -1009,7 +1101,7 @@ def next_prompt_blockers(
     snapshot,
     history,
     artifacts,
-    receipt_matches=True,
+    approval_receipt_matches=True,
 ):
     """Return only missing prerequisites that make the next registered prompt unusable."""
     if next_turn is None:
@@ -1034,9 +1126,12 @@ def next_prompt_blockers(
         else {}
     )
     blockers = []
-    if next_turn in RECEIPT_BOUND_TURNS.get(test_id, set()) and not receipt_matches:
+    if (
+        next_turn in APPROVAL_BOUND_TURNS.get(test_id, set())
+        and not approval_receipt_matches
+    ):
         blockers.append(
-            "the next approval requires the delivered response to match its committed receipt"
+            "the next approval does not match its committed response"
         )
 
     def analysis_with_status(status):
@@ -1158,6 +1253,28 @@ def next_prompt_blockers(
                 or scope_ref(prepared) in changed_report_refs
             ):
                 blockers.append("the next derivative scope requires a completed report")
+
+    elif test_id == "discovery":
+        discovery_available = (
+            counts.get("causal_discovery", 0) == 1
+            and intact_routes.get("causal_discovery", True)
+        )
+        if next_turn in (5, 6, 7, 8) and not discovery_available:
+            blockers.append("the next step requires one intact discovery artifact")
+        elif next_turn == 7 and len(ready_analysis) != 1:
+            blockers.append("the next approval has no unique ready analysis scope")
+        elif next_turn == 8:
+            prepared = unique_analysis(history.get(6), "ready")
+            if (
+                prepared is None
+                or done_refs.count(scope_ref(prepared)) != 1
+                or analysis_artifact_refs.count(scope_ref(prepared)) != 1
+                or scope_ref(prepared) in changed_analysis_refs
+                or not analysis_intact
+            ):
+                blockers.append(
+                    "the final synthesis requires the exact completed analysis and intact discovery evidence"
+                )
 
     elif test_id == "mechanical-edge":
         current_ready = unique_analysis(snapshot, "ready")
@@ -2446,6 +2563,14 @@ def run_test(args, case):
                         scope_history,
                     )
                 )
+            elif args.test == "discovery":
+                scope_errors.extend(
+                    check_discovery_scopes(
+                        number,
+                        raw_scope_snapshot,
+                        scope_history,
+                    )
+                )
             elif args.test == "mechanical-edge":
                 scope_errors.extend(
                     check_mechanical_edge_scopes(
@@ -2472,7 +2597,9 @@ def run_test(args, case):
                 normalized_scope,
                 scope_history,
                 artifacts,
-                receipt_matches=response_matches_receipt(response_text, validator),
+                approval_receipt_matches=response_matches_approval_receipt(
+                    response_text, validator
+                ),
             )
             if not state_blockers and not scope_blockers
             else []

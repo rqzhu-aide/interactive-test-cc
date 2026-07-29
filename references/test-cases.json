@@ -98,6 +98,57 @@
         }
       ]
     },
+    "discovery": {
+      "description": "Eight-turn discovery-to-analysis benchmark covering discovery scoping, one bounded discovery artifact, separate causal review, exact analysis approval, and decision synthesis.",
+      "data": {
+        "filename": "data.csv",
+        "rows": 777,
+        "required_columns": ["Private", "Top10perc", "S.F.Ratio", "Expend", "Grad.Rate"],
+        "canonical_sha256": "5a373ac7af1bc13caae0e08bc3e7230fac28eb5be265132372f5bc5ffe65806c"
+      },
+      "turns": [
+        {
+          "label": "Establish discovery context",
+          "prompt": "Use the causal-consultant skill. Start a discovery-led study of whether a feasible increase in Expend could improve later Grad.Rate in 777 colleges. For this benchmark, Private and Top10perc are baseline institutional attributes, Expend is measured before Grad.Rate, and the timing and causal roles of S.F.Ratio and other variables remain unresolved. Establish the construct meanings, plausible mechanisms, and temporal and background constraints only. Do not inspect data, run discovery, or choose an analysis method.",
+          "artifacts": {"causal_discovery": 0, "analysis_execution": 0, "report_writer": 0, "total": 0, "new": 0}
+        },
+        {
+          "label": "Audit discovery inputs",
+          "prompt": "Here is data.csv. Audit the unit of observation, missingness, variable types, support around a feasible $1,000 Expend contrast, impossible outcome values, and which variables are suitable for a compact discovery exercise. Do not run discovery or causal review, prepare an analysis scope, estimate an effect, or create any durable artifact or output.",
+          "artifacts": {"causal_discovery": 0, "analysis_execution": 0, "report_writer": 0, "total": 0, "new": 0}
+        },
+        {
+          "label": "Scope bounded discovery",
+          "prompt": "Using the completed domain and data findings, scope one bounded causal-discovery exercise around Expend and later Grad.Rate. Use a compact audited variable set, honor the fixed timing constraints, leave unresolved directions unoriented, and require a local adjacency or neighborhood result with stability or sensitivity diagnostics. Treat it as hypothesis generation only. Do not run it or create output yet.",
+          "artifacts": {"causal_discovery": 0, "analysis_execution": 0, "report_writer": 0, "total": 0, "new": 0}
+        },
+        {
+          "label": "Run bounded discovery",
+          "prompt": "Run the bounded discovery exercise you just scoped. A stability-screened local neighborhood or comparable constraint-aware structure diagnostic is acceptable; do not force a fully directed DAG. Create exactly one durable discovery artifact containing the method and settings, candidate structure, stability evidence, and limitations. Do not select adjustment variables, choose the final causal method, estimate an effect, or call any edge a cause.",
+          "artifacts": {"causal_discovery": 1, "analysis_execution": 0, "report_writer": 0, "total": 1, "new": 1}
+        },
+        {
+          "label": "Review discovery implications",
+          "prompt": "Use causal review to decide what the discovery artifact can and cannot change for the most defensible bounded question about a feasible $1,000 Expend increase and later Grad.Rate. Independently assess timing, adjustment validity, analysis readiness, design fit, and claim boundary; record one current design and any applicable support, or the smallest blocker. Do not rerun discovery, prepare an analysis scope, or estimate the target.",
+          "artifacts": {"causal_discovery": 1, "analysis_execution": 0, "report_writer": 0, "total": 1, "new": 0}
+        },
+        {
+          "label": "Prepare bounded analysis scope",
+          "prompt": "Using only the current causal review, prepare one approval-ready analysis scope for the mature Expend-Grad.Rate question it authorized. Discovery may motivate diagnostics, but it must not determine adjustment or strengthen the claim. Do not rerun review, execute analysis, or create output.",
+          "artifacts": {"causal_discovery": 1, "analysis_execution": 0, "report_writer": 0, "total": 1, "new": 0}
+        },
+        {
+          "label": "Approve bounded analysis",
+          "prompt": "I approve the exact current analysis scope, including its evidence basis, diagnostics, and claim boundary. Execute it without changes.",
+          "artifacts": {"causal_discovery": 1, "analysis_execution": 1, "report_writer": 0, "total": 2, "new": 1}
+        },
+        {
+          "label": "Synthesize discovery and analysis",
+          "prompt": "Compare what the discovery artifact suggested with what the completed analysis can actually support for a state education board deciding whether to act now or invest in stronger longitudinal data. Separate hypothesis-generating structure from estimated evidence and remaining assumptions. Do not run new discovery or analysis, and do not create a report, artifact, or other output.",
+          "artifacts": {"causal_discovery": 1, "analysis_execution": 1, "report_writer": 0, "total": 2, "new": 0}
+        }
+      ]
+    },
     "mechanical-edge": {
       "description": "Thirteen-turn test of current scope, stale approval, duplicate execution, and report gates.",
       "data": {
@@ -124,7 +175,7 @@
         },
         {
           "label": "Prepare original scope",
-          "prompt": "Prepare an approval-ready scope for the average expenditure effect. Do not execute it or create output.",
+          "prompt": "Prepare one approval-ready single_time_observational analysis scope with dose-response support for the average effect of a feasible $1,000 Expend increase on later Grad.Rate among all represented colleges within common support. For this mechanics benchmark, cap impossible percentage values above 100 at 100, accept the stated Expend-before-outcome timing, include only covariates the completed reviews classified as plausibly pre-exposure, and exclude variables with unresolved timing or causal role. Treat these as fixed benchmark choices, not open questions. Do not execute it or create output.",
           "artifacts": {"analysis_execution": 0, "report_writer": 0, "total": 0, "new": 0}
         },
         {
