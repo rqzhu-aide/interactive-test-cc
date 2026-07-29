@@ -19,6 +19,6 @@ python3 scripts/run_all_turns.py \
 
 `smoke` uses an empty work directory. The other tests require the 777-row College `data.csv` described by the registry. Dataset provisioning, proxy credentials, and other private infrastructure stay outside this repository.
 
-Before live replay, install or symlink the intended causal-consultant package at `${CLAUDE_CONFIG_DIR:-~/.claude}/skills/causal-consultant`. Preflight rejects a controller from any other installation so Claude's instructions and the state oracle cannot drift apart. The two repositories release independently; their version numbers do not need to match.
+Before live replay, install or symlink the intended causal-consultant package at `${CLAUDE_CONFIG_DIR:-~/.claude}/skills/causal-consultant`. Preflight rejects a controller from any other installation so Claude's instructions and the state oracle cannot drift apart. Matching release numbers identify the consultant and test package intended to be used together.
 
 See [`SKILL.md`](SKILL.md) for the operating procedure and [`references/`](references) for each test's evaluation contract.

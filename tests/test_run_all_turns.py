@@ -46,7 +46,7 @@ class RunnerTests(unittest.TestCase):
 
     def summary_target(self):
         return {
-            "test_suite_version": "5.2.5",
+            "test_suite_version": "5.2.6",
             "test_suite_runtime_sha256": "suite123",
             "test_case_sha256": "case123",
             "causal_consultant_version": "5.1.4",
@@ -181,6 +181,43 @@ class RunnerTests(unittest.TestCase):
         self.assertEqual(
             RUNNER.response_diagnostics(response, validator),
             ["delivered response differs from response_receipt.response_markdown"],
+        )
+
+    def test_response_receipt_comparison_normalizes_only_line_endings(self):
+        validator = {
+            "response_receipt": {"response_markdown": "First line\nSecond line"}
+        }
+        self.assertTrue(
+            RUNNER.response_matches_receipt("First line\r\nSecond line", validator)
+        )
+        self.assertFalse(
+            RUNNER.response_matches_receipt("First line - Second line", validator)
+        )
+
+    def test_receipt_mismatch_blocks_only_registered_approval_turns(self):
+        ready = self.standard_scope_sequence()[6]
+        blockers = RUNNER.next_prompt_blockers(
+            "standard",
+            7,
+            ready,
+            {6: ready},
+            {"counts": {}},
+            receipt_matches=False,
+        )
+        self.assertIn(
+            "the next approval requires the delivered response to match its committed receipt",
+            blockers,
+        )
+        self.assertEqual(
+            RUNNER.next_prompt_blockers(
+                "smoke",
+                2,
+                {"analysis": {}, "report": None},
+                {},
+                {"counts": {}},
+                receipt_matches=False,
+            ),
+            [],
         )
 
     def test_response_state_rejects_unbacked_menu_and_diagnoses_hidden_menu(self):
@@ -551,6 +588,24 @@ class RunnerTests(unittest.TestCase):
             13: derivative_ready,
         }
 
+    def standard_same_route_scope_sequence(self):
+        sequence = self.standard_scope_sequence()
+        for turn in (6, 7, 8):
+            entry = sequence[turn]["analysis"].pop("single_time_observational")
+            sequence[turn]["analysis"]["descriptive_association"] = entry
+        for turn in range(9, 14):
+            sequence[turn]["analysis"].pop("single_time_observational", None)
+        return sequence
+
+    def test_standard_scope_oracle_accepts_same_design_replacement(self):
+        history = {}
+        for turn, snapshot in self.standard_same_route_scope_sequence().items():
+            self.assertEqual(
+                RUNNER.check_standard_scopes(turn, snapshot, history),
+                [],
+                f"turn {turn}",
+            )
+
     def test_standard_scope_oracle_accepts_full_lifecycle(self):
         history = {}
         for turn, snapshot in self.standard_scope_sequence().items():
@@ -568,18 +623,14 @@ class RunnerTests(unittest.TestCase):
         dropped = deepcopy(sequence[9])
         del dropped["analysis"]["single_time_observational"]
         errors = RUNNER.check_standard_scopes(9, dropped, history)
-        self.assertIn("turn 9 must preserve completed analysis scopes", errors)
+        self.assertIn("turn 9 must create or replace exactly one analysis scope", errors)
 
-    def test_standard_scope_oracle_rejects_wrong_first_route(self):
+    def test_standard_scope_oracle_accepts_controller_valid_first_route(self):
         ready = deepcopy(self.standard_scope_sequence()[6])
         entry = ready["analysis"].pop("single_time_observational")
-        ready["analysis"]["panel_longitudinal"] = entry
+        ready["analysis"]["descriptive_association"] = entry
         history = {}
-        errors = RUNNER.check_standard_scopes(6, ready, history)
-        self.assertIn(
-            "turn 6 ready scope must use the single_time_observational route",
-            errors,
-        )
+        self.assertEqual(RUNNER.check_standard_scopes(6, ready, history), [])
         self.assertEqual(history[6]["analysis"], ready["analysis"])
 
     def test_standard_scope_oracle_rejects_turn_8_scope_change(self):
@@ -600,6 +651,15 @@ class RunnerTests(unittest.TestCase):
         errors = RUNNER.check_standard_scopes(9, reused, history)
         self.assertIn("turn 9 must create a new analysis scope identity", errors)
 
+    def test_standard_scope_oracle_rejects_new_scope_with_prior_revision(self):
+        sequence = self.standard_scope_sequence()
+        history = {7: sequence[7]}
+        ready = deepcopy(sequence[9])
+        ready["analysis"]["descriptive_association"]["scope_revision"] = 2
+        self.assertEqual(RUNNER.check_standard_scopes(8, sequence[8], history), [])
+        errors = RUNNER.check_standard_scopes(9, ready, history)
+        self.assertIn("turn 9 new analysis scope must start at revision 1", errors)
+
     def test_standard_scope_oracle_rejects_wrong_support(self):
         sequence = self.standard_scope_sequence()
         history = {7: sequence[7]}
@@ -609,18 +669,14 @@ class RunnerTests(unittest.TestCase):
         errors = RUNNER.check_standard_scopes(9, ready, history)
         self.assertIn("turn 9 ready scope must use heterogeneous-effects support", errors)
 
-    def test_standard_scope_oracle_rejects_wrong_second_route(self):
+    def test_standard_scope_oracle_accepts_controller_selected_second_route(self):
         sequence = self.standard_scope_sequence()
         history = {7: sequence[7]}
         ready = deepcopy(sequence[9])
         entry = ready["analysis"].pop("descriptive_association")
         ready["analysis"]["panel_longitudinal"] = entry
         self.assertEqual(RUNNER.check_standard_scopes(8, sequence[8], history), [])
-        errors = RUNNER.check_standard_scopes(9, ready, history)
-        self.assertIn(
-            "turn 9 ready scope must use the descriptive_association route",
-            errors,
-        )
+        self.assertEqual(RUNNER.check_standard_scopes(9, ready, history), [])
 
     def test_standard_scope_oracle_rejects_multiple_new_ready_scopes(self):
         sequence = self.standard_scope_sequence()
@@ -946,6 +1002,52 @@ class RunnerTests(unittest.TestCase):
                         ],
                     },
                 },
+            )
+        )
+
+    def test_standard_report_gate_accepts_displaced_first_scope_with_exact_artifacts(self):
+        sequence = self.standard_same_route_scope_sequence()
+        history = {6: sequence[6], 9: sequence[9]}
+        artifacts = {
+            "counts": {"analysis_execution": 2},
+            "usable_scope_refs": {
+                "analysis_execution": [["analysis-1", 1], ["analysis-2", 1]],
+            },
+            "changed_scope_refs": {"analysis_execution": []},
+        }
+        self.assertEqual(
+            RUNNER.next_prompt_blockers(
+                "standard", 11, sequence[10], history, artifacts
+            ),
+            [],
+        )
+
+        missing = deepcopy(artifacts)
+        missing["usable_scope_refs"]["analysis_execution"].pop(0)
+        self.assertTrue(
+            RUNNER.next_prompt_blockers(
+                "standard", 11, sequence[10], history, missing
+            )
+        )
+        duplicated = deepcopy(artifacts)
+        duplicated["usable_scope_refs"]["analysis_execution"].append(["analysis-1", 1])
+        self.assertTrue(
+            RUNNER.next_prompt_blockers(
+                "standard", 11, sequence[10], history, duplicated
+            )
+        )
+        changed = deepcopy(artifacts)
+        changed["changed_scope_refs"]["analysis_execution"] = [["analysis-1", 1]]
+        self.assertTrue(
+            RUNNER.next_prompt_blockers(
+                "standard", 11, sequence[10], history, changed
+            )
+        )
+        latest_not_done = deepcopy(sequence[10])
+        latest_not_done["analysis"]["descriptive_association"]["current_status"] = "ready"
+        self.assertTrue(
+            RUNNER.next_prompt_blockers(
+                "standard", 11, latest_not_done, history, artifacts
             )
         )
 
@@ -1480,6 +1582,20 @@ class RunnerTests(unittest.TestCase):
                 result["usable_scope_refs"]["report_writer"],
                 [("44444444-4444-4444-8444-444444444444", 1)],
             )
+
+    def test_invalid_report_manifest_is_not_usable_evidence(self):
+        with TemporaryDirectory() as temporary:
+            workdir = Path(temporary)
+            self.write_report_artifact(workdir, html_content="<p>Report</p>")
+            manifest_path = workdir / "output" / "report" / "artifact-manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["completed_at"] = "12:00:00"
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            result = RUNNER.inspect_artifacts(
+                workdir, {"report_writer": 1, "new": 1}
+            )
+            self.assertFalse(result["ok"])
+            self.assertNotIn("report_writer", result["usable_scope_refs"])
 
     def test_artifact_scan_reports_invalid_listed_path(self):
         with TemporaryDirectory() as temporary:

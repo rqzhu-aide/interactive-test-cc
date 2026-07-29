@@ -75,6 +75,11 @@ MANUAL_RATINGS = {
     "standard": {"pass", "fail"},
     "causal-edge": {"safe", "weak", "fail"},
 }
+RECEIPT_BOUND_TURNS = {
+    "standard": {7, 10, 12},
+    "mechanical-edge": {7, 8, 12, 13},
+    "causal-edge": {8},
+}
 SUMMARY_SCHEMA_VERSION = 2
 EXIT_PENDING = 3
 
@@ -549,11 +554,21 @@ def check_response_state(text, validator):
     return errors
 
 
+def response_matches_receipt(text, validator):
+    receipt = validator.get("response_receipt")
+    stored = receipt.get("response_markdown") if isinstance(receipt, dict) else None
+    if not isinstance(stored, str):
+        return False
+    stored = stored.replace("\r\n", "\n").replace("\r", "\n")
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
+    return stored == text
+
+
 def response_diagnostics(text, validator):
     diagnostics = []
     receipt = validator.get("response_receipt")
     stored = receipt.get("response_markdown") if isinstance(receipt, dict) else None
-    if isinstance(stored, str) and stored != text:
+    if isinstance(stored, str) and not response_matches_receipt(text, validator):
         diagnostics.append(
             "delivered response differs from response_receipt.response_markdown"
         )
@@ -769,9 +784,7 @@ def check_standard_scopes(turn_number, raw_snapshot, history):
         if snapshot["analysis"] or snapshot["report"] is not None:
             errors.append(f"turn {turn_number} must not create an analysis or report scope")
     elif turn_number == 6:
-        ready = one_with_status(snapshot, "ready", "turn 6")
-        if ready and ready[0] != "single_time_observational":
-            errors.append("turn 6 ready scope must use the single_time_observational route")
+        one_with_status(snapshot, "ready", "turn 6")
         if len(snapshot["analysis"]) != 1:
             errors.append("turn 6 must contain exactly one analysis scope")
         if snapshot["report"] is not None:
@@ -812,16 +825,7 @@ def check_standard_scopes(turn_number, raw_snapshot, history):
         if previous is None:
             errors.append("turn 9 cannot verify the turn 8 analysis scope")
         else:
-            prior_routes = set(previous["analysis"])
-            current_routes = set(snapshot["analysis"])
-            if any(
-                snapshot["analysis"].get(route) != entry
-                for route, entry in previous["analysis"].items()
-            ):
-                errors.append("turn 9 must preserve completed analysis scopes")
-            new_routes = current_routes - prior_routes
-            if len(new_routes) != 1:
-                errors.append("turn 9 must create exactly one new analysis scope")
+            previous_analysis = previous["analysis"]
             ready = [
                 (route, entry)
                 for route, entry in snapshot["analysis"].items()
@@ -831,15 +835,20 @@ def check_standard_scopes(turn_number, raw_snapshot, history):
                 errors.append("turn 9 must contain exactly one ready analysis scope")
             else:
                 route, current = ready[0]
-                previous_ids = {
-                    entry["scope_id"] for entry in previous["analysis"].values()
+                changed_routes = {
+                    key
+                    for key in set(previous_analysis) | set(snapshot["analysis"])
+                    if previous_analysis.get(key) != snapshot["analysis"].get(key)
                 }
-                if route not in new_routes:
-                    errors.append("turn 9 ready scope must be the new analysis scope")
-                if route != "descriptive_association":
-                    errors.append("turn 9 ready scope must use the descriptive_association route")
+                previous_ids = {
+                    entry["scope_id"] for entry in previous_analysis.values()
+                }
+                if changed_routes != {route}:
+                    errors.append("turn 9 must create or replace exactly one analysis scope")
                 if current["scope_id"] in previous_ids:
                     errors.append("turn 9 must create a new analysis scope identity")
+                if current.get("scope_revision") != 1:
+                    errors.append("turn 9 new analysis scope must start at revision 1")
                 if current.get("support") != "heterogeneous-effects":
                     errors.append("turn 9 ready scope must use heterogeneous-effects support")
         if snapshot["report"] is not None:
@@ -1000,6 +1009,7 @@ def next_prompt_blockers(
     snapshot,
     history,
     artifacts,
+    receipt_matches=True,
 ):
     """Return only missing prerequisites that make the next registered prompt unusable."""
     if next_turn is None:
@@ -1024,6 +1034,10 @@ def next_prompt_blockers(
         else {}
     )
     blockers = []
+    if next_turn in RECEIPT_BOUND_TURNS.get(test_id, set()) and not receipt_matches:
+        blockers.append(
+            "the next approval requires the delivered response to match its committed receipt"
+        )
 
     def analysis_with_status(status):
         return [
@@ -1110,11 +1124,13 @@ def next_prompt_blockers(
         elif next_turn in (11, 12):
             first = unique_analysis(history.get(6), "ready")
             second = unique_analysis(history.get(9), "ready")
-            expected = {scope_ref(first), scope_ref(second)}
+            first_ref = scope_ref(first)
+            second_ref = scope_ref(second)
+            expected = {first_ref, second_ref}
             required = (
                 None not in expected
                 and len(expected) == 2
-                and all(done_refs.count(reference) == 1 for reference in expected)
+                and done_refs.count(second_ref) == 1
                 and all(
                     analysis_artifact_refs.count(reference) == 1
                     and reference not in changed_analysis_refs
@@ -1480,6 +1496,7 @@ def inspect_artifacts(workdir, expected, previous=None):
 
     for path in manifest_paths:
         relative = path.relative_to(root).as_posix()
+        manifest_error_start = len(errors)
         durably_registered = False
         try:
             hashes[relative] = sha256_file(path)
@@ -1652,6 +1669,7 @@ def inspect_artifacts(workdir, expected, previous=None):
             and durably_registered
             and nonempty_deliverable
             and report_html_ready
+            and len(errors) == manifest_error_start
         ):
             reference = manifest.get("scope_ref")
             expected_kind = "analysis" if route == "analysis_execution" else "report"
@@ -2454,6 +2472,7 @@ def run_test(args, case):
                 normalized_scope,
                 scope_history,
                 artifacts,
+                receipt_matches=response_matches_receipt(response_text, validator),
             )
             if not state_blockers and not scope_blockers
             else []
