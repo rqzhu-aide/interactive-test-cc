@@ -119,12 +119,12 @@
         },
         {
           "label": "Scope bounded discovery",
-          "prompt": "Using the completed domain and data findings, scope one bounded causal-discovery exercise around Expend and later Grad.Rate. Use a compact audited variable set, honor the fixed timing constraints, leave unresolved directions unoriented, and require a local adjacency or neighborhood result with stability or sensitivity diagnostics. Treat it as hypothesis generation only. Do not run it or create output yet.",
+          "prompt": "Using the completed domain and data findings, scope one bounded causal-discovery exercise around Expend and later Grad.Rate. Name the exact discovery method or method sequence, use a compact audited variable set, honor the fixed timing constraints, leave unresolved directions unoriented, and require a local adjacency or neighborhood result with stability or sensitivity diagnostics. Treat it as hypothesis generation only. Do not run it or create output yet.",
           "artifacts": {"causal_discovery": 0, "analysis_execution": 0, "report_writer": 0, "total": 0, "new": 0}
         },
         {
           "label": "Run bounded discovery",
-          "prompt": "Run the bounded discovery exercise you just scoped. A stability-screened local neighborhood or comparable constraint-aware structure diagnostic is acceptable; do not force a fully directed DAG. Create exactly one durable discovery artifact containing the method and settings, candidate structure, stability evidence, and limitations. Do not select adjustment variables, choose the final causal method, estimate an effect, or call any edge a cause.",
+          "prompt": "Run the exact bounded discovery scope you just presented without changing its target, inputs, variables, method plan, constraints, diagnostics, output type, or candidate-only claim boundary. Create exactly one durable discovery artifact containing the method and settings, candidate structure, stability evidence, and limitations. Do not select adjustment variables, choose the final causal method, estimate an effect, or call any edge a cause.",
           "artifacts": {"causal_discovery": 1, "analysis_execution": 0, "report_writer": 0, "total": 1, "new": 1}
         },
         {
@@ -134,7 +134,7 @@
         },
         {
           "label": "Prepare bounded analysis scope",
-          "prompt": "Using only the current causal review, prepare one approval-ready analysis scope for the mature Expend-Grad.Rate question it authorized. Discovery may motivate diagnostics, but it must not determine adjustment or strengthen the claim. Do not rerun review, execute analysis, or create output.",
+          "prompt": "Using only the current causal review, prepare one approval-ready analysis scope if it authorized a mature Expend-Grad.Rate question. Otherwise state the smallest blocker and do not invent a ready scope. Discovery may motivate diagnostics, but it must not determine adjustment or strengthen the claim. Do not rerun review, execute analysis, or create output.",
           "artifacts": {"causal_discovery": 1, "analysis_execution": 0, "report_writer": 0, "total": 1, "new": 0}
         },
         {

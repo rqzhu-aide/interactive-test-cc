@@ -46,7 +46,7 @@ class RunnerTests(unittest.TestCase):
 
     def summary_target(self):
         return {
-            "test_suite_version": "5.2.7",
+            "test_suite_version": "5.2.8",
             "test_suite_runtime_sha256": "suite123",
             "test_case_sha256": "case123",
             "causal_consultant_version": "5.1.4",
@@ -601,9 +601,19 @@ class RunnerTests(unittest.TestCase):
                         test_id,
                         {"capabilities": base},
                     )
+                capabilities = {**base, "scope_snapshot": 1}
+                if test_id == "discovery":
+                    with self.assertRaisesRegex(
+                        RUNNER.RunError, "discovery_contract 1"
+                    ):
+                        RUNNER.require_controller_capabilities(
+                            test_id,
+                            {"capabilities": capabilities},
+                        )
+                    capabilities["discovery_contract"] = 1
                 RUNNER.require_controller_capabilities(
                     test_id,
-                    {"capabilities": {**base, "scope_snapshot": 1}},
+                    {"capabilities": capabilities},
                 )
 
     def test_registry_rejects_unknown_artifact_expectation(self):
@@ -653,7 +663,7 @@ class RunnerTests(unittest.TestCase):
         for requirement in (
             "candidate-only",
             "does not validate an adjustment set",
-            "ready scope at turn 6",
+            "ready analysis scope at turn",
             "Rate `pass`",
         ):
             self.assertIn(requirement, reference)
@@ -900,12 +910,55 @@ class RunnerTests(unittest.TestCase):
             "report": None,
         }
 
+    def discovery_contract(self):
+        return {
+            "target": "Expend increase and later Grad.Rate",
+            "input_refs": ["data.csv"],
+            "variables": [
+                "Private",
+                "Top10perc",
+                "S.F.Ratio",
+                "Expend",
+                "Grad.Rate",
+            ],
+            "method_plan": "stable PC with bootstrap edge-stability diagnostics",
+            "constraints": [
+                "Private and Top10perc are baseline",
+                "Expend precedes Grad.Rate",
+            ],
+            "diagnostic_requirements": ["stability or sensitivity diagnostics"],
+            "output_type": "local adjacency or neighborhood",
+            "claim_boundary": "candidate_only",
+        }
+
+    def discovery_entry(self, status, last_updated):
+        return {
+            "scope_id": "55555555-5555-4555-8555-555555555555",
+            "scope_revision": 1,
+            "status": status,
+            "execution_contract": self.discovery_contract(),
+            "last_updated": last_updated,
+        }
+
     def discovery_scope_sequence(self):
-        empty = {"analysis": {}, "report": None}
+        empty = {"analysis": {}, "report": None, "discovery": None}
+        scoped = {
+            "analysis": {},
+            "report": None,
+            "discovery": self.discovery_entry("scoped", "2026-01-01T00:00:03Z"),
+        }
+        artifact = {
+            "analysis": {},
+            "report": None,
+            "discovery": self.discovery_entry(
+                "artifact_created", "2026-01-01T00:00:04Z"
+            ),
+        }
         ready = self.analysis_snapshot(
             "discovery-analysis", 1, "ready", "2026-01-01T00:00:06Z"
         )
         ready["analysis"]["single_time_observational"]["support"] = None
+        ready["discovery"] = deepcopy(artifact["discovery"])
         completed = deepcopy(ready)
         completed["analysis"]["single_time_observational"].update(
             {
@@ -914,14 +967,14 @@ class RunnerTests(unittest.TestCase):
             }
         )
         return {
-            1: empty,
-            2: empty,
-            3: empty,
-            4: empty,
-            5: empty,
+            1: deepcopy(empty),
+            2: deepcopy(empty),
+            3: scoped,
+            4: deepcopy(artifact),
+            5: deepcopy(artifact),
             6: ready,
             7: completed,
-            8: completed,
+            8: deepcopy(completed),
         }
 
     def test_discovery_scope_oracle_accepts_fixed_sequence(self):
@@ -933,18 +986,36 @@ class RunnerTests(unittest.TestCase):
             )
 
     def test_discovery_scope_oracle_rejects_wrong_boundaries(self):
-        early = self.analysis_snapshot(
+        sequence = self.discovery_scope_sequence()
+        early = deepcopy(sequence[4])
+        early["analysis"] = self.analysis_snapshot(
             "early", 1, "ready", "2026-01-01T00:00:04Z"
-        )
+        )["analysis"]
         self.assertIn(
             "turn 4 must not prepare an analysis scope",
-            RUNNER.check_discovery_scopes(4, early, {}),
+            RUNNER.check_discovery_scopes(4, early, {3: sequence[3]}),
         )
 
-        sequence = self.discovery_scope_sequence()
+        incomplete = deepcopy(sequence[3])
+        incomplete["discovery"]["execution_contract"]["diagnostic_requirements"] = []
+        self.assertIn(
+            "turn 3 discovery contract must preserve constraints and diagnostics",
+            RUNNER.check_discovery_scopes(3, incomplete, {}),
+        )
+
+        drifted = deepcopy(sequence[4])
+        drifted["discovery"]["execution_contract"]["method_plan"] = (
+            "different discovery family"
+        )
+        self.assertIn(
+            "turn 4 must run the exact scoped discovery contract",
+            RUNNER.check_discovery_scopes(4, drifted, {3: sequence[3]}),
+        )
+
         wrong = self.analysis_snapshot(
             "other", 1, "done", "2026-01-01T00:00:07Z"
         )
+        wrong["discovery"] = deepcopy(sequence[7]["discovery"])
         self.assertIn(
             "turn 7 must complete the exact ready analysis scope",
             RUNNER.check_discovery_scopes(7, wrong, {6: sequence[6]}),
@@ -1125,14 +1196,63 @@ class RunnerTests(unittest.TestCase):
 
     def test_discovery_continuation_requires_its_durable_handoff(self):
         sequence = self.discovery_scope_sequence()
+        self.assertEqual(
+            RUNNER.next_prompt_blockers(
+                "discovery",
+                4,
+                sequence[3],
+                {3: sequence[3]},
+                {"counts": {}},
+            ),
+            [],
+        )
+        missing_scope = deepcopy(sequence[3])
+        missing_scope["discovery"] = None
+        self.assertIn(
+            "the bounded discovery run requires one complete scoped contract",
+            RUNNER.next_prompt_blockers(
+                "discovery",
+                4,
+                missing_scope,
+                {3: missing_scope},
+                {"counts": {}},
+            ),
+        )
+        incomplete_contract = deepcopy(sequence[3])
+        incomplete_contract["discovery"]["execution_contract"]["constraints"] = []
+        self.assertTrue(
+            RUNNER.next_prompt_blockers(
+                "discovery",
+                4,
+                incomplete_contract,
+                {3: incomplete_contract},
+                {"counts": {}},
+            )
+        )
+
+        discovery_ref = list(RUNNER.scope_ref(sequence[4]["discovery"]))
         discovery = {
             "counts": {"causal_discovery": 1},
             "intact_routes": {
                 "causal_discovery": True,
                 "analysis_execution": True,
             },
-            "usable_scope_refs": {},
-            "changed_scope_refs": {"analysis_execution": []},
+            "usable_scope_refs": {"causal_discovery": [discovery_ref]},
+            "changed_scope_refs": {
+                "causal_discovery": [],
+                "analysis_execution": [],
+            },
+            "manifests": [
+                {
+                    "route": "causal_discovery",
+                    "scope_ref": {
+                        "kind": "discovery",
+                        "id": discovery_ref[0],
+                        "revision": discovery_ref[1],
+                    },
+                    "discovery_contract": self.discovery_contract(),
+                }
+            ],
         }
         self.assertEqual(
             RUNNER.next_prompt_blockers(
@@ -1154,6 +1274,30 @@ class RunnerTests(unittest.TestCase):
                 sequence[4],
                 {4: sequence[4]},
                 missing,
+            )
+        )
+        unbound = deepcopy(discovery)
+        unbound["usable_scope_refs"]["causal_discovery"] = []
+        self.assertTrue(
+            RUNNER.next_prompt_blockers(
+                "discovery",
+                5,
+                sequence[4],
+                {4: sequence[4]},
+                unbound,
+            )
+        )
+        mismatched_contract = deepcopy(discovery)
+        mismatched_contract["manifests"][0]["discovery_contract"]["method_plan"] = (
+            "GES"
+        )
+        self.assertTrue(
+            RUNNER.next_prompt_blockers(
+                "discovery",
+                5,
+                sequence[4],
+                {4: sequence[4]},
+                mismatched_contract,
             )
         )
         self.assertEqual(
@@ -1780,6 +1924,46 @@ class RunnerTests(unittest.TestCase):
                 discovery["errors"],
             )
 
+    def test_discovery_manifest_is_scope_bound_and_usable(self):
+        with TemporaryDirectory() as temporary:
+            workdir = Path(temporary)
+            artifact = workdir / "output" / "discovery"
+            artifact.mkdir(parents=True)
+            deliverable = artifact / "candidate-graph.csv"
+            deliverable.write_text("from,to\nExpend,Grad.Rate\n", encoding="utf-8")
+            reference = {
+                "kind": "discovery",
+                "id": "55555555-5555-4555-8555-555555555555",
+                "revision": 1,
+            }
+            manifest = {
+                "schema_version": 1,
+                "operation_id": "66666666-6666-4666-8666-666666666666",
+                "route": "causal_discovery",
+                "scope_ref": reference,
+                "discovery_contract": self.discovery_contract(),
+                "files": ["output/discovery/candidate-graph.csv"],
+                "completed_at": "2026-01-01T00:00:00Z",
+                "summary": "Bound discovery output.",
+            }
+            (artifact / "artifact-manifest.json").write_text(
+                json.dumps(manifest), encoding="utf-8"
+            )
+            self.write_artifact_state(workdir, manifest, "output/discovery")
+
+            result = RUNNER.inspect_artifacts(
+                workdir, {"causal_discovery": 1, "new": 1}
+            )
+            self.assertTrue(result["ok"], result["errors"])
+            self.assertEqual(
+                result["usable_scope_refs"]["causal_discovery"],
+                [(reference["id"], reference["revision"])],
+            )
+            self.assertEqual(
+                result["manifests"][0]["discovery_contract"],
+                self.discovery_contract(),
+            )
+
     def test_artifact_manifest_schema_is_strict(self):
         cases = (
             ("schema", lambda manifest: manifest.update(schema_version=2), "schema_version"),
@@ -1961,6 +2145,110 @@ class RunnerTests(unittest.TestCase):
         errors = RUNNER.check_new_manifest_scope_bindings(current, previous, artifacts)
         self.assertTrue(any("not exactly ready" in error for error in errors))
         self.assertTrue(any("not exactly done" in error for error in errors))
+
+    def test_discovery_manifest_binds_scoped_contract(self):
+        sequence = self.discovery_scope_sequence()
+        contract = self.discovery_contract()
+        artifacts = {
+            "new_manifests": [
+                {
+                    "path": "output/discovery/artifact-manifest.json",
+                    "route": "causal_discovery",
+                    "scope_ref": {
+                        "kind": "discovery",
+                        "id": "55555555-5555-4555-8555-555555555555",
+                        "revision": 1,
+                    },
+                    "discovery_contract": contract,
+                }
+            ]
+        }
+        self.assertEqual(
+            RUNNER.check_new_manifest_scope_bindings(
+                sequence[4], sequence[3], artifacts
+            ),
+            [],
+        )
+        artifacts["new_manifests"][0]["discovery_contract"] = {
+            **contract,
+            "method_plan": "different discovery family",
+        }
+        errors = RUNNER.check_new_manifest_scope_bindings(
+            sequence[4], sequence[3], artifacts
+        )
+        self.assertTrue(any("prior scope" in error for error in errors))
+        self.assertTrue(any("completed contract" in error for error in errors))
+
+    def test_discovery_manifest_binding_accepts_legal_direct_transitions(self):
+        sequence = self.discovery_scope_sequence()
+        prior = sequence[4]
+        reference = {
+            "kind": "discovery",
+            "id": prior["discovery"]["scope_id"],
+            "revision": 1,
+        }
+        manifest = {
+            "path": "output/discovery/artifact-manifest.json",
+            "route": "causal_discovery",
+            "scope_ref": reference,
+            "discovery_contract": self.discovery_contract(),
+        }
+        self.assertEqual(
+            RUNNER.check_new_manifest_scope_bindings(
+                sequence[4], None, {"new_manifests": [manifest]}
+            ),
+            [],
+        )
+        invalid_direct = deepcopy(sequence[4])
+        invalid_direct["discovery"]["scope_revision"] = 2
+        invalid_manifest = deepcopy(manifest)
+        invalid_manifest["scope_ref"]["revision"] = 2
+        self.assertTrue(
+            any(
+                "prior scope" in error
+                for error in RUNNER.check_new_manifest_scope_bindings(
+                    invalid_direct,
+                    None,
+                    {"new_manifests": [invalid_manifest]},
+                )
+            )
+        )
+        self.assertEqual(
+            RUNNER.check_new_manifest_scope_bindings(
+                sequence[4], prior, {"new_manifests": [manifest]}
+            ),
+            [],
+        )
+
+        revised = deepcopy(sequence[4])
+        revised["discovery"]["scope_revision"] = 2
+        revised["discovery"]["execution_contract"]["method_plan"] = (
+            "revised discovery method"
+        )
+        revised_manifest = deepcopy(manifest)
+        revised_manifest["scope_ref"]["revision"] = 2
+        revised_manifest["discovery_contract"] = deepcopy(
+            revised["discovery"]["execution_contract"]
+        )
+        self.assertEqual(
+            RUNNER.check_new_manifest_scope_bindings(
+                revised, prior, {"new_manifests": [revised_manifest]}
+            ),
+            [],
+        )
+
+        replacement = deepcopy(sequence[4])
+        replacement["discovery"]["scope_id"] = (
+            "77777777-7777-4777-8777-777777777777"
+        )
+        replacement_manifest = deepcopy(manifest)
+        replacement_manifest["scope_ref"]["id"] = replacement["discovery"]["scope_id"]
+        self.assertEqual(
+            RUNNER.check_new_manifest_scope_bindings(
+                replacement, prior, {"new_manifests": [replacement_manifest]}
+            ),
+            [],
+        )
 
     def test_report_manifest_binds_prior_ready_scope(self):
         analysis = self.analysis_snapshot(
@@ -2509,16 +2797,6 @@ class RunnerTests(unittest.TestCase):
         self.assertIn("_No completed response._", conversation)
         self.assertIn("Phase: `transport`", conversation)
         self.assertIn("transport exited before a response was returned", conversation)
-
-    def test_matching_release_versions_are_required(self):
-        self.assertIsNone(
-            RUNNER.require_matching_release_versions("5.2.7", "5.2.7")
-        )
-        with self.assertRaisesRegex(
-            RUNNER.RunError,
-            "interactive-test-cc v5.2.7 requires causal-consultant v5.2.7",
-        ):
-            RUNNER.require_matching_release_versions("5.2.7", "5.2.6")
 
     def test_suite_version_comes_from_skill_metadata(self):
         self.assertRegex(RUNNER.load_test_suite_version(), r"^\d+\.\d+\.\d+$")

@@ -5,7 +5,7 @@ description: Run reproducible multi-turn regression tests for the causal-consult
 
 # Interactive causal-consultant tests
 
-Version: `5.2.7`
+Version: `5.2.8`
 
 Choose one explicit test and load its reference:
 
@@ -22,7 +22,6 @@ Exact prompts and per-turn artifact-count expectations have one machine-readable
 ## Run a test
 
 1. Install or symlink the intended causal-consultant package at `${CLAUDE_CONFIG_DIR:-~/.claude}/skills/causal-consultant`. Live replay is supported only after Claude and the oracle resolve the same installed package.
-   Use the same release number for `interactive-test-cc` and the target `causal-consultant`.
 2. Prepare a fresh work directory. Leave it empty for `smoke`; for every other test, place only the required 777-row `data.csv` there.
 3. Choose a missing or empty results directory outside the work directory.
 4. Run:

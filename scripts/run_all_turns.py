@@ -38,6 +38,17 @@ MANIFEST_KEYS = {
     "completed_at",
     "summary",
 }
+MANIFEST_OPTIONAL_KEYS = {"discovery_contract"}
+DISCOVERY_CONTRACT_KEYS = {
+    "target",
+    "input_refs",
+    "variables",
+    "method_plan",
+    "constraints",
+    "diagnostic_requirements",
+    "output_type",
+    "claim_boundary",
+}
 ARTIFACT_RECORD_KEYS = {
     "artifact_id",
     "operation_id",
@@ -119,13 +130,6 @@ def load_test_suite_version():
         raise RunError("interactive-test-cc SKILL.md has no valid Version line")
     return match.group(1).strip()
 
-
-def require_matching_release_versions(test_suite_version, target_version):
-    if target_version != test_suite_version:
-        raise RunError(
-            f"interactive-test-cc v{test_suite_version} requires "
-            f"causal-consultant v{test_suite_version}; active target is v{target_version}"
-        )
 
 
 def skill_runtime_sha256(skill_root):
@@ -406,6 +410,8 @@ def require_controller_capabilities(test_id, template_result):
     ]
     if test_id != "smoke":
         required.append("scope_snapshot")
+    if test_id == "discovery":
+        required.append("discovery_contract")
     for capability in required:
         if not isinstance(capabilities, dict) or capabilities.get(capability) != 1:
             raise RunError(f"{test_id} requires controller capability {capability} 1")
@@ -443,7 +449,6 @@ def preflight(test_id, case, workdir, results_dir, statectl, node_bin):
     except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as exc:
         raise RunError(f"cannot read causal-consultant target provenance: {exc}") from exc
     target_version = version.strip()
-    require_matching_release_versions(test_suite_version, target_version)
     if not workdir.is_dir():
         raise RunError(f"workdir not found: {workdir}")
     if paths_overlap(workdir, results_dir):
@@ -701,6 +706,8 @@ def normalize_scope_snapshot(snapshot):
         return None, ["scope_snapshot is missing or invalid"]
     raw_analysis = snapshot["analysis"]
     raw_report = snapshot["report"]
+    has_discovery = "discovery" in snapshot
+    raw_discovery = snapshot.get("discovery")
     if not isinstance(raw_analysis, dict):
         return None, ["scope_snapshot.analysis is invalid"]
 
@@ -728,16 +735,69 @@ def normalize_scope_snapshot(snapshot):
         or not (raw_report["last_updated"] is None or isinstance(raw_report["last_updated"], str))
     ):
         errors.append("report scope snapshot has an invalid shape")
+    discovery = None
+    if has_discovery and raw_discovery is not None:
+        discovery_keys = {
+            "scope_id",
+            "scope_revision",
+            "status",
+            "execution_contract",
+            "last_updated",
+        }
+        if (
+            not isinstance(raw_discovery, dict)
+            or not discovery_keys.issubset(raw_discovery)
+            or raw_discovery.get("status")
+            not in {"scoped", "artifact_created", "reviewed", "blocked"}
+            or not (
+                raw_discovery.get("last_updated") is None
+                or isinstance(raw_discovery.get("last_updated"), str)
+            )
+        ):
+            errors.append("discovery scope snapshot has an invalid shape")
+        else:
+            contract_errors = validate_discovery_contract(
+                raw_discovery.get("execution_contract"),
+                "discovery scope snapshot execution_contract",
+            )
+            errors.extend(contract_errors)
+            if not contract_errors:
+                discovery = {key: raw_discovery[key] for key in discovery_keys}
     if errors:
         return None, errors
     report = None if raw_report is None else {key: raw_report[key] for key in report_keys}
     snapshot = {"analysis": analysis, "report": report}
+    if has_discovery:
+        snapshot["discovery"] = discovery
 
     if any(scope_ref(entry) is None for entry in analysis.values()):
         errors.append("analysis scope snapshot has an invalid identity")
     if report is not None and scope_ref(report) is None:
         errors.append("report scope snapshot has an invalid identity")
+    if discovery is not None and scope_ref(discovery) is None:
+        errors.append("discovery scope snapshot has an invalid identity")
     return (None, errors) if errors else (snapshot, [])
+
+
+def validate_discovery_contract(contract, label="discovery_contract"):
+    if not isinstance(contract, dict) or set(contract) != DISCOVERY_CONTRACT_KEYS:
+        return [f"{label} has an invalid shape"]
+    errors = []
+    for key in ("target", "method_plan", "output_type"):
+        if not isinstance(contract.get(key), str) or not contract[key].strip():
+            errors.append(f"{label}.{key} must be nonempty")
+    for key in ("input_refs", "variables", "constraints", "diagnostic_requirements"):
+        values = contract.get(key)
+        if (
+            not isinstance(values, list)
+            or any(not isinstance(item, str) or not item.strip() for item in values)
+            or len(values) != len(set(values))
+            or (key in {"input_refs", "variables"} and not values)
+        ):
+            errors.append(f"{label}.{key} is invalid")
+    if contract.get("claim_boundary") != "candidate_only":
+        errors.append(f"{label}.claim_boundary must be candidate_only")
+    return errors
 
 
 def scope_ref(entry):
@@ -757,11 +817,12 @@ def scope_ref(entry):
 
 
 def check_new_manifest_scope_bindings(raw_snapshot, previous_snapshot, artifacts):
-    """Bind every new analysis/report manifest to the prior ready scope and current done scope."""
+    """Bind every new scoped manifest to its persisted execution scope."""
     relevant = [
         manifest
         for manifest in artifacts.get("new_manifests", [])
-        if manifest.get("route") in ("analysis_execution", "report_writer")
+        if manifest.get("route")
+        in ("causal_discovery", "analysis_execution", "report_writer")
     ]
     if not relevant:
         return []
@@ -771,12 +832,22 @@ def check_new_manifest_scope_bindings(raw_snapshot, previous_snapshot, artifacts
         return errors
     previous, previous_errors = normalize_scope_snapshot(previous_snapshot)
     if previous_errors:
-        return ["new analysis or report artifact has no valid prior scope snapshot"]
+        if previous_snapshot is None and all(
+            manifest.get("route") == "causal_discovery"
+            for manifest in relevant
+        ):
+            previous = {"analysis": {}, "report": None, "discovery": None}
+        else:
+            return ["new scoped artifact has no valid prior scope snapshot"]
 
     for manifest in relevant:
         route = manifest["route"]
         reference = manifest.get("scope_ref")
-        expected_kind = "analysis" if route == "analysis_execution" else "report"
+        expected_kind = {
+            "causal_discovery": "discovery",
+            "analysis_execution": "analysis",
+            "report_writer": "report",
+        }[route]
         if (
             not isinstance(reference, dict)
             or set(reference) != {"kind", "id", "revision"}
@@ -785,6 +856,47 @@ def check_new_manifest_scope_bindings(raw_snapshot, previous_snapshot, artifacts
             errors.append(f"{manifest['path']}: scope_ref is not a valid {expected_kind} reference")
             continue
         identity = (reference.get("id"), reference.get("revision"))
+        if route == "causal_discovery":
+            prior = previous.get("discovery")
+            completed = current.get("discovery")
+            prior_ref = scope_ref(prior)
+            preserves = (
+                prior_ref == identity
+                and prior.get("execution_contract")
+                == manifest.get("discovery_contract")
+            ) if isinstance(prior, dict) else False
+            revises = (
+                prior_ref is not None
+                and prior_ref[0] == identity[0]
+                and prior_ref[1] + 1 == identity[1]
+            )
+            replaces = (
+                prior_ref is not None
+                and prior_ref[0] != identity[0]
+                and identity[1] == 1
+            )
+            prior_matches = (
+                (prior is None and identity[1] == 1)
+                or preserves
+                or revises
+                or replaces
+            )
+            current_matches = (
+                isinstance(completed, dict)
+                and scope_ref(completed) == identity
+                and completed.get("status") == "artifact_created"
+                and completed.get("execution_contract")
+                == manifest.get("discovery_contract")
+            )
+            if not prior_matches:
+                errors.append(
+                    f"{manifest['path']}: discovery artifact does not follow the prior scope"
+                )
+            if not current_matches:
+                errors.append(
+                    f"{manifest['path']}: discovery artifact does not match the completed contract"
+                )
+            continue
         if route == "analysis_execution":
             prior_matches = [
                 entry
@@ -960,8 +1072,15 @@ def check_discovery_scopes(turn_number, raw_snapshot, history):
     snapshot, errors = normalize_scope_snapshot(raw_snapshot)
     if errors:
         return errors
+    if "discovery" not in snapshot:
+        return ["scope_snapshot.discovery is missing"]
     analysis = snapshot["analysis"]
     report = snapshot["report"]
+    discovery = snapshot["discovery"]
+
+    def discovery_at(turn):
+        value = history.get(turn)
+        return value.get("discovery") if isinstance(value, dict) else None
 
     def single_analysis(value, label, status):
         if not isinstance(value, dict) or not isinstance(value.get("analysis"), dict):
@@ -977,14 +1096,53 @@ def check_discovery_scopes(turn_number, raw_snapshot, history):
             return None
         return route, entry
 
-    if turn_number <= 5:
+    if turn_number <= 2:
+        if discovery is not None:
+            errors.append(f"turn {turn_number} must not create a discovery scope")
         if analysis:
             errors.append(f"turn {turn_number} must not prepare an analysis scope")
+    elif turn_number == 3:
+        if (
+            not isinstance(discovery, dict)
+            or discovery.get("status") != "scoped"
+            or discovery.get("scope_revision") != 1
+        ):
+            errors.append("turn 3 must create one new scoped discovery contract")
+        elif (
+            not discovery["execution_contract"].get("constraints")
+            or not discovery["execution_contract"].get("diagnostic_requirements")
+        ):
+            errors.append(
+                "turn 3 discovery contract must preserve constraints and diagnostics"
+            )
+        if analysis:
+            errors.append("turn 3 must not prepare an analysis scope")
+    elif turn_number == 4:
+        prior = discovery_at(3)
+        if (
+            not isinstance(discovery, dict)
+            or discovery.get("status") != "artifact_created"
+            or not isinstance(prior, dict)
+            or scope_ref(discovery) != scope_ref(prior)
+            or discovery.get("execution_contract") != prior.get("execution_contract")
+        ):
+            errors.append("turn 4 must run the exact scoped discovery contract")
+        if analysis:
+            errors.append("turn 4 must not prepare an analysis scope")
+    elif turn_number == 5:
+        if discovery != discovery_at(4):
+            errors.append("turn 5 must preserve the completed discovery contract")
+        if analysis:
+            errors.append("turn 5 must not prepare an analysis scope")
     elif turn_number == 6:
+        if discovery != discovery_at(5):
+            errors.append("turn 6 must preserve the completed discovery contract")
         current = single_analysis(snapshot, "turn 6", "ready")
         if current and current[1].get("scope_revision") != 1:
             errors.append("turn 6 new analysis scope must start at revision 1")
     elif turn_number == 7:
+        if discovery != discovery_at(6):
+            errors.append("turn 7 must preserve the completed discovery contract")
         current = single_analysis(snapshot, "turn 7", "done")
         prepared = single_analysis(history.get(6), "turn 6", "ready")
         if current and prepared:
@@ -992,8 +1150,12 @@ def check_discovery_scopes(turn_number, raw_snapshot, history):
             prepared_identity = prepared[0], scope_ref(prepared[1]), prepared[1].get("support")
             if current_identity != prepared_identity:
                 errors.append("turn 7 must complete the exact ready analysis scope")
-    elif turn_number == 8 and snapshot != history.get(7):
-        errors.append("turn 8 must leave the completed analysis scope unchanged")
+    elif turn_number == 8:
+        if discovery != discovery_at(7):
+            errors.append("turn 8 must preserve the completed discovery contract")
+        previous = history.get(7)
+        if not isinstance(previous, dict) or analysis != previous.get("analysis"):
+            errors.append("turn 8 must leave the completed analysis scope unchanged")
 
     if report is not None:
         errors.append(f"turn {turn_number} must not create a report scope")
@@ -1109,6 +1271,7 @@ def next_prompt_blockers(
 
     analysis = snapshot.get("analysis", {}) if isinstance(snapshot, dict) else {}
     report = snapshot.get("report") if isinstance(snapshot, dict) else None
+    discovery = snapshot.get("discovery") if isinstance(snapshot, dict) else None
     counts = artifacts.get("counts", {}) if isinstance(artifacts, dict) else {}
     usable_scope_refs = (
         artifacts.get("usable_scope_refs", {})
@@ -1190,6 +1353,11 @@ def next_prompt_blockers(
         for reference in usable_scope_refs.get("report_writer", [])
         if isinstance(reference, (list, tuple)) and len(reference) == 2
     ]
+    discovery_artifact_refs = [
+        tuple(reference)
+        for reference in usable_scope_refs.get("causal_discovery", [])
+        if isinstance(reference, (list, tuple)) and len(reference) == 2
+    ]
     changed_analysis_refs = {
         tuple(reference)
         for reference in changed_scope_refs.get("analysis_execution", [])
@@ -1198,6 +1366,11 @@ def next_prompt_blockers(
     changed_report_refs = {
         tuple(reference)
         for reference in changed_scope_refs.get("report_writer", [])
+        if isinstance(reference, (list, tuple)) and len(reference) == 2
+    }
+    changed_discovery_refs = {
+        tuple(reference)
+        for reference in changed_scope_refs.get("causal_discovery", [])
         if isinstance(reference, (list, tuple)) and len(reference) == 2
     }
     analysis_intact = intact_routes.get("analysis_execution", True)
@@ -1255,11 +1428,47 @@ def next_prompt_blockers(
                 blockers.append("the next derivative scope requires a completed report")
 
     elif test_id == "discovery":
+        discovery_reference = scope_ref(discovery)
+        matching_discovery_manifests = [
+            manifest
+            for manifest in artifacts.get("manifests", [])
+            if manifest.get("route") == "causal_discovery"
+            and isinstance(manifest.get("scope_ref"), dict)
+            and (
+                manifest["scope_ref"].get("id"),
+                manifest["scope_ref"].get("revision"),
+            ) == discovery_reference
+            and isinstance(discovery, dict)
+            and manifest.get("discovery_contract")
+            == discovery.get("execution_contract")
+        ]
+        discovery_contract = (
+            discovery.get("execution_contract")
+            if isinstance(discovery, dict)
+            else None
+        )
+        discovery_scoped = (
+            isinstance(discovery, dict)
+            and discovery.get("status") == "scoped"
+            and discovery_reference is not None
+            and not validate_discovery_contract(discovery_contract)
+            and bool(discovery_contract.get("constraints"))
+            and bool(discovery_contract.get("diagnostic_requirements"))
+        )
         discovery_available = (
             counts.get("causal_discovery", 0) == 1
             and intact_routes.get("causal_discovery", True)
+            and isinstance(discovery, dict)
+            and discovery.get("status") == "artifact_created"
+            and discovery_artifact_refs.count(discovery_reference) == 1
+            and len(matching_discovery_manifests) == 1
+            and discovery_reference not in changed_discovery_refs
         )
-        if next_turn in (5, 6, 7, 8) and not discovery_available:
+        if next_turn == 4 and not discovery_scoped:
+            blockers.append(
+                "the bounded discovery run requires one complete scoped contract"
+            )
+        elif next_turn in (5, 6, 7, 8) and not discovery_available:
             blockers.append("the next step requires one intact discovery artifact")
         elif next_turn == 7 and len(ready_analysis) != 1:
             blockers.append("the next approval has no unique ready analysis scope")
@@ -1633,7 +1842,9 @@ def inspect_artifacts(workdir, expected, previous=None):
             errors.append(f"{relative}: manifest is not an object")
             continue
         missing_keys = sorted(MANIFEST_KEYS - set(manifest))
-        unknown_keys = sorted(set(manifest) - MANIFEST_KEYS)
+        unknown_keys = sorted(
+            set(manifest) - MANIFEST_KEYS - MANIFEST_OPTIONAL_KEYS
+        )
         if missing_keys:
             errors.append(f"{relative}: manifest is missing: {', '.join(missing_keys)}")
         if unknown_keys:
@@ -1673,6 +1884,7 @@ def inspect_artifacts(workdir, expected, previous=None):
                 ):
                     errors.append(f"{relative}: summary does not match its project state record")
         expected_scope_kind = {
+            "causal_discovery": "discovery",
             "analysis_execution": "analysis",
             "report_writer": "report",
         }.get(route)
@@ -1690,6 +1902,16 @@ def inspect_artifacts(workdir, expected, previous=None):
             or scope_reference.get("revision") < 1
         ):
             errors.append(f"{relative}: scope_ref is invalid for {route}")
+        discovery_contract = manifest.get("discovery_contract")
+        if route == "causal_discovery":
+            errors.extend(
+                f"{relative}: {error}"
+                for error in validate_discovery_contract(discovery_contract)
+            )
+        elif "discovery_contract" in manifest:
+            errors.append(
+                f"{relative}: discovery_contract is allowed only for causal_discovery"
+            )
         if not is_rfc3339_utc(manifest.get("completed_at")):
             errors.append(f"{relative}: completed_at must be RFC3339 UTC")
         if not isinstance(summary, str) or not summary.strip():
@@ -1775,6 +1997,7 @@ def inspect_artifacts(workdir, expected, previous=None):
                 "operation_id": operation_id,
                 "route": route,
                 "scope_ref": manifest.get("scope_ref"),
+                "discovery_contract": manifest.get("discovery_contract"),
                 "completed_at": manifest.get("completed_at"),
                 "summary": manifest.get("summary"),
                 "files": resolved_files,
@@ -1782,14 +2005,18 @@ def inspect_artifacts(workdir, expected, previous=None):
         )
         report_html_ready = route != "report_writer" or nonempty_html
         if (
-            route in ("analysis_execution", "report_writer")
+            route in ("causal_discovery", "analysis_execution", "report_writer")
             and durably_registered
             and nonempty_deliverable
             and report_html_ready
             and len(errors) == manifest_error_start
         ):
             reference = manifest.get("scope_ref")
-            expected_kind = "analysis" if route == "analysis_execution" else "report"
+            expected_kind = {
+                "causal_discovery": "discovery",
+                "analysis_execution": "analysis",
+                "report_writer": "report",
+            }[route]
             if (
                 isinstance(reference, dict)
                 and reference.get("kind") == expected_kind
