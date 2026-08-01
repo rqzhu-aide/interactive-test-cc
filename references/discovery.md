@@ -18,7 +18,10 @@ from turn 4, no analysis scope through turn 5, one ready analysis scope at turn
 6, exact completion at turn 7, and no later scope or artifact mutation.
 
 Review the saved conversation, sidecar state, discovery artifact, analysis
-artifact, and final synthesis. Do not grade the exact graph, numerical estimate,
-or preferred method when the workflow remains contract-compliant. Rate `pass`
+artifact, and final synthesis. Judge contract fidelity from the artifact's
+reported actual method, settings, variable treatment, constraint application,
+and completed diagnostics; a copied manifest contract is not evidence. Do not
+grade the exact graph, numerical estimate, or preferred method when the workflow
+remains contract-compliant. Rate `pass`
 only when all five checkpoints hold; otherwise rate `fail`. An automated
 failure still makes the final result fail.
