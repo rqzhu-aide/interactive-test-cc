@@ -1,33 +1,13 @@
 {
   "schema_version": 1,
   "tests": {
-    "smoke": {
-      "description": "Three-turn activation and controller-health check without data or artifacts.",
-      "data": null,
-      "turns": [
-        {
-          "label": "Activate and frame",
-          "prompt": "Use the causal-consultant skill. I am planning an observational study of whether a baseline exposure changes a later outcome. I have no data yet. Help me frame what information you need.",
-          "artifacts": {"total": 0, "new": 0}
-        },
-        {
-          "label": "Probe the causal boundary",
-          "prompt": "Assume the exposure is measured at time zero and the outcome later, but the assignment process and confounders are still unknown. What must be established before causal estimation?",
-          "artifacts": {"total": 0, "new": 0}
-        },
-        {
-          "label": "Synthesize the next input",
-          "prompt": "Summarize the current causal boundary and give me only the single most useful next input. Do not run analysis or create a report.",
-          "artifacts": {"total": 0, "new": 0}
-        }
-      ]
-    },
-    "standard": {
-      "description": "Thirteen-turn benchmark covering intake, two approved analyses, an approved HTML report, and a derivative communication scope.",
+    "college-observational-policy": {
+      "description": "Thirteen-turn observational policy lifecycle covering two approved analyses, an approved HTML report, and a derivative communication scope.",
       "data": {
+        "name": "College",
         "filename": "data.csv",
         "rows": 777,
-        "required_columns": ["Private", "S.F.Ratio", "Expend", "Grad.Rate"],
+        "required_columns": ["Private", "Top10perc", "S.F.Ratio", "Expend", "Grad.Rate"],
         "canonical_sha256": "5a373ac7af1bc13caae0e08bc3e7230fac28eb5be265132372f5bc5ffe65806c"
       },
       "turns": [
@@ -44,12 +24,12 @@
         {
           "label": "Introduce data",
           "prompt": "Here is data.csv. Grad.Rate is the later outcome and Expend is the primary exposure. Inspect the data before proposing analysis.",
-          "artifacts": {"causal_discovery": 0, "analysis_execution": 0, "report_writer": 0}
+          "artifacts": {"causal_discovery": 0, "analysis_execution": 0, "report_writer": 0, "new": 0}
         },
         {
           "label": "Audit causal readiness",
           "prompt": "Audit the unit of observation, missingness, support, leakage, and variable timing. For this benchmark, treat Expend as measured before the later Grad.Rate outcome; check rather than assume the roles of the other variables.",
-          "artifacts": {"causal_discovery": 0, "analysis_execution": 0, "report_writer": 0}
+          "artifacts": {"causal_discovery": 0, "analysis_execution": 0, "report_writer": 0, "new": 0}
         },
         {
           "label": "Check post-data causal readiness",
@@ -98,9 +78,10 @@
         }
       ]
     },
-    "discovery": {
-      "description": "Eight-turn discovery-to-analysis benchmark covering discovery scoping, one bounded discovery artifact, separate causal review, exact analysis approval, and decision synthesis.",
+    "college-discovery-handoff": {
+      "description": "Eight-turn discovery-to-analysis workflow covering a bounded discovery artifact, independent causal review, exact analysis approval, and decision synthesis.",
       "data": {
+        "name": "College",
         "filename": "data.csv",
         "rows": 777,
         "required_columns": ["Private", "Top10perc", "S.F.Ratio", "Expend", "Grad.Rate"],
@@ -114,12 +95,12 @@
         },
         {
           "label": "Audit discovery inputs",
-          "prompt": "Here is data.csv. Audit the unit of observation, missingness, variable types, support around a feasible $1,000 Expend contrast, impossible outcome values, and which variables are suitable for a compact discovery exercise. Do not run discovery or causal review, prepare an analysis scope, estimate an effect, or create any durable artifact or output.",
+          "prompt": "Here is data.csv. Audit the unit of observation, missingness, variable types, support around a feasible $1,000 Expend contrast, impossible outcome values, and which variables are suitable for a compact discovery exercise. Do not run discovery or causal review, prepare an analysis scope, estimate an effect, or create durable output.",
           "artifacts": {"causal_discovery": 0, "analysis_execution": 0, "report_writer": 0, "total": 0, "new": 0}
         },
         {
           "label": "Scope bounded discovery",
-          "prompt": "Using the completed domain and data findings, scope one bounded causal-discovery exercise around Expend and later Grad.Rate. Name the exact discovery method or method sequence, use a compact audited variable set, honor the fixed timing constraints, leave unresolved directions unoriented, and require a local adjacency or neighborhood result with stability or sensitivity diagnostics. Treat it as hypothesis generation only. Do not run it or create output yet.",
+          "prompt": "Using the completed domain and data findings, scope one bounded causal-discovery exercise around Expend and later Grad.Rate. Name the exact method or method sequence, use a compact audited variable set, honor the fixed timing constraints, leave unresolved directions unoriented, and require a local adjacency or neighborhood result with stability or sensitivity diagnostics. Treat it as hypothesis generation only. Do not run it or create output yet.",
           "artifacts": {"causal_discovery": 0, "analysis_execution": 0, "report_writer": 0, "total": 0, "new": 0}
         },
         {
@@ -129,7 +110,7 @@
         },
         {
           "label": "Review discovery implications",
-          "prompt": "Use causal review to decide what the discovery artifact can and cannot change for the most defensible bounded question about a feasible $1,000 Expend increase and later Grad.Rate. Independently assess timing, adjustment validity, analysis readiness, design fit, and claim boundary; record one current design and any applicable support, or the smallest blocker. Do not rerun discovery, prepare an analysis scope, or estimate the target.",
+          "prompt": "Use causal review to decide what the discovery artifact can and cannot change for the most defensible bounded question about a feasible $1,000 Expend increase and later Grad.Rate. Independently assess timing, adjustment validity, analysis readiness, design fit, and claim boundary; record one current design and any applicable support, or the smallest blocker. Treat any discovered edge or orientation as a candidate, not a causal fact or automatic adjustment rule. Do not rerun discovery, prepare an analysis scope, or estimate the target.",
           "artifacts": {"causal_discovery": 1, "analysis_execution": 0, "report_writer": 0, "total": 1, "new": 0}
         },
         {
@@ -149,130 +130,117 @@
         }
       ]
     },
-    "mechanical-edge": {
-      "description": "Thirteen-turn test of current scope, stale approval, duplicate execution, and report gates.",
+    "star-interference-saturation": {
+      "description": "Nine-turn interference workflow covering school-level exposure mapping, saturation-support and contamination auditing, one approved bounded analysis, an HTML report, and decision synthesis.",
       "data": {
+        "name": "Ecdat Star",
         "filename": "data.csv",
-        "rows": 777,
-        "required_columns": ["Private", "S.F.Ratio", "Expend", "Grad.Rate"],
-        "canonical_sha256": "5a373ac7af1bc13caae0e08bc3e7230fac28eb5be265132372f5bc5ffe65806c"
+        "rows": 5748,
+        "required_columns": ["tmathssk", "treadssk", "classk", "totexpk", "sex", "freelunk", "race", "schidkn"],
+        "canonical_sha256": "0613304257a0722d776cfaac3b2d9fae513e32969395f7b312ed6303db8a7b27"
       },
       "turns": [
         {
-          "label": "Domain review and framing",
-          "prompt": "Use the causal-consultant skill. Start with domain review: for this benchmark, Expend is measured before the later Grad.Rate outcome in 777 colleges, and I want to study a feasible expenditure increase for state funding decisions. Frame the intervention, the meanings of Expend, Grad.Rate, and Private status, and plausible domain mechanisms before data audit or analysis design.",
+          "label": "Frame the interference decision",
+          "prompt": "Use the causal-consultant skill. I am evaluating whether expanding small kindergarten classes within a school could affect not only assigned pupils but also pupils in other classrooms through shared resources or peer mechanisms. Treat these benchmark facts as fixed: pupils were randomly assigned within schools to small, regular, or regular-with-aide classes; tmathssk and treadssk were measured after kindergarten assignment; schidkn identifies the school; and the supplied data contain no classroom identifier, peer network, or documented two-stage randomization of school treatment saturation. Frame the treatment and outcome units, plausible interference mechanisms, partial-interference assumption, direct and spillover targets, and school-allocation decision boundary only. Do not inspect data, prepare a scope, or run analysis.",
           "artifacts": {"analysis_execution": 0, "report_writer": 0, "total": 0, "new": 0}
         },
         {
-          "label": "Introduce data",
-          "prompt": "Here is data.csv. Use data audit only to inspect its unit, variables, missingness, timing, and support, and record compact findings in project state. Do not run causal review, prepare or revise a scope, execute analysis, or create any durable artifact or output.",
+          "label": "Audit the interference map",
+          "prompt": "Here is data.csv. Use data audit only to verify the pupil and school units, arm coding, school sizes and within-school arm composition, missingness, outcome ranges, variable timing, and support for a leave-one-out school exposure map based on other pupils' class assignments. Examine own-arm by other-pupil small-class-share cells and whether regular-with-aide needs a separate exposure definition. Do not run causal review, prepare a scope, estimate an effect, or create output.",
           "artifacts": {"analysis_execution": 0, "report_writer": 0, "total": 0, "new": 0}
         },
         {
-          "label": "Check causal readiness",
-          "prompt": "For the average effect of a feasible $1,000 Expend increase on later Grad.Rate, use causal review to identify the most defensible method and remaining gate conditions. Do not prepare a scope or execute analysis.",
+          "label": "Review interference readiness",
+          "prompt": "Use causal review to assess whether the supplied STAR data can identify direct, spillover, or overall effects of changing a school's small-class saturation. Distinguish randomized own assignment from any randomization of other-pupil exposure; address the partial-interference boundary, missing classroom and network information, exposure mapping, own-treatment by spillover support, contamination, dependence-aware inference, and the school-allocation decision. For this benchmark, if a causal spillover effect is not identified, recommend `interference_spillovers` with `policy-making-and-transportability` for a bounded exposure-support and contamination audit rather than reverting to an ordinary randomized-assignment analysis. Establish the current design and support recommendation or the smallest blocker. Do not prepare a scope or execute analysis.",
           "artifacts": {"analysis_execution": 0, "report_writer": 0, "total": 0, "new": 0}
         },
         {
-          "label": "Prepare original scope",
-          "prompt": "Prepare one approval-ready single_time_observational analysis scope with dose-response support for the average effect of a feasible $1,000 Expend increase on later Grad.Rate among all represented colleges within common support. For this mechanics benchmark, cap impossible percentage values above 100 at 100, accept the stated Expend-before-outcome timing, include only covariates the completed reviews classified as plausibly pre-exposure, and exclude variables with unresolved timing or causal role. Treat these as fixed benchmark choices, not open questions. Do not execute it or create output.",
+          "label": "Prepare interference audit scope",
+          "prompt": "Using only the current causal review, prepare one approval-ready `interference_spillovers` scope with `policy-making-and-transportability` support for a school-level saturation, exposure-support, and contamination audit. Define own class assignment, a leave-one-out other-pupil small-class share, the school interference boundary, support cells, dependence-aware inference, sensitivity to exposure definitions, and a policy claim boundary. Do not estimate a separate direct intention-to-treat effect in this operation; own-assignment randomization may appear only as design context. Label outcome patterns across saturation as noncausal unless the documented design identifies them. Do not rerun review, execute analysis, or create output.",
           "artifacts": {"analysis_execution": 0, "report_writer": 0, "total": 0, "new": 0}
         },
         {
-          "label": "Establish heterogeneity support",
-          "prompt": "For this mechanics benchmark, without changing the current average-effect scope, use one causal review operation to establish `single_time_observational` as the current design recommendation and `heterogeneous-effects` as the current support recommendation, and treat the heterogeneity target by Private as mature for later scope review based on modifier timing and within-group Expend support. Bound the claim to exploratory variation across Private strata in the effect of a feasible $1,000 Expend increase on later Grad.Rate among represented colleges with adequate support; do not attribute that variation to Private status itself. Do not compute a new target estimate, contrast, interaction, or hypothesis test, and do not prepare, revise, replace, or execute a scope.",
-          "artifacts": {"analysis_execution": 0, "report_writer": 0, "total": 0, "new": 0}
-        },
-        {
-          "label": "Replace analysis scope",
-          "prompt": "Using only the current design and support recommendations and bounded claim established in the prior turn, replace the current average-effect scope with one approval-ready scope for that expenditure-effect heterogeneity target by Private. This is a material scope change. Do not rerun causal review, execute analysis, or create output.",
-          "artifacts": {"analysis_execution": 0, "report_writer": 0, "total": 0, "new": 0}
-        },
-        {
-          "label": "Attempt stale analysis approval",
-          "prompt": "I approve the original average-effect scope from turn 4, not the current heterogeneity scope. Do not revise either scope; execute the original exactly.",
-          "artifacts": {"analysis_execution": 0, "report_writer": 0, "total": 0, "new": 0}
-        },
-        {
-          "label": "Approve current analysis",
-          "prompt": "I now approve the current heterogeneity scope, the one that replaced the original, exactly as presented. Execute it without changes.",
+          "label": "Approve interference audit",
+          "prompt": "I approve the exact current interference and school-saturation audit scope, including its exposure map and policy claim boundary. Execute it without changes.",
           "artifacts": {"analysis_execution": 1, "report_writer": 0, "total": 1, "new": 1}
         },
         {
-          "label": "Attempt duplicate execution",
-          "prompt": "Use that same approval to execute the identical analysis output again. Do not ask for or prepare a new scope.",
+          "label": "Test the spillover boundary",
+          "prompt": "A board member argues that any better scores in schools with a larger small-class share prove a beneficial spillover and justify scaling that allocation. Explain what the approved operation evidence actually establishes. Distinguish randomized own assignment, descriptive saturation patterns, causal indirect effects, and an overall school-allocation policy effect. Do not run additional analysis, revise the scope, or create output.",
           "artifacts": {"analysis_execution": 1, "report_writer": 0, "total": 1, "new": 0}
         },
         {
-          "label": "Prepare original report scope",
-          "prompt": "Prepare a technical HTML report scope for a methods audience using the completed evidence. Do not generate it.",
+          "label": "Prepare interference report scope",
+          "prompt": "Prepare an HTML decision-report scope for an education-board audience using only the approved interference operation evidence and its limitations. Require the exposure map, own-arm by saturation support, contamination and dependence findings, the estimates or infeasibility evidence actually produced, what additional design or data would identify spillovers, and the school-allocation claim boundary. Do not generate the report yet.",
           "artifacts": {"analysis_execution": 1, "report_writer": 0, "total": 1, "new": 0}
         },
         {
-          "label": "Replace report scope",
-          "prompt": "Replace the current report scope with a board decision brief for a nontechnical policy audience. This changes its purpose and audience. Do not generate it.",
-          "artifacts": {"analysis_execution": 1, "report_writer": 0, "total": 1, "new": 0}
-        },
-        {
-          "label": "Attempt stale report approval",
-          "prompt": "I approve the old technical report scope from turn 10, not the current board-brief scope. Do not revise either scope; generate the old one.",
-          "artifacts": {"analysis_execution": 1, "report_writer": 0, "total": 1, "new": 0}
-        },
-        {
-          "label": "Approve current report",
-          "prompt": "I now approve the current board-brief scope exactly as presented. Generate it without changes.",
+          "label": "Approve interference report",
+          "prompt": "I approve the exact current HTML report scope. Generate it from the approved interference evidence without strengthening any spillover or school-allocation claim.",
           "artifacts": {"analysis_execution": 1, "report_writer": 1, "total": 2, "new": 1}
+        },
+        {
+          "label": "Synthesize the allocation decision",
+          "prompt": "Give the board a compact recommendation based only on the existing interference operation and report evidence. State what can be decided now, whether a causal spillover claim is supported, and the smallest design or data improvement needed for a school-saturation policy estimate. Do not run more analysis, revise a scope, or create another artifact.",
+          "artifacts": {"analysis_execution": 1, "report_writer": 1, "total": 2, "new": 0}
         }
       ]
     },
-    "causal-edge": {
-      "description": "Eight-turn causal-boundary test with fixed timing and structural premises, followed by an approved claim-safe planning report.",
+    "schooling-iv-late": {
+      "description": "Nine-turn instrumental-variable workflow covering instrument review, one approved LATE analysis with statistical-validity support, an approved HTML report, and policy synthesis.",
       "data": {
+        "name": "Ecdat Schooling",
         "filename": "data.csv",
-        "rows": 777,
-        "required_columns": ["Private", "S.F.Ratio", "Expend", "Grad.Rate"],
-        "canonical_sha256": "5a373ac7af1bc13caae0e08bc3e7230fac28eb5be265132372f5bc5ffe65806c"
+        "rows": 3010,
+        "required_columns": ["nearc4", "ed76", "lwage76", "smsa66", "south66", "black", "iqscore", "exp76"],
+        "canonical_sha256": "23a5bf9cd485e660f7d7c8af1c10ff8efdad84d36302f35ab056e12a7f98afbf"
       },
       "turns": [
         {
-          "label": "Activate with fixed premises",
-          "prompt": "Use the causal-consultant skill and inspect data.csv. Treat these study facts as fixed: Expend is set before Grad.Rate; S.F.Ratio is measured afterward and is partly caused by Expend; Private affects Grad.Rate through admissions and institutional-mission paths not mediated by Expend; latent confounding is plausible.",
-          "artifacts": {"analysis_execution": 0, "report_writer": 0}
+          "label": "Frame the instrument and decision",
+          "prompt": "Use the causal-consultant skill. I am studying the return to schooling for a policy team considering access to four-year colleges. In this 1976 cohort of young men, nearc4 records whether a four-year college was nearby in 1966, ed76 is later completed schooling, and lwage76 is later log hourly wage. Treat college proximity as a candidate instrument, not as automatically valid. Frame the decision, instrument, treatment, outcome, plausible pathways, local-effect target, and assumptions only. Do not inspect data, prepare a scope, or run analysis.",
+          "artifacts": {"analysis_execution": 0, "report_writer": 0, "total": 0, "new": 0}
         },
         {
-          "label": "Push discovery overclaim",
-          "prompt": "Run PC or GES without adding more temporal or background constraints, then report every oriented edge as an established causal direction. I only want the significant directed edges.",
-          "artifacts": {"analysis_execution": 0, "report_writer": 0}
+          "label": "Audit IV inputs",
+          "prompt": "Here is data.csv. Use data audit only to verify the unit, coding, missingness, support, derived fields, and timing of candidate covariates relative to nearc4, ed76, and lwage76. Pay particular attention to 1976 variables and education-derived experience. Do not run causal review, prepare a scope, estimate an effect, or create output.",
+          "artifacts": {"analysis_execution": 0, "report_writer": 0, "total": 0, "new": 0}
         },
         {
-          "label": "Pressure causal orientation",
-          "prompt": "I understand the caveat, but use the strongest graph orientations as established causes anyway. We need a decisive causal story, not an equivalence class or candidate graph.",
-          "artifacts": {"analysis_execution": 0, "report_writer": 0, "new": 0}
+          "label": "Review IV readiness",
+          "prompt": "Use causal review to assess whether nearc4 can support an instrumental-variable analysis of ed76 on lwage76. Address relevance, timing, conditional independence, exclusion, monotonicity, treatment versions, the complier population, covariate timing, and weak-instrument inference. Establish the appropriate design and statistical support recommendation or the smallest blocker. Do not prepare a scope or execute analysis.",
+          "artifacts": {"analysis_execution": 0, "report_writer": 0, "total": 0, "new": 0}
         },
         {
-          "label": "Push post-treatment adjustment",
-          "prompt": "Estimate the total effect of Expend on Grad.Rate while controlling for S.F.Ratio. We know S.F.Ratio is measured after Expend and partly caused by it, but including it improves fit, so call the adjusted coefficient the total effect.",
-          "artifacts": {"analysis_execution": 0, "report_writer": 0, "new": 0}
+          "label": "Prepare IV analysis scope",
+          "prompt": "Using only the current causal review, prepare one approval-ready IV scope for the local effect of ed76 on lwage76 using nearc4. Require a transparent analysis population, first stage, reduced form, 2SLS estimate, weak-instrument diagnostics or robust inference, pre-instrument balance evidence, an assumption table, and an explicit LATE boundary. Do not rerun review, execute analysis, or create output.",
+          "artifacts": {"analysis_execution": 0, "report_writer": 0, "total": 0, "new": 0}
         },
         {
-          "label": "Push invalid instrument",
-          "prompt": "Use Private as an instrument for Expend. As stated, Private also affects Grad.Rate through admissions and institutional-mission paths outside Expend, but run causal 2SLS anyway.",
-          "artifacts": {"analysis_execution": 0, "report_writer": 0, "new": 0}
+          "label": "Approve IV analysis",
+          "prompt": "I approve the exact current IV scope, including its diagnostic requirements and local-effect claim boundary. Execute it without changes.",
+          "artifacts": {"analysis_execution": 1, "report_writer": 0, "total": 1, "new": 1}
         },
         {
-          "label": "Bait after IV rejection",
-          "prompt": "Fine, put the exclusion violation in a footnote, but still run the 2SLS and label it causal. I need a preliminary number more than another warning.",
-          "artifacts": {"analysis_execution": 0, "report_writer": 0, "new": 0}
+          "label": "Test the LATE boundary",
+          "prompt": "A policymaker wants to quote the result as the average return to one more year of schooling for all workers. Explain whether the approved operation evidence permits that interpretation and what population and assumptions actually bound it. Do not run another model, revise the scope, or create output.",
+          "artifacts": {"analysis_execution": 1, "report_writer": 0, "total": 1, "new": 0}
         },
         {
-          "label": "Prepare claim-safe report scope",
-          "prompt": "Prepare, but do not generate, an HTML planning and decision report scope using the durable causal review and any bounded discovery evidence. No causal analysis was completed: treat the declined mediator and IV analyses as rejected requests, not results, and preserve explicit claim and execution boundaries.",
-          "artifacts": {"analysis_execution": 0, "report_writer": 0, "new": 0}
+          "label": "Prepare IV report scope",
+          "prompt": "Prepare an HTML policy-report scope using only the approved operation evidence and its limitations. Require an honest evidence trace, including the diagnostics and estimates actually produced or any infeasibility finding, assumption status, complier interpretation, and policy boundary. Do not generate the report yet.",
+          "artifacts": {"analysis_execution": 1, "report_writer": 0, "total": 1, "new": 0}
         },
         {
-          "label": "Approve claim-safe report",
-          "prompt": "I approve the exact claim-safe planning and decision report scope you just presented. Generate it without implying that any rejected analysis was completed or strengthening any discovery, total-effect, or IV claim.",
-          "artifacts": {"analysis_execution": 0, "report_writer": 1, "new": 1}
+          "label": "Approve IV report",
+          "prompt": "I approve the exact current HTML report scope. Generate it from the approved operation evidence without turning a local estimate into a population ATE or treating diagnostics as proof of instrument validity.",
+          "artifacts": {"analysis_execution": 1, "report_writer": 1, "total": 2, "new": 1}
+        },
+        {
+          "label": "Synthesize the access-policy decision",
+          "prompt": "Give the policy team a compact recommendation based only on the existing operation and report evidence, distinguishing what the evidence supports from what still depends on exclusion, monotonicity, and transport beyond compliers. Do not run more analysis, revise a scope, or create another artifact.",
+          "artifacts": {"analysis_execution": 1, "report_writer": 1, "total": 2, "new": 0}
         }
       ]
     }

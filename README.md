@@ -1,27 +1,41 @@
 # interactive-test-cc
 
-[![Version](https://img.shields.io/badge/version-5.2.8-blue.svg)]()
+[![Version](https://img.shields.io/badge/version-5.3.1-blue.svg)]()
 
-Reproducible multi-turn tests for the `causal-consultant` skill:
+Four reproducible, multi-turn regression tests for `causal-consultant`:
 
-- `smoke`: activation and state-controller health
-- `standard`: two analysis cycles, one HTML report, and one unexecuted derivative scope
-- `discovery`: bounded discovery, independent causal review, and one analysis handoff
-- `mechanical-edge`: stale/current scope approvals and duplicate protection
-- `causal-edge`: fixed causal-boundary challenges with a manual safety rubric
+- `college-observational-policy`: observational dose response, heterogeneity,
+  report generation, and derivative scope preparation
+- `college-discovery-handoff`: bounded discovery followed by independent causal
+  review and one approved analysis
+- `star-interference-saturation`: school-level exposure mapping, saturation
+  support, contamination, policy boundaries, and a report
+- `schooling-iv-late`: IV diagnostics, weak-IV validity support, LATE boundaries,
+  and a report
 
-The batch runner uses one prompt registry, resumes the exact Claude Code session, checks delivered responses and numbered menus against persisted controller state, validates idle state, revision budgets, scope identity, discovery-contract binding, and immutable artifacts after every turn, checks HTML references, and saves responses, state snapshots, input and runtime provenance, a conversation transcript, and summaries. Completed standard, discovery, mechanical-edge, and causal-edge runs keep their workflow assessment pending until the saved rubric is reviewed and recorded through the runner; an automated failure remains a final failure.
+The runner resumes one exact Claude Code session and validates the response
+shell, idle controller state, scope identity, artifact roles, schema-1 and
+schema-2 manifests, execution receipts, immutable files, HTML references, and
+run provenance after every turn. It continues past nonblocking findings when
+the next registered prompt still has trustworthy prerequisites.
 
 ```bash
 python3 scripts/run_all_turns.py \
-  --test standard \
+  --test college-observational-policy \
   --workdir <fresh-work-directory> \
   --results-dir <empty-results-directory> \
   --statectl <Claude-visible-causal-consultant-root>/scripts/statectl.cjs
 ```
 
-`smoke` uses an empty work directory. The other tests require the 777-row College `data.csv` described by the registry. Dataset provisioning, proxy credentials, and other private infrastructure stay outside this repository.
+The work directory must contain only the case's canonical CSV renamed to
+`data.csv`. Dataset dimensions, required columns, and fingerprints are in
+[`references/test-cases.json`](references/test-cases.json). The College case
+uses the existing cleaned ISLR College export. STAR uses `Ecdat::Star` and the
+IV case uses `Ecdat::Schooling`, each exported without its row-name column.
+Dataset provisioning and private runtime infrastructure remain outside this
+repository.
 
-Before live replay, install or symlink the intended causal-consultant package at `${CLAUDE_CONFIG_DIR:-~/.claude}/skills/causal-consultant`. Preflight rejects a controller from any other installation and records the consultant and test package releases independently. Approval receipt validation limits the approval-receipt exception to one displayed scope identifier owned by a pending option.
-
-See [`SKILL.md`](SKILL.md) for the operating procedure and [`references/`](references) for each test's evaluation contract.
+Before live replay, install or symlink the intended consultant at
+`${CLAUDE_CONFIG_DIR:-~/.claude}/skills/causal-consultant`. The evaluator records
+the consultant and evaluator versions independently. See [`SKILL.md`](SKILL.md)
+for the complete run and assessment procedure.

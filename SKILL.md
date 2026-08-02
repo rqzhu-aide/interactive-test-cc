@@ -1,28 +1,33 @@
 ---
 name: interactive-test-cc
-description: Run reproducible multi-turn regression tests for the causal-consultant skill. Use for the smoke, standard, discovery, mechanical-edge, or causal-edge test, including exact-session execution, controller validation, artifact checks, and result capture.
+description: Run reproducible multi-turn regression tests for the causal-consultant skill. Use for the College observational-policy, College discovery-handoff, STAR interference-saturation, or Schooling IV-LATE case, including exact-session execution, controller validation, artifact checks, and result capture.
 ---
 
 # Interactive causal-consultant tests
 
-Version: `5.2.8`
+Version: `5.3.1`
 
-Choose one explicit test and load its reference:
+Choose one explicit case and load its case reference plus the shared
+[`evaluation guide`](references/evaluation-guide.md):
 
-| Test ID | Reference | Purpose |
+| Test ID | Reference | Main route coverage |
 |---|---|---|
-| `smoke` | [`references/smoke.md`](references/smoke.md) | Activation and controller health without data |
-| `standard` | [`references/standard.md`](references/standard.md) | Ordinary analysis and report lifecycle |
-| `discovery` | [`references/discovery.md`](references/discovery.md) | Exploratory discovery to causal review and analysis handoff |
-| `mechanical-edge` | [`references/mechanical-edge.md`](references/mechanical-edge.md) | Scope, approval, duplicate, and closeout gates |
-| `causal-edge` | [`references/causal-edge.md`](references/causal-edge.md) | Causal-boundary pressure with manual substantive review |
+| `college-observational-policy` | [`references/college-observational-policy.md`](references/college-observational-policy.md) | Observational dose response, heterogeneity, and report lifecycle |
+| `college-discovery-handoff` | [`references/college-discovery-handoff.md`](references/college-discovery-handoff.md) | Bounded discovery, independent review, and analysis handoff |
+| `star-interference-saturation` | [`references/star-interference-saturation.md`](references/star-interference-saturation.md) | Interference exposure mapping, saturation support, and policy boundary |
+| `schooling-iv-late` | [`references/schooling-iv-late.md`](references/schooling-iv-late.md) | Instrumental variables, weak-IV validity, and LATE boundary |
 
-Exact prompts and per-turn artifact-count expectations have one machine-readable source: [`references/test-cases.json`](references/test-cases.json). Do not rewrite or adapt them during a registered test.
+Exact prompts, dataset fingerprints, and per-turn artifact expectations have one
+machine-readable source: [`references/test-cases.json`](references/test-cases.json).
+Do not rewrite or adapt them during a registered test.
 
 ## Run a test
 
-1. Install or symlink the intended causal-consultant package at `${CLAUDE_CONFIG_DIR:-~/.claude}/skills/causal-consultant`. Live replay is supported only after Claude and the oracle resolve the same installed package.
-2. Prepare a fresh work directory. Leave it empty for `smoke`; for every other test, place only the required 777-row `data.csv` there.
+1. Install or symlink the intended causal-consultant package at
+   `${CLAUDE_CONFIG_DIR:-~/.claude}/skills/causal-consultant`.
+2. Prepare a fresh work directory containing only the case's canonical dataset
+   renamed to `data.csv`. Remove the source row-name column when the registry
+   describes the cleaned Ecdat export.
 3. Choose a missing or empty results directory outside the work directory.
 4. Run:
 
@@ -34,28 +39,47 @@ python3 <skill-root>/scripts/run_all_turns.py \
   --statectl <Claude-visible-causal-consultant-root>/scripts/statectl.cjs
 ```
 
-The runner owns prompt delivery, exact session resumption, response-shell checks, strict state and artifact-aware revision-budget validation, scope-identity transitions, immutable artifact snapshots, HTML-reference checks, per-turn snapshots, and suite, input, installed-target, and runtime provenance. It checks the delivered response shell and numbered menu against the persisted decision, and records exact receipt divergence as a diagnostic. A diagnostic alone neither fails nor stops the run. Before a registered approval, the full committed response must match. For a pending menu, omission of one displayed scope identifier bound to a pending option is the only tolerated difference. The run continues from a trustworthy idle boundary when the next registered prompt still has its required scope or evidence, and stops only when continuity is uncertain or a required prerequisite is absent.
+The runner owns exact session resumption, response-shell checks, strict idle-state
+validation, scope transitions, manifest and receipt integrity, immutable artifact
+snapshots, HTML links, and input and runtime provenance. It accepts legacy
+schema-1 completion manifests and current schema-2 completion or infeasibility
+manifests according to the installed controller's declared capabilities.
 
-Registered live runs validate completed turn boundaries. Interrupted-operation recovery remains part of the causal-consultant controller tests and is not inferred from these results.
+A diagnostic alone does not stop the replay. Continue from a trustworthy idle
+boundary whenever the next prompt still has its required scope or evidence.
+Stop only when project continuity is uncertain or a required prerequisite is
+absent. Registered live runs validate completed turn boundaries; interrupted
+operation recovery belongs to the controller's deterministic tests.
 
-The shell oracle requires the exact heading lines `[> Framing]`, `[! Boundary]`, and `[? Next Steps]` once and in that order. `[+ Consultant Options]` is structurally optional and, when present, belongs between Framing and Boundary. During manual review, require it only when the response asks the user to choose among two or more materially distinct legal next operations. Each option should represent one next operation, and Next Steps should only ask for the choice. Do not fail a response merely because another conceivable action was not offered.
-During manual workflow review, resolve each response diagnostic against the persisted decision. Allow wording and supporting-detail differences only when the completed action, material scope, claim and authorization boundaries, and visible choices remain decision-equivalent.
+The response shell requires `[> Framing]`, `[! Boundary]`, and
+`[? Next Steps]` once and in that order. `[+ Consultant Options]` is required
+during manual review only when the user must choose among two or more materially
+different legal next operations. Do not fail a response because another
+conceivable action was not offered.
 
-Do not clear global Claude sessions or delete an existing work directory. Start with fresh directories instead.
+## Evaluate a completed run
 
-The initial summaries separate automated checks from workflow assessment. `smoke` needs no qualitative rating. Every completed `standard`, `discovery`, `mechanical-edge`, or `causal-edge` run awaits review against the saved `test-reference.md`, conversation, state snapshots, manifests, and outputs. An automated pass remains `PENDING` and exits with code 3 until reviewed; an automated failure remains `FAIL` and exits with code 1.
+All four cases require manual review. Read the saved case reference, shared
+evaluation guide, conversation, state snapshots, manifests, receipts, code, and
+outputs. Judge actual contract fidelity rather than treating a receipt as proof,
+and distinguish decision-impacting failures from minor, decision-equivalent
+defects.
 
-For `standard` or `discovery`, save a `pass` or `fail` judgment with brief checkpoint-level reasons using its five-checkpoint rubric; any material checkpoint violation makes the run fail. For `mechanical-edge`, save a `pass` or `fail` judgment with brief turn-level reasons. For `causal-edge`, save a `safe`, `weak`, or `fail` judgment with brief turn-level reasons. Use a new, nonempty notes file inside the results directory. Then finalize the summaries:
+Save a brief assessment file inside the results directory, then finalize:
 
 ```bash
 python3 <skill-root>/scripts/run_all_turns.py \
   --assess-results <results-directory> \
-  --rating <rating> \
+  --rating <pass|weak|fail> \
   --notes-file <results-directory>/<assessment-notes>.md
 ```
 
-Assess any completed registered run. A workflow rating never overrides an automated failure. Finalization verifies that the saved review evidence has not changed and records the notes digest with the rating. The runner does not judge workflow prose or scientific correctness itself. Report the final result, not the automated result alone.
+An automated failure remains visible and cannot be overridden by the manual
+rating. Finalization verifies that saved review evidence has not changed. Report
+the final result, not the automated result alone.
 
 ## Focused transport check
 
-Use `scripts/send_one.py` directly only when a user asks for a single-turn or transport diagnosis. Save the `session_id` returned by the first call and pass that exact value as `--session-id` on later calls; do not use ambient continuation.
+Use `scripts/send_one.py` directly only for a requested single-turn or transport
+diagnosis. Resume later calls with the exact returned `session_id`, never ambient
+continuation.

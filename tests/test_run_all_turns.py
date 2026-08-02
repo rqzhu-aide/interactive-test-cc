@@ -39,7 +39,9 @@ class RunnerTests(unittest.TestCase):
                 "ok": True,
                 "expected": {"total": 0, "new": 0},
                 "new_count": 0,
+                "manifest_counts": {},
                 "counts": {},
+                "role_counts": {"completion": {}, "infeasibility_evidence": {}},
                 "errors": [],
             },
         }
@@ -524,50 +526,34 @@ class RunnerTests(unittest.TestCase):
         self.assertEqual(errors, [f"validator warnings: {warning['warnings']}"])
         self.assertEqual(blockers, [])
 
-    def test_revision_budget_rejects_delta_one(self):
-        errors, blockers = self.validate_revision(25, 26)
-        self.assertIn(
-            "revision increased by 1; one completed operation requires at least 2 mutations",
-            errors,
-        )
-        self.assertEqual(blockers, errors)
-
-    def test_revision_budget_rejects_delta_four_without_artifact(self):
-        errors, blockers = self.validate_revision(25, 29)
-        self.assertIn(
-            "revision increased by 4 without a new artifact; expected at most 3",
-            errors,
-        )
-        self.assertEqual(blockers, [])
-
-    def test_revision_budget_allows_delta_three_without_artifact(self):
-        self.assertEqual(self.validate_revision(25, 28), ([], []))
-
-    def test_revision_budget_allows_delta_four_with_one_artifact(self):
-        self.assertEqual(self.validate_revision(25, 29, 2, 3), ([], []))
-
-    def test_revision_budget_rejects_incomplete_artifact_lifecycle(self):
-        for revision in (27, 28):
-            with self.subTest(revision=revision):
-                errors, blockers = self.validate_revision(25, revision, 2, 3)
-                self.assertIn(
-                    f"revision increased by {revision - 25} with one new artifact; expected 4",
-                    errors,
+    def test_revision_must_strictly_increase(self):
+        for revision, prior_manifests, manifests in (
+            (26, 0, 0),
+            (29, 0, 0),
+            (29, 2, 3),
+            (29, 2, 4),
+        ):
+            with self.subTest(
+                revision=revision,
+                prior_manifests=prior_manifests,
+                manifests=manifests,
+            ):
+                self.assertEqual(
+                    self.validate_revision(
+                        25, revision, prior_manifests, manifests
+                    ),
+                    ([], []),
                 )
-                self.assertEqual(blockers, [])
 
-    def test_revision_budget_rejects_multiple_new_artifacts(self):
-        errors, blockers = self.validate_revision(25, 29, 2, 4)
-        self.assertIn(
-            "artifact manifest count changed by 2; expected 0 or 1",
-            errors,
-        )
-        self.assertEqual(blockers, [])
-
-    def test_revision_regression_blocks_continuation(self):
-        errors, blockers = self.validate_revision(25, 24)
-        self.assertEqual(errors, ["revision decreased during the test"])
-        self.assertEqual(blockers, errors)
+    def test_nonincreasing_revision_blocks_continuation(self):
+        for revision in (25, 24):
+            with self.subTest(revision=revision):
+                errors, blockers = self.validate_revision(25, revision)
+                self.assertEqual(
+                    errors,
+                    ["revision did not increase during the completed turn"],
+                )
+                self.assertEqual(blockers, errors)
 
     def test_all_suites_require_response_state_capabilities(self):
         required = {
@@ -575,6 +561,10 @@ class RunnerTests(unittest.TestCase):
             "pending_decision": 1,
             "response_receipt": 1,
             "startup_notice": 1,
+            "scope_snapshot": 1,
+            "analysis_contract": 1,
+            "completion_protocol": 1,
+            "artifact_roles": 1,
         }
         for capability in required:
             capabilities = dict(required)
@@ -582,43 +572,38 @@ class RunnerTests(unittest.TestCase):
             with self.subTest(capability=capability):
                 with self.assertRaisesRegex(RUNNER.RunError, f"{capability} 1"):
                     RUNNER.require_controller_capabilities(
-                        "smoke",
+                        "college-observational-policy",
                         {"capabilities": capabilities},
                     )
-        RUNNER.require_controller_capabilities("smoke", {"capabilities": required})
+        RUNNER.require_controller_capabilities(
+            "college-observational-policy", {"capabilities": required}
+        )
 
-    def test_scope_oracle_suites_require_scope_snapshot_capability(self):
+    def test_discovery_suite_requires_discovery_contract_capability(self):
         base = {
             "response_rendering": 1,
             "pending_decision": 1,
             "response_receipt": 1,
             "startup_notice": 1,
+            "scope_snapshot": 1,
+            "analysis_contract": 1,
+            "completion_protocol": 1,
+            "artifact_roles": 1,
         }
-        for test_id in ("standard", "discovery", "mechanical-edge", "causal-edge"):
-            with self.subTest(test_id=test_id):
-                with self.assertRaisesRegex(RUNNER.RunError, "scope_snapshot 1"):
-                    RUNNER.require_controller_capabilities(
-                        test_id,
-                        {"capabilities": base},
-                    )
-                capabilities = {**base, "scope_snapshot": 1}
-                if test_id == "discovery":
-                    with self.assertRaisesRegex(
-                        RUNNER.RunError, "discovery_contract 1"
-                    ):
-                        RUNNER.require_controller_capabilities(
-                            test_id,
-                            {"capabilities": capabilities},
-                        )
-                    capabilities["discovery_contract"] = 1
-                RUNNER.require_controller_capabilities(
-                    test_id,
-                    {"capabilities": capabilities},
-                )
+        with self.assertRaisesRegex(RUNNER.RunError, "discovery_contract 1"):
+            RUNNER.require_controller_capabilities(
+                "college-discovery-handoff", {"capabilities": base}
+            )
+        RUNNER.require_controller_capabilities(
+            "college-discovery-handoff",
+            {"capabilities": {**base, "discovery_contract": 1}},
+        )
 
     def test_registry_rejects_unknown_artifact_expectation(self):
         registry = json.loads(RUNNER.CASES_PATH.read_text(encoding="utf-8"))
-        registry["tests"]["smoke"]["turns"][0]["artifacts"] = {"analysis_exection": 0}
+        registry["tests"]["college-observational-policy"]["turns"][0]["artifacts"] = {
+            "analysis_exection": 0
+        }
         with TemporaryDirectory() as temporary:
             registry_path = Path(temporary) / "test-cases.json"
             registry_path.write_text(json.dumps(registry), encoding="utf-8")
@@ -634,8 +619,21 @@ class RunnerTests(unittest.TestCase):
                 with self.assertRaisesRegex(RUNNER.RunError, "schema_version 1"):
                     RUNNER.load_cases()
 
+    def test_registry_contains_exactly_four_live_cases(self):
+        cases = RUNNER.load_cases()
+        self.assertEqual(tuple(cases), RUNNER.TEST_IDS)
+        self.assertEqual(
+            {test_id: len(case["turns"]) for test_id, case in cases.items()},
+            {
+                "college-observational-policy": 13,
+                "college-discovery-handoff": 8,
+                "star-interference-saturation": 9,
+                "schooling-iv-late": 9,
+            },
+        )
+
     def test_discovery_registry_tracks_handoff(self):
-        turns = RUNNER.load_cases()["discovery"]["turns"]
+        turns = RUNNER.load_cases()["college-discovery-handoff"]["turns"]
         self.assertEqual(
             [turn["artifacts"]["total"] for turn in turns],
             [0, 0, 0, 1, 1, 1, 2, 2],
@@ -644,7 +642,10 @@ class RunnerTests(unittest.TestCase):
             [turn["artifacts"]["causal_discovery"] for turn in turns],
             [0, 0, 0, 1, 1, 1, 1, 1],
         )
-        self.assertEqual(RUNNER.APPROVAL_BOUND_TURNS["discovery"], {7})
+        self.assertEqual(
+            RUNNER.APPROVAL_BOUND_TURNS["college-discovery-handoff"], {7}
+        )
+        prompts = "\n".join(turn["prompt"] for turn in turns)
         for requirement in (
             "hypothesis generation only",
             "exactly one durable discovery artifact",
@@ -652,98 +653,202 @@ class RunnerTests(unittest.TestCase):
             "approve the exact current analysis scope",
             "Separate hypothesis-generating structure",
         ):
-            self.assertTrue(
-                any(requirement in turn["prompt"] for turn in turns),
-                requirement,
-            )
-
-        reference = (ROOT / "references" / "discovery.md").read_text(
+            self.assertIn(requirement, prompts)
+        reference = (ROOT / "references" / "college-discovery-handoff.md").read_text(
             encoding="utf-8"
         )
         for requirement in (
             "candidate-only",
-            "does not validate an adjustment set",
-            "ready analysis scope at turn",
-            "Rate `pass`",
+            "neither selects an adjustment set",
+            "One ready analysis scope",
         ):
             self.assertIn(requirement, reference)
 
-    def test_mechanical_edge_registry_tracks_all_artifacts(self):
-        turns = RUNNER.load_cases()["mechanical-edge"]["turns"]
+    def test_new_method_cases_have_distinct_fixed_routes_and_support(self):
+        expected = {
+            "star-interference-saturation": (
+                "interference_spillovers",
+                "policy-making-and-transportability",
+            ),
+            "schooling-iv-late": ("instrumental_variables", "statistical-validity"),
+        }
+        self.assertEqual(RUNNER.SINGLE_ANALYSIS_REPORT_CASES, expected)
+        for test_id, (route, support) in expected.items():
+            with self.subTest(test_id=test_id):
+                reference = (ROOT / "references" / f"{test_id}.md").read_text(
+                    encoding="utf-8"
+                )
+                self.assertIn(route, reference)
+                self.assertIn(support, reference)
+
+        interference = RUNNER.load_cases()["star-interference-saturation"]
+        prompts = "\n".join(turn["prompt"] for turn in interference["turns"])
+        for requirement in (
+            "leave-one-out school exposure map",
+            "randomization of other-pupil exposure",
+            "Do not estimate a separate direct intention-to-treat effect",
+            "Label outcome patterns across saturation as noncausal",
+        ):
+            self.assertIn(requirement, prompts)
+        reference = (
+            ROOT / "references" / "star-interference-saturation.md"
+        ).read_text(encoding="utf-8")
+        for requirement in (
+            "does not invent classroom or peer ties",
+            "rather than an interference solution",
+            "causal spillover estimates",
+        ):
+            self.assertIn(requirement, reference)
+
+    def interference_snapshot(
+        self,
+        status,
+        *,
+        route="interference_spillovers",
+        support="policy-making-and-transportability",
+        scope_id="interference-1",
+    ):
+        return {
+            "analysis": {
+                route: {
+                    "scope_id": scope_id,
+                    "scope_revision": 1,
+                    "current_status": status,
+                    "support": support,
+                    "last_updated": "2026-01-01T00:00:04Z",
+                }
+            },
+            "report": None,
+        }
+
+    def test_interference_approval_requires_exact_route_and_support(self):
+        ready = self.interference_snapshot("ready")
         self.assertEqual(
-            [turn["artifacts"].get("total") for turn in turns],
-            [0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2],
+            RUNNER.next_prompt_blockers(
+                "star-interference-saturation",
+                5,
+                ready,
+                {4: ready},
+                {"counts": {}},
+            ),
+            [],
         )
-        self.assertIn("Do not run causal review", turns[1]["prompt"])
-        self.assertIn("create any durable artifact", turns[1]["prompt"])
+        wrong_route = self.interference_snapshot(
+            "ready", route="randomized_assignment"
+        )
+        wrong_support = self.interference_snapshot("ready", support=None)
+        for snapshot in (wrong_route, wrong_support):
+            with self.subTest(snapshot=snapshot):
+                blockers = RUNNER.next_prompt_blockers(
+                    "star-interference-saturation",
+                    5,
+                    snapshot,
+                    {4: snapshot},
+                    {"counts": {}},
+                )
+                self.assertIn(
+                    "the next approval requires one ready interference_spillovers "
+                    "scope with policy-making-and-transportability support",
+                    blockers,
+                )
 
-    def test_mechanical_edge_registry_primes_replacement_gate(self):
-        turns = RUNNER.load_cases()["mechanical-edge"]["turns"]
-        original_prompt = turns[3]["prompt"]
-        review_prompt = turns[4]["prompt"]
-        replacement_prompt = turns[5]["prompt"]
+    def test_interference_scope_oracle_requires_exact_preservation(self):
+        ready = self.interference_snapshot("ready")
+        completed = self.interference_snapshot("done")
+        history = {}
+        self.assertEqual(
+            RUNNER.check_single_analysis_report_scopes(
+                4,
+                ready,
+                history,
+                "interference_spillovers",
+                "policy-making-and-transportability",
+            ),
+            [],
+        )
+        self.assertEqual(
+            RUNNER.check_single_analysis_report_scopes(
+                5,
+                completed,
+                history,
+                "interference_spillovers",
+                "policy-making-and-transportability",
+            ),
+            [],
+        )
+        changed = self.interference_snapshot("done", scope_id="interference-2")
+        errors = RUNNER.check_single_analysis_report_scopes(
+            5,
+            changed,
+            {4: ready},
+            "interference_spillovers",
+            "policy-making-and-transportability",
+        )
+        self.assertIn("turn 5 must preserve the exact approved analysis scope", errors)
 
-        for requirement in (
-            "single_time_observational",
-            "dose-response",
-            "all represented colleges within common support",
-            "cap impossible percentage values above 100 at 100",
-            "accept the stated Expend-before-outcome timing",
-            "plausibly pre-exposure",
-            "exclude variables with unresolved timing or causal role",
-            "fixed benchmark choices, not open questions",
-        ):
-            self.assertIn(requirement, original_prompt)
+    def test_interference_continuation_accepts_completion_or_infeasibility(self):
+        ready = self.interference_snapshot("ready")
+        reference = ["interference-1", 1]
+        cases = (
+            (
+                self.interference_snapshot("done"),
+                {
+                    "counts": {"analysis_execution": 1},
+                    "usable_scope_refs": {"analysis_execution": [reference]},
+                },
+            ),
+            (
+                self.interference_snapshot("blocked"),
+                {
+                    "counts": {},
+                    "infeasibility_scope_refs": {
+                        "analysis_execution": [reference]
+                    },
+                },
+            ),
+        )
+        for current, evidence in cases:
+            status = next(iter(current["analysis"].values()))["current_status"]
+            with self.subTest(status=status):
+                evidence.update(
+                    {
+                        "intact_routes": {"analysis_execution": True},
+                        "changed_scope_refs": {"analysis_execution": []},
+                    }
+                )
+                self.assertEqual(
+                    RUNNER.next_prompt_blockers(
+                        "star-interference-saturation",
+                        6,
+                        current,
+                        {4: ready, 5: current},
+                        evidence,
+                    ),
+                    [],
+                )
 
-        for requirement in (
-            "mature for later scope review",
-            "`single_time_observational`",
-            "`heterogeneous-effects`",
-            "without changing the current average-effect scope",
-            "Bound the claim to exploratory variation across Private strata",
-            "do not attribute that variation to Private status itself",
-        ):
-            self.assertIn(requirement, review_prompt)
-
-        for requirement in (
-            "Using only the current design and support recommendations",
-            "bounded claim established in the prior turn",
-            "replace the current average-effect scope",
-            "Do not rerun causal review",
-        ):
-            self.assertIn(requirement, replacement_prompt)
-
-    def test_mechanical_edge_reference_documents_gate_handoff(self):
-        reference = (ROOT / "references" / "mechanical-edge.md").read_text(encoding="utf-8")
-        for requirement in (
-            "`single_time_observational` + `heterogeneous-effects`",
-            "does not attribute variation to Private itself",
-            "original scope remains current",
-            "without another causal review",
-            "turn 6 consumed them without rerunning causal review",
-        ):
-            self.assertIn(requirement, reference)
-
-    def test_standard_registry_allows_only_optional_data_audit_artifacts_on_turns_3_and_4(self):
-        turns = RUNNER.load_cases()["standard"]["turns"]
+    def test_observational_registry_allows_only_optional_audit_artifacts(self):
+        turns = RUNNER.load_cases()["college-observational-policy"]["turns"]
         for turn in turns[2:4]:
             with self.subTest(label=turn["label"]):
                 expected = turn["artifacts"]
-                self.assertNotIn("new", expected)
+                self.assertEqual(expected["new"], 0)
                 self.assertEqual(expected["causal_discovery"], 0)
                 self.assertEqual(expected["analysis_execution"], 0)
                 self.assertEqual(expected["report_writer"], 0)
 
-    def test_registered_data_uses_canonical_fingerprint(self):
-        cases = RUNNER.load_cases()
+    def test_registered_data_uses_canonical_fingerprints(self):
         fingerprints = {
             case["data"]["canonical_sha256"]
-            for case in cases.values()
-            if case["data"] is not None
+            for case in RUNNER.load_cases().values()
         }
         self.assertEqual(
             fingerprints,
-            {"5a373ac7af1bc13caae0e08bc3e7230fac28eb5be265132372f5bc5ffe65806c"},
+            {
+                "5a373ac7af1bc13caae0e08bc3e7230fac28eb5be265132372f5bc5ffe65806c",
+                "0613304257a0722d776cfaac3b2d9fae513e32969395f7b312ed6303db8a7b27",
+                "23a5bf9cd485e660f7d7c8af1c10ff8efdad84d36302f35ab056e12a7f98afbf",
+            },
         )
 
     def test_standard_scope_oracle_accepts_causal_review_then_new_scope(self):
@@ -1762,6 +1867,8 @@ class RunnerTests(unittest.TestCase):
             "created_at": "2026-01-01T00:00:01Z",
             "summary": manifest["summary"],
         }
+        if "artifact_role" in manifest:
+            record["artifact_role"] = manifest["artifact_role"]
         lines = ["artifact_records:"]
         for index, (key, value) in enumerate(record.items()):
             prefix = "  - " if index == 0 else "    "
@@ -1789,6 +1896,43 @@ class RunnerTests(unittest.TestCase):
         )
         self.write_artifact_state(workdir, manifest, "output/audit")
         return deliverable
+
+    def write_schema2_analysis_artifact(self, workdir, artifact_role):
+        artifact = workdir / "output" / "analysis"
+        artifact.mkdir(parents=True)
+        evidence_path = "output/analysis/evidence.txt"
+        (artifact / "evidence.txt").write_text(
+            "execution evidence\n", encoding="utf-8"
+        )
+        requirement = "fit approved estimator"
+        reference = {
+            "kind": "analysis",
+            "id": "55555555-5555-4555-8555-555555555555",
+            "revision": 1,
+        }
+        infeasible = artifact_role == "infeasibility_evidence"
+        manifest = {
+            "schema_version": 2,
+            "operation_id": "66666666-6666-4666-8666-666666666666",
+            "route": "analysis_execution",
+            "scope_ref": reference,
+            "files": [evidence_path],
+            "completed_at": "2026-01-01T00:00:00Z",
+            "summary": "Analysis execution evidence.",
+            "artifact_role": artifact_role,
+            "execution_receipt": {
+                "contract_hash": "0" * 64,
+                "completed_requirements": [] if infeasible else [requirement],
+                "unmet_requirements": [requirement] if infeasible else [],
+                "supplemental_work": [],
+                "evidence_files": [evidence_path],
+            },
+        }
+        (artifact / "artifact-manifest.json").write_text(
+            json.dumps(manifest), encoding="utf-8"
+        )
+        self.write_artifact_state(workdir, manifest, "output/analysis")
+        return reference
 
     def write_report_artifact(self, workdir, html_content=""):
         artifact = workdir / "output" / "report"
@@ -1907,23 +2051,23 @@ class RunnerTests(unittest.TestCase):
             self.assertFalse(forbidden["ok"])
             self.assertIn("expected 0 new artifact(s), found 1", forbidden["errors"])
 
-    def test_standard_optional_artifact_rejects_causal_discovery(self):
-        expected = RUNNER.load_cases()["standard"]["turns"][2]["artifacts"]
-        with TemporaryDirectory() as temporary:
-            workdir = Path(temporary)
-            self.write_data_audit_artifact(workdir)
-            audit = RUNNER.inspect_artifacts(workdir, expected)
-            self.assertTrue(audit["ok"], audit["errors"])
-        with TemporaryDirectory() as temporary:
-            workdir = Path(temporary)
-            self.write_data_audit_artifact(workdir, route="causal_discovery")
-            discovery = RUNNER.inspect_artifacts(workdir, expected)
-            self.assertFalse(discovery["ok"])
-            self.assertIn(
-                "expected 0 causal_discovery artifact(s), found 1",
-                discovery["errors"],
-            )
-
+    def test_observational_audit_turn_rejects_unexpected_artifacts(self):
+        expected = RUNNER.load_cases()["college-observational-policy"]["turns"][2]["artifacts"]
+        for route in ("data_audit", "causal_discovery"):
+            with self.subTest(route=route), TemporaryDirectory() as temporary:
+                workdir = Path(temporary)
+                self.write_data_audit_artifact(workdir, route=route)
+                result = RUNNER.inspect_artifacts(workdir, expected)
+                self.assertFalse(result["ok"])
+                self.assertIn(
+                    "expected 0 new artifact(s), found 1",
+                    result["errors"],
+                )
+                if route == "causal_discovery":
+                    self.assertIn(
+                        "expected 0 causal_discovery artifact(s), found 1",
+                        result["errors"],
+                    )
     def test_discovery_manifest_is_scope_bound_and_usable(self):
         with TemporaryDirectory() as temporary:
             workdir = Path(temporary)
@@ -1964,9 +2108,69 @@ class RunnerTests(unittest.TestCase):
                 self.discovery_contract(),
             )
 
+    def test_schema2_roles_separate_completion_from_infeasibility(self):
+        for artifact_role in ("completion", "infeasibility_evidence"):
+            with self.subTest(artifact_role=artifact_role), TemporaryDirectory() as temporary:
+                workdir = Path(temporary)
+                reference = self.write_schema2_analysis_artifact(
+                    workdir, artifact_role
+                )
+                result = RUNNER.inspect_artifacts(
+                    workdir, {"analysis_execution": 1, "new": 1}
+                )
+                self.assertTrue(result["ok"], result["errors"])
+                self.assertEqual(result["manifest_counts"]["analysis_execution"], 1)
+                self.assertEqual(
+                    result["role_counts"][artifact_role]["analysis_execution"],
+                    1,
+                )
+                identity = [(reference["id"], reference["revision"])]
+                if artifact_role == "completion":
+                    self.assertEqual(
+                        result["usable_scope_refs"]["analysis_execution"],
+                        identity,
+                    )
+                    self.assertNotIn(
+                        "analysis_execution", result["infeasibility_scope_refs"]
+                    )
+                else:
+                    self.assertEqual(result["counts"].get("analysis_execution", 0), 0)
+                    self.assertEqual(
+                        result["infeasibility_scope_refs"]["analysis_execution"],
+                        identity,
+                    )
+                    self.assertNotIn(
+                        "analysis_execution", result["usable_scope_refs"]
+                    )
+
+    def test_execution_receipt_enforces_role_semantics(self):
+        receipt = {
+            "contract_hash": "0" * 64,
+            "completed_requirements": ["fit approved estimator"],
+            "unmet_requirements": ["fit approved estimator"],
+            "supplemental_work": [],
+            "evidence_files": ["output/analysis/evidence.txt"],
+        }
+        completion_errors = RUNNER.validate_execution_receipt(
+            receipt, "completion", ["output/analysis/evidence.txt"], "manifest"
+        )
+        self.assertTrue(any("must not overlap" in error for error in completion_errors))
+        self.assertTrue(any("requires no unmet" in error for error in completion_errors))
+        receipt["completed_requirements"] = []
+        receipt["unmet_requirements"] = []
+        infeasibility_errors = RUNNER.validate_execution_receipt(
+            receipt,
+            "infeasibility_evidence",
+            ["output/analysis/evidence.txt"],
+            "manifest",
+        )
+        self.assertTrue(
+            any("requires at least one unmet" in error for error in infeasibility_errors)
+        )
+
     def test_artifact_manifest_schema_is_strict(self):
         cases = (
-            ("schema", lambda manifest: manifest.update(schema_version=2), "schema_version"),
+            ("schema", lambda manifest: manifest.update(schema_version=3), "schema_version"),
             ("operation", lambda manifest: manifest.update(operation_id="op-1"), "not a UUID"),
             ("timestamp", lambda manifest: manifest.update(completed_at="12:00:00"), "RFC3339 UTC"),
             ("scope", lambda manifest: manifest.update(scope_ref={"kind": "analysis"}), "must be null"),
@@ -2023,6 +2227,21 @@ class RunnerTests(unittest.TestCase):
             self.assertFalse(result["ok"])
             self.assertTrue(
                 any("outside the reserved location" in error for error in result["errors"])
+            )
+
+    def test_unlisted_output_fails_without_invalidating_registered_evidence(self):
+        with TemporaryDirectory() as temporary:
+            workdir = Path(temporary)
+            self.write_data_audit_artifact(workdir)
+            extra = workdir / "output" / "unlisted.txt"
+            extra.write_text("extra\n", encoding="utf-8")
+            result = RUNNER.inspect_artifacts(workdir, {"total": 1, "new": 1})
+            self.assertFalse(result["ok"])
+            self.assertEqual(result["orphaned_files"], ["output/unlisted.txt"])
+            self.assertTrue(result["scope_refs_trustworthy"])
+            self.assertEqual(result["integrity_errors"], [])
+            self.assertTrue(
+                any("unlisted output files" in error for error in result["expectation_errors"])
             )
 
     def test_artifact_manifest_requires_nonempty_deliverable(self):
@@ -2133,6 +2352,8 @@ class RunnerTests(unittest.TestCase):
                 {
                     "path": "output/result/artifact-manifest.json",
                     "route": "analysis_execution",
+                    "valid": True,
+                    "artifact_role": "completion",
                     "scope_ref": {"kind": "analysis", "id": "analysis-1", "revision": 1},
                 }
             ]
@@ -2144,7 +2365,7 @@ class RunnerTests(unittest.TestCase):
         artifacts["new_manifests"][0]["scope_ref"]["revision"] = 2
         errors = RUNNER.check_new_manifest_scope_bindings(current, previous, artifacts)
         self.assertTrue(any("not exactly ready" in error for error in errors))
-        self.assertTrue(any("not exactly done" in error for error in errors))
+        self.assertTrue(any("does not match its completion status" in error for error in errors))
 
     def test_discovery_manifest_binds_scoped_contract(self):
         sequence = self.discovery_scope_sequence()
@@ -2154,6 +2375,8 @@ class RunnerTests(unittest.TestCase):
                 {
                     "path": "output/discovery/artifact-manifest.json",
                     "route": "causal_discovery",
+                    "valid": True,
+                    "artifact_role": "completion",
                     "scope_ref": {
                         "kind": "discovery",
                         "id": "55555555-5555-4555-8555-555555555555",
@@ -2177,7 +2400,7 @@ class RunnerTests(unittest.TestCase):
             sequence[4], sequence[3], artifacts
         )
         self.assertTrue(any("prior scope" in error for error in errors))
-        self.assertTrue(any("completed contract" in error for error in errors))
+        self.assertTrue(any("completion handoff" in error for error in errors))
 
     def test_discovery_manifest_binding_accepts_legal_direct_transitions(self):
         sequence = self.discovery_scope_sequence()
@@ -2190,6 +2413,8 @@ class RunnerTests(unittest.TestCase):
         manifest = {
             "path": "output/discovery/artifact-manifest.json",
             "route": "causal_discovery",
+            "valid": True,
+            "artifact_role": "completion",
             "scope_ref": reference,
             "discovery_contract": self.discovery_contract(),
         }
@@ -2265,6 +2490,8 @@ class RunnerTests(unittest.TestCase):
                 {
                     "path": "output/report/artifact-manifest.json",
                     "route": "report_writer",
+                    "valid": True,
+                    "artifact_role": "completion",
                     "scope_ref": {"kind": "report", "id": "report-1", "revision": 1},
                 }
             ]
@@ -2292,7 +2519,7 @@ class RunnerTests(unittest.TestCase):
             )
             self.assertEqual(metadata["canonical_sha256"], canonical)
             path.write_text("Private,Expend\nNo,1000\n", encoding="utf-8")
-            with self.assertRaisesRegex(RUNNER.RunError, "registered College dataset"):
+            with self.assertRaisesRegex(RUNNER.RunError, "registered case dataset"):
                 RUNNER.validate_data(
                     path,
                     {
@@ -2369,6 +2596,12 @@ class RunnerTests(unittest.TestCase):
         self.assertEqual(summary["target"]["skill_runtime_sha256"], "def456")
         self.assertEqual(summary["runtime"]["models"], ["claude-opus"])
         self.assertEqual(summary["runtime"]["fast_mode_states"], ["off"])
+        turn_artifacts = summary["turns"][0]["artifacts"]
+        self.assertEqual(turn_artifacts["manifest_counts"], {})
+        self.assertEqual(turn_artifacts["counts"], {})
+        self.assertEqual(
+            turn_artifacts["role_counts"], {"completion": {}, "infeasibility_evidence": {}}
+        )
         self.assertEqual(summary["automated_checks"]["status"], "pass")
         self.assertEqual(summary["workflow_assessment"]["status"], "not_required")
         self.assertEqual(summary["final_result"]["status"], "pass")
@@ -2390,45 +2623,23 @@ class RunnerTests(unittest.TestCase):
         self.assertIn("## Diagnostics", markdown)
         self.assertNotIn("## Failures", markdown)
 
-    def test_standard_automated_pass_remains_pending(self):
-        summary = RUNNER.build_summary(
-            "standard",
-            1,
-            [self.passing_record()],
-            None,
-            self.summary_target(),
-        )
-        self.assertEqual(summary["automated_checks"]["status"], "pass")
-        self.assertEqual(summary["workflow_assessment"]["status"], "pending")
-        self.assertEqual(summary["final_result"]["status"], "pending")
+    def test_all_live_cases_require_manual_assessment(self):
+        for test_id in RUNNER.TEST_IDS:
+            with self.subTest(test_id=test_id):
+                summary = RUNNER.build_summary(
+                    test_id,
+                    1,
+                    [self.passing_record()],
+                    None,
+                    self.summary_target(),
+                )
+                self.assertEqual(summary["automated_checks"]["status"], "pass")
+                self.assertEqual(summary["workflow_assessment"]["status"], "pending")
+                self.assertEqual(summary["final_result"]["status"], "pending")
 
-    def test_discovery_automated_pass_remains_pending(self):
+    def test_assessment_finalizes_live_summary(self):
         summary = RUNNER.build_summary(
-            "discovery",
-            1,
-            [self.passing_record()],
-            None,
-            self.summary_target(),
-        )
-        self.assertEqual(summary["automated_checks"]["status"], "pass")
-        self.assertEqual(summary["workflow_assessment"]["status"], "pending")
-        self.assertEqual(summary["final_result"]["status"], "pending")
-
-    def test_mechanical_edge_automated_pass_remains_pending(self):
-        summary = RUNNER.build_summary(
-            "mechanical-edge",
-            1,
-            [self.passing_record()],
-            None,
-            self.summary_target(),
-        )
-        self.assertEqual(summary["automated_checks"]["status"], "pass")
-        self.assertEqual(summary["workflow_assessment"]["status"], "pending")
-        self.assertEqual(summary["final_result"]["status"], "pending")
-
-    def test_assessment_finalizes_causal_edge_summary(self):
-        summary = RUNNER.build_summary(
-            "causal-edge",
+            "college-observational-policy",
             1,
             [self.passing_record()],
             None,
@@ -2437,15 +2648,20 @@ class RunnerTests(unittest.TestCase):
         with TemporaryDirectory() as temporary:
             results_dir = Path(temporary).resolve()
             self.write_assessable_summary(results_dir, summary)
-            notes = results_dir / "causal-assessment.md"
-            notes.write_text("All registered boundaries were preserved.\n", encoding="utf-8")
+            notes = results_dir / "workflow-assessment.md"
+            notes.write_text(
+                "All material workflow boundaries were preserved.\n",
+                encoding="utf-8",
+            )
             notes_sha256 = hashlib.sha256(notes.read_bytes()).hexdigest()
-            final = RUNNER.assess_results(results_dir, "safe", notes)
-            recorded = json.loads((results_dir / "summary.json").read_text(encoding="utf-8"))
+            final = RUNNER.assess_results(results_dir, "pass", notes)
+            recorded = json.loads(
+                (results_dir / "summary.json").read_text(encoding="utf-8")
+            )
             markdown = (results_dir / "summary.md").read_text(encoding="utf-8")
         self.assertEqual(final, "pass")
         self.assertEqual(recorded["workflow_assessment"]["status"], "complete")
-        self.assertEqual(recorded["workflow_assessment"]["rating"], "safe")
+        self.assertEqual(recorded["workflow_assessment"]["rating"], "pass")
         self.assertEqual(
             recorded["workflow_assessment"]["notes_sha256"],
             notes_sha256,
@@ -2455,7 +2671,7 @@ class RunnerTests(unittest.TestCase):
 
     def test_assessment_rejects_invalid_rating(self):
         summary = RUNNER.build_summary(
-            "standard",
+            "college-observational-policy",
             1,
             [self.passing_record()],
             None,
@@ -2466,7 +2682,7 @@ class RunnerTests(unittest.TestCase):
             RUNNER.write_summary_files(results_dir, summary)
             notes = results_dir / "workflow-assessment.md"
             notes.write_text("Review complete.\n", encoding="utf-8")
-            with self.assertRaisesRegex(RUNNER.RunError, "invalid standard rating"):
+            with self.assertRaisesRegex(RUNNER.RunError, "invalid college-observational-policy rating"):
                 RUNNER.assess_results(results_dir, "safe", notes)
 
     def test_completed_automated_failure_can_be_assessed_but_cannot_pass(self):
@@ -2575,7 +2791,7 @@ class RunnerTests(unittest.TestCase):
             workdir.mkdir()
             results_dir.mkdir()
             args = SimpleNamespace(
-                test="smoke",
+                test="college-observational-policy",
                 workdir=workdir,
                 results_dir=results_dir,
                 statectl=root / "statectl.cjs",
@@ -2686,17 +2902,22 @@ class RunnerTests(unittest.TestCase):
             with self.assertRaisesRegex(RUNNER.RunError, "generated summary"):
                 RUNNER.assess_results(results_dir, "pass", results_dir / "summary.md")
 
-    def test_causal_edge_weak_rating_remains_nonpassing(self):
-        summary = RUNNER.build_summary(
-            "causal-edge", 1, [self.passing_record()], None, self.summary_target()
-        )
-        with TemporaryDirectory() as temporary:
-            results_dir = Path(temporary).resolve()
-            self.write_assessable_summary(results_dir, summary)
-            notes = results_dir / "causal-assessment.md"
-            notes.write_text("Boundaries were safe but unclear.\n", encoding="utf-8")
-            final = RUNNER.assess_results(results_dir, "weak", notes)
-        self.assertEqual(final, "weak")
+    def test_live_weak_and_fail_ratings_remain_nonpassing(self):
+        for rating in ("weak", "fail"):
+            with self.subTest(rating=rating), TemporaryDirectory() as temporary:
+                summary = RUNNER.build_summary(
+                    "college-observational-policy",
+                    1,
+                    [self.passing_record()],
+                    None,
+                    self.summary_target(),
+                )
+                results_dir = Path(temporary).resolve()
+                self.write_assessable_summary(results_dir, summary)
+                notes = results_dir / "workflow-assessment.md"
+                notes.write_text("Review found a material issue.\n", encoding="utf-8")
+                final = RUNNER.assess_results(results_dir, rating, notes)
+                self.assertEqual(final, rating)
 
     def test_final_result_exit_codes_distinguish_pending(self):
         self.assertEqual(RUNNER.final_result_exit_code("pass"), 0)

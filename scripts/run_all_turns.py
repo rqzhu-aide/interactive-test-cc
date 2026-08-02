@@ -10,6 +10,7 @@ import io
 import json
 import os
 from pathlib import Path
+import posixpath
 import re
 import shutil
 import subprocess
@@ -21,7 +22,12 @@ from urllib.parse import unquote, urlsplit
 ROOT = Path(__file__).resolve().parent.parent
 CASES_PATH = ROOT / "references" / "test-cases.json"
 SEND_ONE = Path(__file__).resolve().with_name("send_one.py")
-TEST_IDS = ("smoke", "standard", "discovery", "mechanical-edge", "causal-edge")
+TEST_IDS = (
+    "college-observational-policy",
+    "college-discovery-handoff",
+    "star-interference-saturation",
+    "schooling-iv-late",
+)
 ARTIFACT_ROUTES = {
     "data_audit",
     "causal_discovery",
@@ -29,7 +35,7 @@ ARTIFACT_ROUTES = {
     "report_writer",
 }
 ARTIFACT_EXPECTATION_KEYS = {"new", "total", *ARTIFACT_ROUTES}
-MANIFEST_KEYS = {
+MANIFEST_BASE_KEYS = {
     "schema_version",
     "operation_id",
     "route",
@@ -37,6 +43,15 @@ MANIFEST_KEYS = {
     "files",
     "completed_at",
     "summary",
+}
+MANIFEST_V2_KEYS = {"artifact_role", "execution_receipt"}
+ARTIFACT_ROLES = ("completion", "infeasibility_evidence")
+EXECUTION_RECEIPT_KEYS = {
+    "contract_hash",
+    "completed_requirements",
+    "unmet_requirements",
+    "supplemental_work",
+    "evidence_files",
 }
 MANIFEST_OPTIONAL_KEYS = {"discovery_contract"}
 DISCOVERY_CONTRACT_KEYS = {
@@ -58,6 +73,7 @@ ARTIFACT_RECORD_KEYS = {
     "summary",
     "design",
     "support",
+    "artifact_role",
 }
 ARTIFACT_RECORD_REQUIRED = {
     "artifact_id",
@@ -86,16 +102,33 @@ RFC3339_UTC_PATTERN = re.compile(
     r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$"
 )
 MANUAL_RATINGS = {
+    "college-observational-policy": {"pass", "weak", "fail"},
+    "college-discovery-handoff": {"pass", "weak", "fail"},
+    "star-interference-saturation": {"pass", "weak", "fail"},
+    "schooling-iv-late": {"pass", "weak", "fail"},
+    # Retain finalization support for previously recorded result folders.
     "mechanical-edge": {"pass", "fail"},
     "standard": {"pass", "fail"},
     "discovery": {"pass", "fail"},
     "causal-edge": {"safe", "weak", "fail"},
 }
 APPROVAL_BOUND_TURNS = {
+    "college-observational-policy": {7, 10, 12},
+    "college-discovery-handoff": {7},
+    "star-interference-saturation": {5, 8},
+    "schooling-iv-late": {5, 8},
+    # Historical IDs remain valid for saved-result assessment and unit fixtures.
     "standard": {7, 10, 12},
     "discovery": {7},
     "mechanical-edge": {7, 8, 12, 13},
     "causal-edge": {8},
+}
+SINGLE_ANALYSIS_REPORT_CASES = {
+    "star-interference-saturation": (
+        "interference_spillovers",
+        "policy-making-and-transportability",
+    ),
+    "schooling-iv-late": ("instrumental_variables", "statistical-validity"),
 }
 SUMMARY_SCHEMA_VERSION = 2
 EXIT_PENDING = 3
@@ -326,6 +359,8 @@ def load_cases():
         if data is not None:
             if not isinstance(data, dict):
                 raise RunError(f"{test_id}: data requirement must be an object or null")
+            if not isinstance(data.get("name"), str) or not data["name"].strip():
+                raise RunError(f"{test_id}: data name must be nonempty")
             if data.get("filename") != "data.csv" or not isinstance(data.get("rows"), int):
                 raise RunError(f"{test_id}: invalid data requirement")
             columns = data.get("required_columns")
@@ -389,7 +424,8 @@ def validate_data(path, requirement):
     canonical = json.dumps(rows, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
     canonical_sha256 = hashlib.sha256(canonical).hexdigest()
     if canonical_sha256 != requirement["canonical_sha256"]:
-        raise RunError("data.csv does not match the registered College dataset")
+        dataset = requirement.get("name", "case")
+        raise RunError(f"data.csv does not match the registered {dataset} dataset")
     return {
         "filename": path.name,
         "bytes": len(raw),
@@ -407,10 +443,12 @@ def require_controller_capabilities(test_id, template_result):
         "pending_decision",
         "response_receipt",
         "startup_notice",
+        "scope_snapshot",
+        "analysis_contract",
+        "completion_protocol",
+        "artifact_roles",
     ]
-    if test_id != "smoke":
-        required.append("scope_snapshot")
-    if test_id == "discovery":
+    if test_id == "college-discovery-handoff":
         required.append("discovery_contract")
     for capability in required:
         if not isinstance(capabilities, dict) or capabilities.get(capability) != 1:
@@ -673,30 +711,8 @@ def validate_state(
         record("project_id changed during the test", blocking=True)
     if not isinstance(revision, int) or isinstance(revision, bool):
         record("revision is not an integer", blocking=True)
-    else:
-        baseline = 0 if previous_revision is None else previous_revision
-        revision_delta = revision - baseline
-        if previous_revision is not None and revision_delta < 0:
-            record("revision decreased during the test", blocking=True)
-        else:
-            manifest_growth = manifest_count - previous_manifest_count
-            if manifest_growth not in (0, 1):
-                record(
-                    f"artifact manifest count changed by {manifest_growth}; expected 0 or 1"
-                )
-            if revision_delta < 2:
-                record(
-                    f"revision increased by {revision_delta}; one completed operation requires at least 2 mutations",
-                    blocking=True,
-                )
-            elif manifest_growth == 0 and revision_delta > 3:
-                record(
-                    f"revision increased by {revision_delta} without a new artifact; expected at most 3"
-                )
-            elif manifest_growth == 1 and revision_delta != 4:
-                record(
-                    f"revision increased by {revision_delta} with one new artifact; expected 4"
-                )
+    elif previous_revision is not None and revision <= previous_revision:
+        record("revision did not increase during the completed turn", blocking=True)
     return payload, errors, blockers
 
 
@@ -823,6 +839,7 @@ def check_new_manifest_scope_bindings(raw_snapshot, previous_snapshot, artifacts
         for manifest in artifacts.get("new_manifests", [])
         if manifest.get("route")
         in ("causal_discovery", "analysis_execution", "report_writer")
+        and manifest.get("valid")
     ]
     if not relevant:
         return []
@@ -856,6 +873,10 @@ def check_new_manifest_scope_bindings(raw_snapshot, previous_snapshot, artifacts
             errors.append(f"{manifest['path']}: scope_ref is not a valid {expected_kind} reference")
             continue
         identity = (reference.get("id"), reference.get("revision"))
+        infeasible = manifest.get("artifact_role") == "infeasibility_evidence"
+        analysis_status = "blocked" if infeasible else "done"
+        discovery_status = "blocked" if infeasible else "artifact_created"
+        result_label = "infeasibility evidence" if infeasible else "completion"
         if route == "causal_discovery":
             prior = previous.get("discovery")
             completed = current.get("discovery")
@@ -884,7 +905,7 @@ def check_new_manifest_scope_bindings(raw_snapshot, previous_snapshot, artifacts
             current_matches = (
                 isinstance(completed, dict)
                 and scope_ref(completed) == identity
-                and completed.get("status") == "artifact_created"
+                and completed.get("status") == discovery_status
                 and completed.get("execution_contract")
                 == manifest.get("discovery_contract")
             )
@@ -894,7 +915,7 @@ def check_new_manifest_scope_bindings(raw_snapshot, previous_snapshot, artifacts
                 )
             if not current_matches:
                 errors.append(
-                    f"{manifest['path']}: discovery artifact does not match the completed contract"
+                    f"{manifest['path']}: discovery artifact does not match its {result_label} handoff"
                 )
             continue
         if route == "analysis_execution":
@@ -906,17 +927,17 @@ def check_new_manifest_scope_bindings(raw_snapshot, previous_snapshot, artifacts
             current_matches = [
                 entry
                 for entry in current["analysis"].values()
-                if scope_ref(entry) == identity and entry.get("current_status") == "done"
+                if scope_ref(entry) == identity and entry.get("current_status") == analysis_status
             ]
         else:
             prior = previous["report"]
             completed = current["report"]
             prior_matches = [prior] if scope_ref(prior) == identity and prior.get("current_status") == "ready" else []
-            current_matches = [completed] if scope_ref(completed) == identity and completed.get("current_status") == "done" else []
+            current_matches = [completed] if scope_ref(completed) == identity and completed.get("current_status") == analysis_status else []
         if len(prior_matches) != 1:
             errors.append(f"{manifest['path']}: artifact scope was not exactly ready before approval")
         if len(current_matches) != 1:
-            errors.append(f"{manifest['path']}: artifact scope is not exactly done after execution")
+            errors.append(f"{manifest['path']}: artifact scope does not match its {result_label} status")
     return errors
 
 
@@ -1163,6 +1184,97 @@ def check_discovery_scopes(turn_number, raw_snapshot, history):
     return errors
 
 
+def check_single_analysis_report_scopes(
+    turn_number,
+    raw_snapshot,
+    history,
+    expected_route,
+    expected_support,
+):
+    """Check the shared one-analysis, one-report lifecycle."""
+    snapshot, errors = normalize_scope_snapshot(raw_snapshot)
+    if errors:
+        return errors
+    analysis = snapshot["analysis"]
+    report = snapshot["report"]
+
+    def sole_analysis(value, statuses, label):
+        entries = value.get("analysis", {}) if isinstance(value, dict) else {}
+        if len(entries) != 1:
+            errors.append(f"{label} must contain exactly one analysis scope")
+            return None
+        route, entry = next(iter(entries.items()))
+        if scope_ref(entry) is None or entry.get("current_status") not in statuses:
+            errors.append(
+                f"{label} analysis scope must have status "
+                f"{' or '.join(sorted(statuses))}"
+            )
+            return None
+        return route, entry
+
+    if turn_number <= 3:
+        if analysis or report is not None:
+            errors.append(f"turn {turn_number} must not create a scope")
+    elif turn_number == 4:
+        current = sole_analysis(snapshot, {"ready"}, "turn 4")
+        if current:
+            route, entry = current
+            if route != expected_route or entry.get("support") != expected_support:
+                errors.append(
+                    f"turn 4 must prepare {expected_route} with {expected_support} support"
+                )
+        if report is not None:
+            errors.append("turn 4 must not create a report scope")
+    elif turn_number == 5:
+        prepared = sole_analysis(history.get(4), {"ready"}, "turn 4")
+        current = sole_analysis(snapshot, {"done", "blocked"}, "turn 5")
+        if prepared and current:
+            prepared_identity = (
+                prepared[0],
+                scope_ref(prepared[1]),
+                prepared[1].get("support"),
+            )
+            current_identity = (
+                current[0],
+                scope_ref(current[1]),
+                current[1].get("support"),
+            )
+            if current_identity != prepared_identity:
+                errors.append("turn 5 must preserve the exact approved analysis scope")
+        if report is not None:
+            errors.append("turn 5 must not create a report scope")
+    elif turn_number == 6:
+        previous = history.get(5)
+        if not isinstance(previous, dict) or analysis != previous.get("analysis"):
+            errors.append("turn 6 must preserve the analysis result")
+        if report is not None:
+            errors.append("turn 6 must not create a report scope")
+    elif turn_number == 7:
+        previous = history.get(6)
+        if not isinstance(previous, dict) or analysis != previous.get("analysis"):
+            errors.append("turn 7 must preserve the analysis result")
+        if scope_ref(report) is None or report.get("current_status") != "ready":
+            errors.append("turn 7 must create one ready report scope")
+    elif turn_number == 8:
+        previous = history.get(7)
+        if not isinstance(previous, dict) or analysis != previous.get("analysis"):
+            errors.append("turn 8 must preserve the analysis result")
+        prior_report = previous.get("report") if isinstance(previous, dict) else None
+        if (
+            not isinstance(report, dict)
+            or scope_ref(report) != scope_ref(prior_report)
+            or report.get("current_status") not in {"done", "blocked"}
+        ):
+            errors.append("turn 8 must preserve the exact approved report scope")
+    elif turn_number == 9:
+        previous = history.get(8)
+        if snapshot != previous:
+            errors.append("turn 9 must preserve completed or blocked scope state")
+
+    history[turn_number] = snapshot
+    return errors
+
+
 def check_mechanical_edge_scopes(turn_number, raw_snapshot, history):
     """Check the fixed scope transitions exercised by mechanical-edge."""
     snapshot, errors = normalize_scope_snapshot(raw_snapshot)
@@ -1278,6 +1390,11 @@ def next_prompt_blockers(
         if isinstance(artifacts, dict)
         else {}
     )
+    infeasibility_scope_refs = (
+        artifacts.get("infeasibility_scope_refs", {})
+        if isinstance(artifacts, dict)
+        else {}
+    )
     intact_routes = (
         artifacts.get("intact_routes", {})
         if isinstance(artifacts, dict)
@@ -1353,6 +1470,16 @@ def next_prompt_blockers(
         for reference in usable_scope_refs.get("report_writer", [])
         if isinstance(reference, (list, tuple)) and len(reference) == 2
     ]
+    analysis_infeasibility_refs = [
+        tuple(reference)
+        for reference in infeasibility_scope_refs.get("analysis_execution", [])
+        if isinstance(reference, (list, tuple)) and len(reference) == 2
+    ]
+    report_infeasibility_refs = [
+        tuple(reference)
+        for reference in infeasibility_scope_refs.get("report_writer", [])
+        if isinstance(reference, (list, tuple)) and len(reference) == 2
+    ]
     discovery_artifact_refs = [
         tuple(reference)
         for reference in usable_scope_refs.get("causal_discovery", [])
@@ -1375,7 +1502,7 @@ def next_prompt_blockers(
     }
     analysis_intact = intact_routes.get("analysis_execution", True)
 
-    if test_id == "standard":
+    if test_id in {"standard", "college-observational-policy"}:
         if next_turn == 7 and len(ready_analysis) != 1:
             blockers.append("the next approval has no unique ready analysis scope")
         elif next_turn == 8:
@@ -1427,7 +1554,7 @@ def next_prompt_blockers(
             ):
                 blockers.append("the next derivative scope requires a completed report")
 
-    elif test_id == "discovery":
+    elif test_id in {"discovery", "college-discovery-handoff"}:
         discovery_reference = scope_ref(discovery)
         matching_discovery_manifests = [
             manifest
@@ -1483,6 +1610,88 @@ def next_prompt_blockers(
             ):
                 blockers.append(
                     "the final synthesis requires the exact completed analysis and intact discovery evidence"
+                )
+
+    elif test_id in SINGLE_ANALYSIS_REPORT_CASES:
+        expected_route, expected_support = SINGLE_ANALYSIS_REPORT_CASES[test_id]
+        ready_entries = [
+            (route, entry)
+            for route, entry in analysis.items()
+            if isinstance(entry, dict) and entry.get("current_status") == "ready"
+        ]
+        expected_ready = (
+            len(ready_entries) == 1
+            and ready_entries[0][0] == expected_route
+            and ready_entries[0][1].get("support") == expected_support
+            and scope_ref(ready_entries[0][1]) is not None
+        )
+        prepared = unique_analysis(history.get(4), "ready")
+        prepared_ref = scope_ref(prepared)
+        current_entries = [
+            entry
+            for entry in analysis.values()
+            if isinstance(entry, dict)
+            and entry.get("current_status") in {"done", "blocked"}
+        ]
+        current = current_entries[0] if len(current_entries) == 1 else None
+        current_ref = scope_ref(current)
+        completed = (
+            prepared_ref is not None
+            and current_ref == prepared_ref
+            and isinstance(current, dict)
+            and current.get("current_status") == "done"
+            and analysis_artifact_refs.count(prepared_ref) == 1
+        )
+        infeasible = (
+            prepared_ref is not None
+            and current_ref == prepared_ref
+            and isinstance(current, dict)
+            and current.get("current_status") == "blocked"
+            and analysis_infeasibility_refs.count(prepared_ref) == 1
+        )
+        analysis_result_available = (
+            (completed or infeasible)
+            and analysis_intact
+            and prepared_ref not in changed_analysis_refs
+        )
+        if next_turn == 5 and not expected_ready:
+            blockers.append(
+                f"the next approval requires one ready {expected_route} scope "
+                f"with {expected_support} support"
+            )
+        elif next_turn in {6, 7, 8, 9} and not analysis_result_available:
+            blockers.append(
+                "the next step requires the exact analysis completion or valid infeasibility evidence"
+            )
+        elif next_turn == 8 and (
+            not isinstance(report, dict)
+            or report.get("current_status") != "ready"
+        ):
+            blockers.append("the next approval has no unique ready report scope")
+        elif next_turn == 9:
+            prepared_report = report_at(7, "ready")
+            prepared_report_ref = scope_ref(prepared_report)
+            completed_report = (
+                prepared_report_ref is not None
+                and isinstance(report, dict)
+                and scope_ref(report) == prepared_report_ref
+                and report.get("current_status") == "done"
+                and report_artifact_refs.count(prepared_report_ref) == 1
+            )
+            infeasible_report = (
+                prepared_report_ref is not None
+                and isinstance(report, dict)
+                and scope_ref(report) == prepared_report_ref
+                and report.get("current_status") == "blocked"
+                and report_infeasibility_refs.count(prepared_report_ref) == 1
+            )
+            if (
+                not (completed_report or infeasible_report)
+                or not intact_routes.get("report_writer", True)
+                or prepared_report_ref in changed_report_refs
+            ):
+                blockers.append(
+                    "the final synthesis requires the exact report completion or valid infeasibility evidence"
                 )
 
     elif test_id == "mechanical-edge":
@@ -1584,6 +1793,98 @@ def is_rfc3339_utc(value):
         return False
 
 
+def validate_execution_receipt(receipt, artifact_role, files, label):
+    errors = []
+    if receipt is None:
+        if artifact_role == "infeasibility_evidence":
+            errors.append(f"{label}: infeasibility_evidence requires an execution_receipt")
+        return errors
+    if not isinstance(receipt, dict):
+        return [f"{label}: execution_receipt must be an object or null"]
+
+    missing = sorted(EXECUTION_RECEIPT_KEYS - set(receipt))
+    unknown = sorted(set(receipt) - EXECUTION_RECEIPT_KEYS)
+    if missing:
+        errors.append(
+            f"{label}: execution_receipt is missing: {', '.join(missing)}"
+        )
+    if unknown:
+        errors.append(
+            f"{label}: execution_receipt has unknown fields: {', '.join(unknown)}"
+        )
+
+    contract_hash = receipt.get("contract_hash")
+    if not isinstance(contract_hash, str) or not SHA256_PATTERN.fullmatch(contract_hash):
+        errors.append(
+            f"{label}: execution_receipt.contract_hash must be a lowercase SHA-256 digest"
+        )
+
+    arrays = {}
+    for field in (
+        "completed_requirements",
+        "unmet_requirements",
+        "supplemental_work",
+        "evidence_files",
+    ):
+        value = receipt.get(field)
+        if not isinstance(value, list):
+            errors.append(f"{label}: execution_receipt.{field} must be a string list")
+            arrays[field] = []
+            continue
+        valid = []
+        for index, item in enumerate(value):
+            if (
+                not isinstance(item, str)
+                or not item.strip()
+                or item != item.strip()
+            ):
+                errors.append(
+                    f"{label}: execution_receipt.{field}[{index}] must be a canonical nonempty string"
+                )
+                continue
+            valid.append(item)
+        if len(set(valid)) != len(valid):
+            errors.append(
+                f"{label}: execution_receipt.{field} must not contain duplicates"
+            )
+        arrays[field] = valid
+
+    completed = set(arrays["completed_requirements"])
+    unmet = set(arrays["unmet_requirements"])
+    if completed & unmet:
+        errors.append(
+            f"{label}: completed_requirements and unmet_requirements must not overlap"
+        )
+    if artifact_role == "completion" and unmet:
+        errors.append(f"{label}: completion requires no unmet_requirements")
+    if artifact_role == "infeasibility_evidence" and not unmet:
+        errors.append(
+            f"{label}: infeasibility_evidence requires at least one unmet requirement"
+        )
+
+    evidence_files = arrays["evidence_files"]
+    if not evidence_files:
+        errors.append(
+            f"{label}: execution_receipt.evidence_files must identify at least one file"
+        )
+    manifest_files = set(files) if isinstance(files, list) else set()
+    for item in evidence_files:
+        if (
+            item != item.replace("\\", "/")
+            or posixpath.normpath(item) != item
+            or not item.startswith("output/")
+            or WINDOWS_ABSOLUTE_REFERENCE.match(item)
+        ):
+            errors.append(
+                f"{label}: execution_receipt evidence file is not a canonical output path ({item})"
+            )
+        elif item not in manifest_files:
+            errors.append(
+                f"{label}: execution_receipt evidence file is not listed in the manifest ({item})"
+            )
+    return errors
+
+
 def read_artifact_records(state_path):
     """Parse controller-generated artifact_records and fail closed on other layouts."""
     try:
@@ -1617,8 +1918,10 @@ def read_artifact_records(state_path):
             errors.append(f"project state artifact record is missing: {', '.join(missing)}")
         if unknown:
             errors.append(f"project state artifact record has unknown fields: {', '.join(unknown)}")
-        if not missing and not unknown:
-            records.append(current.copy())
+        if not missing:
+            record = current.copy()
+            record.setdefault("artifact_role", "completion")
+            records.append(record)
 
     for line in lines[start + 1 :]:
         if line and not line.startswith(" "):
@@ -1670,6 +1973,10 @@ def read_artifact_records(state_path):
             errors.append("project state artifact location must be under output/")
         if not isinstance(record["summary"], str) or not record["summary"].strip():
             errors.append("project state artifact summary must be nonempty")
+        if record.get("artifact_role") not in ARTIFACT_ROLES:
+            errors.append(
+                f"project state artifact role is invalid: {record.get('artifact_role')}"
+            )
     return records, errors
 
 
@@ -1767,6 +2074,7 @@ def inspect_artifacts(workdir, expected, previous=None):
     }
     manifests = []
     usable_scope_refs = {}
+    infeasibility_scope_refs = {}
     covered_files = set(manifest_paths)
     operation_ids = set()
     hashes = {}
@@ -1841,16 +2149,34 @@ def inspect_artifacts(workdir, expected, previous=None):
         if not isinstance(manifest, dict):
             errors.append(f"{relative}: manifest is not an object")
             continue
-        missing_keys = sorted(MANIFEST_KEYS - set(manifest))
-        unknown_keys = sorted(
-            set(manifest) - MANIFEST_KEYS - MANIFEST_OPTIONAL_KEYS
-        )
+        schema_version = manifest.get("schema_version")
+        if schema_version == 1:
+            required_keys = MANIFEST_BASE_KEYS
+            allowed_keys = MANIFEST_BASE_KEYS | MANIFEST_OPTIONAL_KEYS
+            artifact_role = "completion"
+            execution_receipt = None
+        elif schema_version == 2:
+            required_keys = MANIFEST_BASE_KEYS | MANIFEST_V2_KEYS
+            allowed_keys = required_keys | MANIFEST_OPTIONAL_KEYS
+            artifact_role = manifest.get("artifact_role")
+            execution_receipt = manifest.get("execution_receipt")
+        else:
+            required_keys = MANIFEST_BASE_KEYS
+            allowed_keys = (
+                MANIFEST_BASE_KEYS | MANIFEST_V2_KEYS | MANIFEST_OPTIONAL_KEYS
+            )
+            artifact_role = manifest.get("artifact_role")
+            execution_receipt = manifest.get("execution_receipt")
+            errors.append(f"{relative}: unsupported manifest schema_version")
+
+        missing_keys = sorted(required_keys - set(manifest))
+        unknown_keys = sorted(set(manifest) - allowed_keys)
         if missing_keys:
             errors.append(f"{relative}: manifest is missing: {', '.join(missing_keys)}")
         if unknown_keys:
             errors.append(f"{relative}: manifest has unknown fields: {', '.join(unknown_keys)}")
-        if manifest.get("schema_version") != 1:
-            errors.append(f"{relative}: unsupported manifest schema_version")
+        if artifact_role not in ARTIFACT_ROLES:
+            errors.append(f"{relative}: artifact_role is invalid")
         route = manifest.get("route")
         operation_id = manifest.get("operation_id")
         files = manifest.get("files")
@@ -1874,7 +2200,15 @@ def inspect_artifacts(workdir, expected, previous=None):
                     errors.append(f"{relative}: route does not match its project state record")
                 if record.get("location") != location:
                     errors.append(f"{relative}: location does not match its project state record")
-                if record.get("route") == route and record.get("location") == location:
+                if record.get("artifact_role") != artifact_role:
+                    errors.append(
+                        f"{relative}: artifact_role does not match its project state record"
+                    )
+                if (
+                    record.get("route") == route
+                    and record.get("location") == location
+                    and record.get("artifact_role") == artifact_role
+                ):
                     durably_registered = True
                 record_summary = record.get("summary")
                 if (
@@ -1902,6 +2236,18 @@ def inspect_artifacts(workdir, expected, previous=None):
             or scope_reference.get("revision") < 1
         ):
             errors.append(f"{relative}: scope_ref is invalid for {route}")
+        if artifact_role == "infeasibility_evidence" and expected_scope_kind is None:
+            errors.append(
+                f"{relative}: infeasibility_evidence requires a scoped artifact route"
+            )
+        if (
+            schema_version == 2
+            and expected_scope_kind is not None
+            and execution_receipt is None
+        ):
+            errors.append(
+                f"{relative}: scoped schema-2 artifact requires an execution_receipt"
+            )
         discovery_contract = manifest.get("discovery_contract")
         if route == "causal_discovery":
             errors.extend(
@@ -1921,6 +2267,11 @@ def inspect_artifacts(workdir, expected, previous=None):
         ):
             errors.append(f"{relative}: files must be a nonempty string list")
             files = []
+        errors.extend(
+            validate_execution_receipt(
+                execution_receipt, artifact_role, files, relative
+            )
+        )
         resolved_files = []
         resolved_targets = []
         nonempty_deliverable = False
@@ -1971,7 +2322,11 @@ def inspect_artifacts(workdir, expected, previous=None):
             for item, target in resolved_targets
             if target.suffix.lower() == ".html"
         ]
-        if route == "report_writer" and not html_targets:
+        if (
+            route == "report_writer"
+            and artifact_role == "completion"
+            and not html_targets
+        ):
             errors.append(f"{relative}: report manifest does not contain an HTML file")
         nonempty_html = False
         for item, target in resolved_targets:
@@ -1983,33 +2338,44 @@ def inspect_artifacts(workdir, expected, previous=None):
             if target.suffix.lower() == ".html":
                 try:
                     if target.stat().st_size == 0:
-                        errors.append(f"{relative}: report HTML file is empty ({item})")
+                        if route == "report_writer" and artifact_role == "completion":
+                            errors.append(f"{relative}: report HTML file is empty ({item})")
                     else:
                         nonempty_html = True
                 except OSError as exc:
                     errors.append(f"{relative}: cannot inspect report HTML file {item} ({exc})")
                 for error in inspect_html_links(target, workdir):
                     errors.append(f"{relative}: {item}: {error}")
-        manifests.append(
-            {
-                "path": relative,
-                "location": location,
-                "operation_id": operation_id,
-                "route": route,
-                "scope_ref": manifest.get("scope_ref"),
-                "discovery_contract": manifest.get("discovery_contract"),
-                "completed_at": manifest.get("completed_at"),
-                "summary": manifest.get("summary"),
-                "files": resolved_files,
-            }
+        report_html_ready = (
+            route != "report_writer"
+            or artifact_role != "completion"
+            or nonempty_html
         )
-        report_html_ready = route != "report_writer" or nonempty_html
-        if (
-            route in ("causal_discovery", "analysis_execution", "report_writer")
-            and durably_registered
+        manifest_valid = (
+            durably_registered
             and nonempty_deliverable
             and report_html_ready
             and len(errors) == manifest_error_start
+        )
+        manifest_entry = {
+            "path": relative,
+            "location": location,
+            "schema_version": schema_version,
+            "operation_id": operation_id,
+            "route": route,
+            "scope_ref": manifest.get("scope_ref"),
+            "discovery_contract": manifest.get("discovery_contract"),
+            "artifact_role": artifact_role,
+            "execution_receipt": execution_receipt,
+            "completed_at": manifest.get("completed_at"),
+            "summary": manifest.get("summary"),
+            "files": resolved_files,
+            "valid": manifest_valid,
+        }
+        manifests.append(manifest_entry)
+        if (
+            route in ("causal_discovery", "analysis_execution", "report_writer")
+            and manifest_valid
         ):
             reference = manifest.get("scope_ref")
             expected_kind = {
@@ -2026,19 +2392,22 @@ def inspect_artifacts(workdir, expected, previous=None):
                 and not isinstance(reference.get("revision"), bool)
                 and reference["revision"] >= 1
             ):
-                usable_scope_refs.setdefault(route, []).append(
+                refs = (
+                    usable_scope_refs
+                    if artifact_role == "completion"
+                    else infeasibility_scope_refs
+                )
+                refs.setdefault(route, []).append(
                     (reference["id"], reference["revision"])
                 )
 
     for operation_id, record in records_by_operation.items():
         if operation_id not in operation_ids:
             errors.append(
-                f"project state artifact {record['location']} has no matching completion manifest"
+                f"project state artifact {record['location']} has no matching artifact manifest"
             )
 
     orphaned = sorted(path.relative_to(root).as_posix() for path in output_files - covered_files)
-    if orphaned:
-        errors.append(f"unlisted output files: {', '.join(orphaned)}")
 
     current_manifest_paths = {
         path.relative_to(root).as_posix() for path in manifest_paths
@@ -2058,39 +2427,67 @@ def inspect_artifacts(workdir, expected, previous=None):
             mark_changed(relative)
             errors.append(f"previous artifact file changed: {relative}")
 
-    counts = {}
+    integrity_error_count = len(errors)
+    if orphaned:
+        errors.append(f"unlisted output files: {', '.join(orphaned)}")
+    manifest_counts = {}
+    role_counts = {role: {} for role in ARTIFACT_ROLES}
     for manifest in manifests:
         route = manifest.get("route")
         if isinstance(route, str):
-            counts[route] = counts.get(route, 0) + 1
+            manifest_counts[route] = manifest_counts.get(route, 0) + 1
+            role = manifest.get("artifact_role")
+            if manifest.get("valid") and role in ARTIFACT_ROLES:
+                role_counts[role][route] = role_counts[role].get(route, 0) + 1
+    counts = role_counts["completion"]
     for route, count in expected.items():
         if route == "new":
             continue
-        actual = len(manifests) if route == "total" else counts.get(route, 0)
+        actual = (
+            len(manifests)
+            if route == "total"
+            else manifest_counts.get(route, 0)
+        )
         if actual != count:
             errors.append(f"expected {count} {route} artifact(s), found {actual}")
     if "new" in expected and len(new_manifest_paths) != expected["new"]:
         errors.append(
             f"expected {expected['new']} new artifact(s), found {len(new_manifest_paths)}"
         )
+    integrity_errors = errors[:integrity_error_count]
+    expectation_errors = errors[integrity_error_count:]
     new_manifest_set = set(new_manifest_paths)
+    new_manifests = [
+        item for item in manifests if item["path"] in new_manifest_set
+    ]
     return {
         "ok": not errors,
         "expected": expected,
         "manifest_count": len(manifest_paths),
         "new_count": len(new_manifest_paths),
         "counts": counts,
+        "manifest_counts": manifest_counts,
+        "role_counts": role_counts,
         "usable_scope_refs": usable_scope_refs,
+        "infeasibility_scope_refs": infeasibility_scope_refs,
+        "scope_refs_trustworthy": not integrity_errors,
         "intact_routes": intact_routes,
         "changed_scope_refs": {
             route: sorted(references)
             for route, references in changed_scope_refs.items()
         },
         "manifests": manifests,
-        "new_manifests": [item for item in manifests if item["path"] in new_manifest_set],
+        "new_manifests": new_manifests,
+        "new_infeasibility_manifests": [
+            item
+            for item in new_manifests
+            if item.get("artifact_role") == "infeasibility_evidence"
+        ],
         "manifest_paths": sorted(current_manifest_paths),
         "hashes": hashes,
         "orphaned_files": orphaned,
+        "integrity_errors": integrity_errors,
+        "expectation_errors": expectation_errors,
         "errors": errors,
     }
 
@@ -2275,7 +2672,9 @@ def build_summary(test_id, expected_turns, records, abort_reason, target):
                     "ok": artifacts.get("ok", False),
                     "expected": artifacts.get("expected"),
                     "new_count": artifacts.get("new_count"),
+                    "manifest_counts": artifacts.get("manifest_counts"),
                     "counts": artifacts.get("counts"),
+                    "role_counts": artifacts.get("role_counts"),
                     "errors": artifacts.get("errors", []),
                 },
             }
@@ -2571,6 +2970,10 @@ def run_test(args, case):
     target = preflight(args.test, case, workdir, results_dir, statectl, args.node)
     write_json(results_dir / "test-case.json", {"test": args.test, "case": case})
     shutil.copyfile(ROOT / "references" / f"{args.test}.md", results_dir / "test-reference.md")
+    shutil.copyfile(
+        ROOT / "references" / "evaluation-guide.md",
+        results_dir / "evaluation-guide.md",
+    )
 
     records = []
     session_id = None
@@ -2765,7 +3168,7 @@ def run_test(args, case):
         response_notes = response_diagnostics(response_text, validator)
         raw_scope_snapshot = validator.get("scope_snapshot")
         normalized_scope, scope_shape_errors = normalize_scope_snapshot(raw_scope_snapshot)
-        scope_applicable = args.test != "smoke" or bool(
+        scope_applicable = args.test in TEST_IDS or bool(
             [
                 manifest
                 for manifest in artifacts.get("new_manifests", [])
@@ -2782,7 +3185,7 @@ def run_test(args, case):
                     artifacts,
                 )
             )
-            if args.test == "standard":
+            if args.test in {"standard", "college-observational-policy"}:
                 scope_errors.extend(
                     check_standard_scopes(
                         number,
@@ -2790,12 +3193,25 @@ def run_test(args, case):
                         scope_history,
                     )
                 )
-            elif args.test == "discovery":
+            elif args.test in {"discovery", "college-discovery-handoff"}:
                 scope_errors.extend(
                     check_discovery_scopes(
                         number,
                         raw_scope_snapshot,
                         scope_history,
+                    )
+                )
+            elif args.test in SINGLE_ANALYSIS_REPORT_CASES:
+                expected_route, expected_support = SINGLE_ANALYSIS_REPORT_CASES[
+                    args.test
+                ]
+                scope_errors.extend(
+                    check_single_analysis_report_scopes(
+                        number,
+                        raw_scope_snapshot,
+                        scope_history,
+                        expected_route,
+                        expected_support,
                     )
                 )
             elif args.test == "mechanical-edge":
@@ -2817,6 +3233,11 @@ def run_test(args, case):
                 scope_history[number] = normalized_scope
 
         next_turn = number + 1 if number < len(case["turns"]) else None
+        artifact_blockers = (
+            artifacts.get("integrity_errors", [])
+            if next_turn is not None and not artifacts.get("scope_refs_trustworthy", False)
+            else []
+        )
         dependency_blockers = (
             next_prompt_blockers(
                 args.test,
@@ -2828,7 +3249,7 @@ def run_test(args, case):
                     response_text, validator
                 ),
             )
-            if not state_blockers and not scope_blockers
+            if not state_blockers and not scope_blockers and not artifact_blockers
             else []
         )
         if dependency_blockers and not scope_errors:
@@ -2872,17 +3293,23 @@ def run_test(args, case):
         )
         write_json(results_dir / f"artifacts-turn-{number:02d}.json", artifacts)
         snapshot_state(workdir, results_dir, number, validator)
-        boundary_blockers = state_blockers or scope_blockers
+        boundary_blockers = state_blockers or scope_blockers or artifact_blockers
         if boundary_blockers:
             if next_turn is not None:
-                kind = "idle state" if state_blockers else "scope snapshot"
+                if state_blockers:
+                    kind = "idle state"
+                    phase = "state_protocol"
+                elif scope_blockers:
+                    kind = "scope snapshot"
+                    phase = "scope_identity"
+                else:
+                    kind = "artifact evidence"
+                    phase = "artifact_protocol"
                 abort_reason = (
                     f"turn {number} has no trustworthy {kind}: "
                     f"{'; '.join(boundary_blockers)}"
                 )
-                record["failure_phase"] = (
-                    "state_protocol" if state_blockers else "scope_identity"
-                )
+                record["failure_phase"] = phase
                 record["failure_reason"] = abort_reason
                 break
             print(
