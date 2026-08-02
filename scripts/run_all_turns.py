@@ -115,8 +115,8 @@ MANUAL_RATINGS = {
 APPROVAL_BOUND_TURNS = {
     "college-observational-policy": {7, 10, 12},
     "college-discovery-handoff": {7},
-    "star-interference-saturation": {5, 8},
-    "schooling-iv-late": {5, 8},
+    "star-interference-saturation": {6, 9},
+    "schooling-iv-late": {6, 9},
     # Historical IDs remain valid for saved-result assessment and unit fixtures.
     "standard": {7, 10, 12},
     "discovery": {7},
@@ -126,9 +126,12 @@ APPROVAL_BOUND_TURNS = {
 SINGLE_ANALYSIS_REPORT_CASES = {
     "star-interference-saturation": (
         "interference_spillovers",
-        "policy-making-and-transportability",
+        ("policy-making-and-transportability",),
     ),
-    "schooling-iv-late": ("instrumental_variables", "statistical-validity"),
+    "schooling-iv-late": (
+        "instrumental_variables",
+        (None, "statistical-validity"),
+    ),
 }
 SUMMARY_SCHEMA_VERSION = 2
 EXIT_PENDING = 3
@@ -624,15 +627,26 @@ def response_matches_receipt(text, validator):
     return stored == text
 
 
+def normalize_approval_receipt_text(text):
+    """Normalize only transport-equivalent line endings and typographic quotes."""
+    return text.replace("\r\n", "\n").replace("\r", "\n").translate(
+        str.maketrans({"‘": "'", "’": "'", "“": '"', "”": '"'})
+    )
+
+
 def response_matches_approval_receipt(text, validator):
     if response_matches_receipt(text, validator):
         return True
-    decision = validator.get("pending_decision")
-    if not isinstance(decision, dict) or not isinstance(decision.get("options"), list):
-        return False
     receipt = validator.get("response_receipt")
     stored = receipt.get("response_markdown") if isinstance(receipt, dict) else None
     if not isinstance(stored, str):
+        return False
+    stored = normalize_approval_receipt_text(stored)
+    text = normalize_approval_receipt_text(text)
+    if stored == text:
+        return True
+    decision = validator.get("pending_decision")
+    if not isinstance(decision, dict) or not isinstance(decision.get("options"), list):
         return False
     allowed_scope_ids = set()
     for option in decision["options"]:
@@ -641,8 +655,6 @@ def response_matches_approval_receipt(text, validator):
         scope_id = reference.get("id") if isinstance(reference, dict) else None
         if isinstance(scope_id, str) and UUID_PATTERN.fullmatch(scope_id):
             allowed_scope_ids.update((scope_id.lower(), scope_id[:8].lower()))
-    stored = stored.replace("\r\n", "\n").replace("\r", "\n")
-    text = text.replace("\r\n", "\n").replace("\r", "\n")
     for match in DISPLAYED_SCOPE_ID_PATTERN.finditer(stored):
         if match.group(2).lower() not in allowed_scope_ids:
             continue
@@ -1189,7 +1201,7 @@ def check_single_analysis_report_scopes(
     raw_snapshot,
     history,
     expected_route,
-    expected_support,
+    allowed_supports,
 ):
     """Check the shared one-analysis, one-report lifecycle."""
     snapshot, errors = normalize_scope_snapshot(raw_snapshot)
@@ -1212,22 +1224,22 @@ def check_single_analysis_report_scopes(
             return None
         return route, entry
 
-    if turn_number <= 3:
+    if turn_number <= 4:
         if analysis or report is not None:
             errors.append(f"turn {turn_number} must not create a scope")
-    elif turn_number == 4:
-        current = sole_analysis(snapshot, {"ready"}, "turn 4")
+    elif turn_number == 5:
+        current = sole_analysis(snapshot, {"ready"}, "turn 5")
         if current:
             route, entry = current
-            if route != expected_route or entry.get("support") != expected_support:
-                errors.append(
-                    f"turn 4 must prepare {expected_route} with {expected_support} support"
-                )
+            if route != expected_route:
+                errors.append(f"turn 5 must prepare {expected_route}")
+            elif entry.get("support") not in allowed_supports:
+                errors.append(f"turn 5 {expected_route} scope has unsupported support")
         if report is not None:
-            errors.append("turn 4 must not create a report scope")
-    elif turn_number == 5:
-        prepared = sole_analysis(history.get(4), {"ready"}, "turn 4")
-        current = sole_analysis(snapshot, {"done", "blocked"}, "turn 5")
+            errors.append("turn 5 must not create a report scope")
+    elif turn_number == 6:
+        prepared = sole_analysis(history.get(5), {"ready"}, "turn 5")
+        current = sole_analysis(snapshot, {"done", "blocked"}, "turn 6")
         if prepared and current:
             prepared_identity = (
                 prepared[0],
@@ -1240,36 +1252,36 @@ def check_single_analysis_report_scopes(
                 current[1].get("support"),
             )
             if current_identity != prepared_identity:
-                errors.append("turn 5 must preserve the exact approved analysis scope")
-        if report is not None:
-            errors.append("turn 5 must not create a report scope")
-    elif turn_number == 6:
-        previous = history.get(5)
-        if not isinstance(previous, dict) or analysis != previous.get("analysis"):
-            errors.append("turn 6 must preserve the analysis result")
+                errors.append("turn 6 must preserve the exact approved analysis scope")
         if report is not None:
             errors.append("turn 6 must not create a report scope")
     elif turn_number == 7:
         previous = history.get(6)
         if not isinstance(previous, dict) or analysis != previous.get("analysis"):
             errors.append("turn 7 must preserve the analysis result")
-        if scope_ref(report) is None or report.get("current_status") != "ready":
-            errors.append("turn 7 must create one ready report scope")
+        if report is not None:
+            errors.append("turn 7 must not create a report scope")
     elif turn_number == 8:
         previous = history.get(7)
         if not isinstance(previous, dict) or analysis != previous.get("analysis"):
             errors.append("turn 8 must preserve the analysis result")
+        if scope_ref(report) is None or report.get("current_status") != "ready":
+            errors.append("turn 8 must create one ready report scope")
+    elif turn_number == 9:
+        previous = history.get(8)
+        if not isinstance(previous, dict) or analysis != previous.get("analysis"):
+            errors.append("turn 9 must preserve the analysis result")
         prior_report = previous.get("report") if isinstance(previous, dict) else None
         if (
             not isinstance(report, dict)
             or scope_ref(report) != scope_ref(prior_report)
             or report.get("current_status") not in {"done", "blocked"}
         ):
-            errors.append("turn 8 must preserve the exact approved report scope")
-    elif turn_number == 9:
-        previous = history.get(8)
+            errors.append("turn 9 must preserve the exact approved report scope")
+    elif turn_number == 10:
+        previous = history.get(9)
         if snapshot != previous:
-            errors.append("turn 9 must preserve completed or blocked scope state")
+            errors.append("turn 10 must preserve completed or blocked scope state")
 
     history[turn_number] = snapshot
     return errors
@@ -1613,7 +1625,7 @@ def next_prompt_blockers(
                 )
 
     elif test_id in SINGLE_ANALYSIS_REPORT_CASES:
-        expected_route, expected_support = SINGLE_ANALYSIS_REPORT_CASES[test_id]
+        expected_route, _allowed_supports = SINGLE_ANALYSIS_REPORT_CASES[test_id]
         ready_entries = [
             (route, entry)
             for route, entry in analysis.items()
@@ -1622,29 +1634,45 @@ def next_prompt_blockers(
         expected_ready = (
             len(ready_entries) == 1
             and ready_entries[0][0] == expected_route
-            and ready_entries[0][1].get("support") == expected_support
             and scope_ref(ready_entries[0][1]) is not None
         )
-        prepared = unique_analysis(history.get(4), "ready")
+        prepared_entries = (
+            history.get(5, {}).get("analysis", {})
+            if isinstance(history.get(5), dict)
+            else {}
+        )
+        prepared_items = [
+            (route, entry)
+            for route, entry in prepared_entries.items()
+            if isinstance(entry, dict) and entry.get("current_status") == "ready"
+        ]
+        prepared_item = prepared_items[0] if len(prepared_items) == 1 else None
+        prepared = prepared_item[1] if prepared_item else None
         prepared_ref = scope_ref(prepared)
         current_entries = [
-            entry
-            for entry in analysis.values()
+            (route, entry)
+            for route, entry in analysis.items()
             if isinstance(entry, dict)
             and entry.get("current_status") in {"done", "blocked"}
         ]
-        current = current_entries[0] if len(current_entries) == 1 else None
+        current_item = current_entries[0] if len(current_entries) == 1 else None
+        current = current_item[1] if current_item else None
         current_ref = scope_ref(current)
+        exact_analysis_identity = (
+            prepared_item is not None
+            and current_item is not None
+            and prepared_item[0] == current_item[0]
+            and prepared_ref == current_ref
+            and prepared.get("support") == current.get("support")
+        )
         completed = (
-            prepared_ref is not None
-            and current_ref == prepared_ref
+            exact_analysis_identity
             and isinstance(current, dict)
             and current.get("current_status") == "done"
             and analysis_artifact_refs.count(prepared_ref) == 1
         )
         infeasible = (
-            prepared_ref is not None
-            and current_ref == prepared_ref
+            exact_analysis_identity
             and isinstance(current, dict)
             and current.get("current_status") == "blocked"
             and analysis_infeasibility_refs.count(prepared_ref) == 1
@@ -1654,22 +1682,21 @@ def next_prompt_blockers(
             and analysis_intact
             and prepared_ref not in changed_analysis_refs
         )
-        if next_turn == 5 and not expected_ready:
+        if next_turn == 6 and not expected_ready:
             blockers.append(
-                f"the next approval requires one ready {expected_route} scope "
-                f"with {expected_support} support"
+                f"the next approval requires one ready {expected_route} scope"
             )
-        elif next_turn in {6, 7, 8, 9} and not analysis_result_available:
+        elif next_turn in {7, 8, 9, 10} and not analysis_result_available:
             blockers.append(
                 "the next step requires the exact analysis completion or valid infeasibility evidence"
             )
-        elif next_turn == 8 and (
+        elif next_turn == 9 and (
             not isinstance(report, dict)
             or report.get("current_status") != "ready"
         ):
             blockers.append("the next approval has no unique ready report scope")
-        elif next_turn == 9:
-            prepared_report = report_at(7, "ready")
+        elif next_turn == 10:
+            prepared_report = report_at(8, "ready")
             prepared_report_ref = scope_ref(prepared_report)
             completed_report = (
                 prepared_report_ref is not None
@@ -3202,7 +3229,7 @@ def run_test(args, case):
                     )
                 )
             elif args.test in SINGLE_ANALYSIS_REPORT_CASES:
-                expected_route, expected_support = SINGLE_ANALYSIS_REPORT_CASES[
+                expected_route, allowed_supports = SINGLE_ANALYSIS_REPORT_CASES[
                     args.test
                 ]
                 scope_errors.extend(
@@ -3211,7 +3238,7 @@ def run_test(args, case):
                         raw_scope_snapshot,
                         scope_history,
                         expected_route,
-                        expected_support,
+                        allowed_supports,
                     )
                 )
             elif args.test == "mechanical-edge":

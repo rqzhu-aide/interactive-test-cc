@@ -131,7 +131,7 @@
       ]
     },
     "star-interference-saturation": {
-      "description": "Nine-turn interference workflow covering school-level exposure mapping, saturation-support and contamination auditing, one approved bounded analysis, an HTML report, and decision synthesis.",
+      "description": "Ten-turn interference workflow covering school-level exposure mapping, domain review, saturation-support and contamination auditing, one approved bounded analysis, an HTML report, and decision synthesis.",
       "data": {
         "name": "Ecdat Star",
         "filename": "data.csv",
@@ -151,8 +151,13 @@
           "artifacts": {"analysis_execution": 0, "report_writer": 0, "total": 0, "new": 0}
         },
         {
+          "label": "Review the interference domain",
+          "prompt": "Use domain review only. Using the fixed study facts and completed data audit, review the education and trial context needed to interpret kindergarten class assignment and school-level small-class saturation: the three assignment arms, pupil and school decision units, outcome meaning and timing, plausible shared-resource or peer mechanisms, the school partial-interference boundary, and the limitations created by missing classroom, peer-network, and saturation-design information. Treat audited data facts as fixed and do not inspect the data again. Do not run causal review, recommend an analysis design, prepare a scope, estimate an effect, or create output.",
+          "artifacts": {"analysis_execution": 0, "report_writer": 0, "total": 0, "new": 0}
+        },
+        {
           "label": "Review interference readiness",
-          "prompt": "Use causal review to assess whether the supplied STAR data can identify direct, spillover, or overall effects of changing a school's small-class saturation. Distinguish randomized own assignment from any randomization of other-pupil exposure; address the partial-interference boundary, missing classroom and network information, exposure mapping, own-treatment by spillover support, contamination, dependence-aware inference, and the school-allocation decision. For this benchmark, if a causal spillover effect is not identified, recommend `interference_spillovers` with `policy-making-and-transportability` for a bounded exposure-support and contamination audit rather than reverting to an ordinary randomized-assignment analysis. Establish the current design and support recommendation or the smallest blocker. Do not prepare a scope or execute analysis.",
+          "prompt": "Use causal review, using the current data and domain reviews, to assess whether the supplied STAR data can identify direct, spillover, or overall effects of changing a school's small-class saturation. Distinguish randomized own assignment from any randomization of other-pupil exposure; address the partial-interference boundary, missing classroom and network information, exposure mapping, own-treatment by spillover support, contamination, dependence-aware inference, and the school-allocation decision. For this benchmark, if a causal spillover effect is not identified, recommend `interference_spillovers` with `policy-making-and-transportability` for a bounded exposure-support and contamination audit rather than reverting to an ordinary randomized-assignment analysis. Treat the missing saturation randomization as a causal claim boundary, not a blocker to that bounded audit. Establish the current design and support recommendation or the smallest remaining blocker. Do not prepare a scope or execute analysis.",
           "artifacts": {"analysis_execution": 0, "report_writer": 0, "total": 0, "new": 0}
         },
         {
@@ -188,7 +193,7 @@
       ]
     },
     "schooling-iv-late": {
-      "description": "Nine-turn instrumental-variable workflow covering instrument review, one approved LATE analysis with statistical-validity support, an approved HTML report, and policy synthesis.",
+      "description": "Ten-turn instrumental-variable workflow covering domain and instrument review, one approved LATE analysis with optional statistical-validity support, an approved HTML report, and policy synthesis.",
       "data": {
         "name": "Ecdat Schooling",
         "filename": "data.csv",
@@ -208,8 +213,13 @@
           "artifacts": {"analysis_execution": 0, "report_writer": 0, "total": 0, "new": 0}
         },
         {
+          "label": "Review the schooling domain",
+          "prompt": "Use domain review only. Using the fixed study facts and completed data audit, review the education and labor-economics context needed to interpret nearc4, ed76, and lwage76: college proximity as a 1966 access proxy, meaningful schooling treatment versions, wage-outcome interpretation, the cohort and policy population, plausible pathways from proximity to wages other than schooling, and the policy meaning of a local complier effect. Clarify which audited variables are defensible pre-instrument covariates and which should be excluded or bounded because timing or coding remains uncertain. Treat audited data facts as fixed and do not inspect the data again. Do not run causal review, recommend an analysis design, prepare a scope, estimate an effect, or create output.",
+          "artifacts": {"analysis_execution": 0, "report_writer": 0, "total": 0, "new": 0}
+        },
+        {
           "label": "Review IV readiness",
-          "prompt": "Use causal review to assess whether nearc4 can support an instrumental-variable analysis of ed76 on lwage76. Address relevance, timing, conditional independence, exclusion, monotonicity, treatment versions, the complier population, covariate timing, and weak-instrument inference. Establish the appropriate design and statistical support recommendation or the smallest blocker. Do not prepare a scope or execute analysis.",
+          "prompt": "Use causal review, using the current data and domain reviews, to assess whether nearc4 can support an instrumental-variable analysis of ed76 on lwage76. Address relevance, timing, conditional independence, exclusion, monotonicity, treatment versions, the complier population, covariate timing, and weak-instrument inference. Treat first-stage strength as an execution diagnostic rather than a prerequisite to preparing its scope. Recommend `instrumental_variables` when the bounded analysis is mature enough for scope review; add `statistical-validity` support only if unresolved concerns exceed the IV route's normal diagnostics. Establish the current design and any justified support recommendation or the smallest remaining blocker. Do not prepare a scope or execute analysis.",
           "artifacts": {"analysis_execution": 0, "report_writer": 0, "total": 0, "new": 0}
         },
         {

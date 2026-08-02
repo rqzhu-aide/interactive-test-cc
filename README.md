@@ -10,7 +10,7 @@ Four reproducible, multi-turn regression tests for `causal-consultant`:
   review and one approved analysis
 - `star-interference-saturation`: school-level exposure mapping, saturation
   support, contamination, policy boundaries, and a report
-- `schooling-iv-late`: IV diagnostics, weak-IV validity support, LATE boundaries,
+- `schooling-iv-late`: IV diagnostics, weak-IV inference, LATE boundaries,
   and a report
 
 The runner resumes one exact Claude Code session and validates the response

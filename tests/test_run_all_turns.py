@@ -196,6 +196,38 @@ class RunnerTests(unittest.TestCase):
             RUNNER.response_matches_receipt("First line - Second line", validator)
         )
 
+    def test_approval_receipt_normalizes_only_typographic_quotes_and_line_endings(self):
+        stored = (
+            "[> Framing]\r\n"
+            "The consultant’s ‘IV’ “scope” is ready.\r\n"
+            "[! Boundary]\r\nNo analysis ran.\r\n"
+            "[? Next Steps]\r\nApprove the scope."
+        )
+        delivered = (
+            "[> Framing]\n"
+            "The consultant's 'IV' \"scope\" is ready.\n"
+            "[! Boundary]\nNo analysis ran.\n"
+            "[? Next Steps]\nApprove the scope."
+        )
+        validator = {
+            "response_receipt": {"response_markdown": stored},
+            "pending_decision": None,
+        }
+        self.assertFalse(RUNNER.response_matches_receipt(delivered, validator))
+        self.assertTrue(
+            RUNNER.response_matches_approval_receipt(delivered, validator)
+        )
+        self.assertEqual(
+            RUNNER.response_diagnostics(delivered, validator),
+            ["delivered response differs from response_receipt.response_markdown"],
+        )
+        self.assertFalse(
+            RUNNER.response_matches_approval_receipt(
+                delivered.replace("is ready", "is not ready"),
+                validator,
+            )
+        )
+
     def test_scope_id_omission_does_not_block_bound_menu_approval(self):
         receipt = (
             "[> Framing]\nThe current report scope `f91e1e5c` is ready.\n\n"
@@ -627,8 +659,8 @@ class RunnerTests(unittest.TestCase):
             {
                 "college-observational-policy": 13,
                 "college-discovery-handoff": 8,
-                "star-interference-saturation": 9,
-                "schooling-iv-late": 9,
+                "star-interference-saturation": 10,
+                "schooling-iv-late": 10,
             },
         )
 
@@ -664,22 +696,37 @@ class RunnerTests(unittest.TestCase):
         ):
             self.assertIn(requirement, reference)
 
-    def test_new_method_cases_have_distinct_fixed_routes_and_support(self):
+    def test_new_method_cases_have_fixed_routes_and_bounded_supports(self):
         expected = {
             "star-interference-saturation": (
                 "interference_spillovers",
-                "policy-making-and-transportability",
+                ("policy-making-and-transportability",),
             ),
-            "schooling-iv-late": ("instrumental_variables", "statistical-validity"),
+            "schooling-iv-late": (
+                "instrumental_variables",
+                (None, "statistical-validity"),
+            ),
         }
         self.assertEqual(RUNNER.SINGLE_ANALYSIS_REPORT_CASES, expected)
-        for test_id, (route, support) in expected.items():
+        self.assertEqual(
+            RUNNER.APPROVAL_BOUND_TURNS["star-interference-saturation"], {6, 9}
+        )
+        self.assertEqual(
+            RUNNER.APPROVAL_BOUND_TURNS["schooling-iv-late"], {6, 9}
+        )
+        for test_id, (route, supports) in expected.items():
             with self.subTest(test_id=test_id):
                 reference = (ROOT / "references" / f"{test_id}.md").read_text(
                     encoding="utf-8"
                 )
                 self.assertIn(route, reference)
-                self.assertIn(support, reference)
+                for support in supports:
+                    if support is not None:
+                        self.assertIn(support, reference)
+                turns = RUNNER.load_cases()[test_id]["turns"]
+                self.assertIn("domain", turns[2]["label"].lower())
+                self.assertEqual(turns[2]["artifacts"]["total"], 0)
+                self.assertIn("Use causal review", turns[3]["prompt"])
 
         interference = RUNNER.load_cases()["star-interference-saturation"]
         prompts = "\n".join(turn["prompt"] for turn in interference["turns"])
@@ -721,14 +768,14 @@ class RunnerTests(unittest.TestCase):
             "report": None,
         }
 
-    def test_interference_approval_requires_exact_route_and_support(self):
+    def test_single_case_approval_requires_the_expected_route(self):
         ready = self.interference_snapshot("ready")
         self.assertEqual(
             RUNNER.next_prompt_blockers(
                 "star-interference-saturation",
-                5,
+                6,
                 ready,
-                {4: ready},
+                {5: ready},
                 {"counts": {}},
             ),
             [],
@@ -736,20 +783,66 @@ class RunnerTests(unittest.TestCase):
         wrong_route = self.interference_snapshot(
             "ready", route="randomized_assignment"
         )
+        blockers = RUNNER.next_prompt_blockers(
+            "star-interference-saturation",
+            6,
+            wrong_route,
+            {5: wrong_route},
+            {"counts": {}},
+        )
+        self.assertIn(
+            "the next approval requires one ready interference_spillovers scope",
+            blockers,
+        )
+
         wrong_support = self.interference_snapshot("ready", support=None)
-        for snapshot in (wrong_route, wrong_support):
-            with self.subTest(snapshot=snapshot):
-                blockers = RUNNER.next_prompt_blockers(
-                    "star-interference-saturation",
-                    5,
-                    snapshot,
-                    {4: snapshot},
-                    {"counts": {}},
+        self.assertEqual(
+            RUNNER.next_prompt_blockers(
+                "star-interference-saturation",
+                6,
+                wrong_support,
+                {5: wrong_support},
+                {"counts": {}},
+            ),
+            [],
+        )
+        errors = RUNNER.check_single_analysis_report_scopes(
+            5,
+            wrong_support,
+            {},
+            "interference_spillovers",
+            ("policy-making-and-transportability",),
+        )
+        self.assertIn(
+            "turn 5 interference_spillovers scope has unsupported support",
+            errors,
+        )
+
+    def test_iv_scope_accepts_no_support_or_statistical_validity(self):
+        for support in (None, "statistical-validity"):
+            with self.subTest(support=support):
+                ready = self.interference_snapshot(
+                    "ready", route="instrumental_variables", support=support
                 )
-                self.assertIn(
-                    "the next approval requires one ready interference_spillovers "
-                    "scope with policy-making-and-transportability support",
-                    blockers,
+                self.assertEqual(
+                    RUNNER.check_single_analysis_report_scopes(
+                        5,
+                        ready,
+                        {},
+                        "instrumental_variables",
+                        (None, "statistical-validity"),
+                    ),
+                    [],
+                )
+                self.assertEqual(
+                    RUNNER.next_prompt_blockers(
+                        "schooling-iv-late",
+                        6,
+                        ready,
+                        {5: ready},
+                        {"counts": {}},
+                    ),
+                    [],
                 )
 
     def test_interference_scope_oracle_requires_exact_preservation(self):
@@ -758,33 +851,33 @@ class RunnerTests(unittest.TestCase):
         history = {}
         self.assertEqual(
             RUNNER.check_single_analysis_report_scopes(
-                4,
+                5,
                 ready,
                 history,
                 "interference_spillovers",
-                "policy-making-and-transportability",
+                ("policy-making-and-transportability",),
             ),
             [],
         )
         self.assertEqual(
             RUNNER.check_single_analysis_report_scopes(
-                5,
+                6,
                 completed,
                 history,
                 "interference_spillovers",
-                "policy-making-and-transportability",
+                ("policy-making-and-transportability",),
             ),
             [],
         )
         changed = self.interference_snapshot("done", scope_id="interference-2")
         errors = RUNNER.check_single_analysis_report_scopes(
-            5,
+            6,
             changed,
-            {4: ready},
+            {5: ready},
             "interference_spillovers",
-            "policy-making-and-transportability",
+            ("policy-making-and-transportability",),
         )
-        self.assertIn("turn 5 must preserve the exact approved analysis scope", errors)
+        self.assertIn("turn 6 must preserve the exact approved analysis scope", errors)
 
     def test_interference_continuation_accepts_completion_or_infeasibility(self):
         ready = self.interference_snapshot("ready")
@@ -819,13 +912,31 @@ class RunnerTests(unittest.TestCase):
                 self.assertEqual(
                     RUNNER.next_prompt_blockers(
                         "star-interference-saturation",
-                        6,
+                        7,
                         current,
-                        {4: ready, 5: current},
+                        {5: ready, 6: current},
                         evidence,
                     ),
                     [],
                 )
+
+        changed_support = self.interference_snapshot("done", support=None)
+        self.assertTrue(
+            RUNNER.next_prompt_blockers(
+                "star-interference-saturation",
+                7,
+                changed_support,
+                {5: ready, 6: changed_support},
+                {
+                    "counts": {"analysis_execution": 1},
+                    "usable_scope_refs": {
+                        "analysis_execution": [["interference-1", 1]]
+                    },
+                    "intact_routes": {"analysis_execution": True},
+                    "changed_scope_refs": {"analysis_execution": []},
+                },
+            )
+        )
 
     def test_observational_registry_allows_only_optional_audit_artifacts(self):
         turns = RUNNER.load_cases()["college-observational-policy"]["turns"]
