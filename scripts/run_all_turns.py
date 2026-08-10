@@ -27,6 +27,7 @@ TEST_IDS = (
     "college-discovery-handoff",
     "star-interference-saturation",
     "schooling-iv-late",
+    "productivity-open-consultation",
 )
 ARTIFACT_ROUTES = {
     "data_audit",
@@ -106,6 +107,7 @@ MANUAL_RATINGS = {
     "college-discovery-handoff": {"pass", "weak", "fail"},
     "star-interference-saturation": {"pass", "weak", "fail"},
     "schooling-iv-late": {"pass", "weak", "fail"},
+    "productivity-open-consultation": {"pass", "weak", "fail"},
     # Retain finalization support for previously recorded result folders.
     "mechanical-edge": {"pass", "fail"},
     "standard": {"pass", "fail"},
@@ -117,6 +119,7 @@ APPROVAL_BOUND_TURNS = {
     "college-discovery-handoff": {7},
     "star-interference-saturation": {6, 9},
     "schooling-iv-late": {6, 9},
+    "productivity-open-consultation": {8, 11},
     # Historical IDs remain valid for saved-result assessment and unit fixtures.
     "standard": {7, 10, 12},
     "discovery": {7},
@@ -132,6 +135,11 @@ SINGLE_ANALYSIS_REPORT_CASES = {
         "instrumental_variables",
         (None, "statistical-validity"),
     ),
+}
+ANALYSIS_REPORT_LIFECYCLES = {
+    "star-interference-saturation": (5, 6, 8, 9, 10),
+    "schooling-iv-late": (5, 6, 8, 9, 10),
+    "productivity-open-consultation": (7, 8, 10, 11, 12),
 }
 SUMMARY_SCHEMA_VERSION = 2
 EXIT_PENDING = 3
@@ -1202,6 +1210,7 @@ def check_single_analysis_report_scopes(
     history,
     expected_route,
     allowed_supports,
+    lifecycle=(5, 6, 8, 9, 10),
 ):
     """Check the shared one-analysis, one-report lifecycle."""
     snapshot, errors = normalize_scope_snapshot(raw_snapshot)
@@ -1209,6 +1218,18 @@ def check_single_analysis_report_scopes(
         return errors
     analysis = snapshot["analysis"]
     report = snapshot["report"]
+    discovery = snapshot.get("discovery")
+    if discovery is not None:
+        errors.append(
+            "single-analysis/report lifecycle must not contain a discovery scope"
+        )
+    (
+        analysis_ready_turn,
+        analysis_result_turn,
+        report_ready_turn,
+        report_result_turn,
+        final_turn,
+    ) = lifecycle
 
     def sole_analysis(value, statuses, label):
         entries = value.get("analysis", {}) if isinstance(value, dict) else {}
@@ -1224,22 +1245,41 @@ def check_single_analysis_report_scopes(
             return None
         return route, entry
 
-    if turn_number <= 4:
+    if turn_number < analysis_ready_turn:
         if analysis or report is not None:
             errors.append(f"turn {turn_number} must not create a scope")
-    elif turn_number == 5:
-        current = sole_analysis(snapshot, {"ready"}, "turn 5")
+    elif turn_number == analysis_ready_turn:
+        current = sole_analysis(
+            snapshot, {"ready"}, f"turn {analysis_ready_turn}"
+        )
         if current:
             route, entry = current
-            if route != expected_route:
-                errors.append(f"turn 5 must prepare {expected_route}")
-            elif entry.get("support") not in allowed_supports:
-                errors.append(f"turn 5 {expected_route} scope has unsupported support")
+            if expected_route is not None and route != expected_route:
+                errors.append(
+                    f"turn {analysis_ready_turn} must prepare {expected_route}"
+                )
+            elif (
+                allowed_supports is not None
+                and entry.get("support") not in allowed_supports
+            ):
+                errors.append(
+                    f"turn {analysis_ready_turn} {expected_route} scope has unsupported support"
+                )
         if report is not None:
-            errors.append("turn 5 must not create a report scope")
-    elif turn_number == 6:
-        prepared = sole_analysis(history.get(5), {"ready"}, "turn 5")
-        current = sole_analysis(snapshot, {"done", "blocked"}, "turn 6")
+            errors.append(
+                f"turn {analysis_ready_turn} must not create a report scope"
+            )
+    elif turn_number == analysis_result_turn:
+        prepared = sole_analysis(
+            history.get(analysis_ready_turn),
+            {"ready"},
+            f"turn {analysis_ready_turn}",
+        )
+        current = sole_analysis(
+            snapshot,
+            {"done", "blocked"},
+            f"turn {analysis_result_turn}",
+        )
         if prepared and current:
             prepared_identity = (
                 prepared[0],
@@ -1252,37 +1292,44 @@ def check_single_analysis_report_scopes(
                 current[1].get("support"),
             )
             if current_identity != prepared_identity:
-                errors.append("turn 6 must preserve the exact approved analysis scope")
+                errors.append(
+                    f"turn {analysis_result_turn} must preserve the exact approved analysis scope"
+                )
         if report is not None:
-            errors.append("turn 6 must not create a report scope")
-    elif turn_number == 7:
-        previous = history.get(6)
+            errors.append(
+                f"turn {analysis_result_turn} must not create a report scope"
+            )
+    elif analysis_result_turn < turn_number < report_ready_turn:
+        previous = history.get(turn_number - 1)
         if not isinstance(previous, dict) or analysis != previous.get("analysis"):
-            errors.append("turn 7 must preserve the analysis result")
+            errors.append(f"turn {turn_number} must preserve the analysis result")
         if report is not None:
-            errors.append("turn 7 must not create a report scope")
-    elif turn_number == 8:
-        previous = history.get(7)
+            errors.append(f"turn {turn_number} must not create a report scope")
+    elif turn_number == report_ready_turn:
+        previous = history.get(turn_number - 1)
         if not isinstance(previous, dict) or analysis != previous.get("analysis"):
-            errors.append("turn 8 must preserve the analysis result")
+            errors.append(f"turn {turn_number} must preserve the analysis result")
         if scope_ref(report) is None or report.get("current_status") != "ready":
-            errors.append("turn 8 must create one ready report scope")
-    elif turn_number == 9:
-        previous = history.get(8)
+            errors.append(f"turn {turn_number} must create one ready report scope")
+    elif turn_number == report_result_turn:
+        previous = history.get(report_ready_turn)
         if not isinstance(previous, dict) or analysis != previous.get("analysis"):
-            errors.append("turn 9 must preserve the analysis result")
+            errors.append(f"turn {turn_number} must preserve the analysis result")
         prior_report = previous.get("report") if isinstance(previous, dict) else None
         if (
             not isinstance(report, dict)
             or scope_ref(report) != scope_ref(prior_report)
             or report.get("current_status") not in {"done", "blocked"}
         ):
-            errors.append("turn 9 must preserve the exact approved report scope")
-    elif turn_number == 10:
-        previous = history.get(9)
+            errors.append(
+                f"turn {turn_number} must preserve the exact approved report scope"
+            )
+    elif turn_number == final_turn:
+        previous = history.get(report_result_turn)
         if snapshot != previous:
-            errors.append("turn 10 must preserve completed or blocked scope state")
-
+            errors.append(
+                f"turn {turn_number} must preserve completed or blocked scope state"
+            )
     history[turn_number] = snapshot
     return errors
 
@@ -1624,8 +1671,16 @@ def next_prompt_blockers(
                     "the final synthesis requires the exact completed analysis and intact discovery evidence"
                 )
 
-    elif test_id in SINGLE_ANALYSIS_REPORT_CASES:
-        expected_route, _allowed_supports = SINGLE_ANALYSIS_REPORT_CASES[test_id]
+    elif test_id in ANALYSIS_REPORT_LIFECYCLES:
+        route_rule = SINGLE_ANALYSIS_REPORT_CASES.get(test_id)
+        expected_route = route_rule[0] if route_rule else None
+        (
+            analysis_ready_turn,
+            analysis_result_turn,
+            report_ready_turn,
+            report_result_turn,
+            final_turn,
+        ) = ANALYSIS_REPORT_LIFECYCLES[test_id]
         ready_entries = [
             (route, entry)
             for route, entry in analysis.items()
@@ -1633,12 +1688,15 @@ def next_prompt_blockers(
         ]
         expected_ready = (
             len(ready_entries) == 1
-            and ready_entries[0][0] == expected_route
+            and (
+                expected_route is None
+                or ready_entries[0][0] == expected_route
+            )
             and scope_ref(ready_entries[0][1]) is not None
         )
         prepared_entries = (
-            history.get(5, {}).get("analysis", {})
-            if isinstance(history.get(5), dict)
+            history.get(analysis_ready_turn, {}).get("analysis", {})
+            if isinstance(history.get(analysis_ready_turn), dict)
             else {}
         )
         prepared_items = [
@@ -1662,6 +1720,7 @@ def next_prompt_blockers(
             prepared_item is not None
             and current_item is not None
             and prepared_item[0] == current_item[0]
+            and prepared_ref is not None
             and prepared_ref == current_ref
             and prepared.get("support") == current.get("support")
         )
@@ -1682,21 +1741,27 @@ def next_prompt_blockers(
             and analysis_intact
             and prepared_ref not in changed_analysis_refs
         )
-        if next_turn == 6 and not expected_ready:
-            blockers.append(
-                f"the next approval requires one ready {expected_route} scope"
-            )
-        elif next_turn in {7, 8, 9, 10} and not analysis_result_available:
+        if next_turn == analysis_result_turn and not expected_ready:
+            if expected_route is None:
+                blockers.append("the next approval requires one ready analysis scope")
+            else:
+                blockers.append(
+                    f"the next approval requires one ready {expected_route} scope"
+                )
+        elif (
+            analysis_result_turn < next_turn <= final_turn
+            and not analysis_result_available
+        ):
             blockers.append(
                 "the next step requires the exact analysis completion or valid infeasibility evidence"
             )
-        elif next_turn == 9 and (
+        elif next_turn == report_result_turn and (
             not isinstance(report, dict)
             or report.get("current_status") != "ready"
         ):
             blockers.append("the next approval has no unique ready report scope")
-        elif next_turn == 10:
-            prepared_report = report_at(8, "ready")
+        elif next_turn == final_turn:
+            prepared_report = report_at(report_ready_turn, "ready")
             prepared_report_ref = scope_ref(prepared_report)
             completed_report = (
                 prepared_report_ref is not None
@@ -1720,7 +1785,6 @@ def next_prompt_blockers(
                 blockers.append(
                     "the final synthesis requires the exact report completion or valid infeasibility evidence"
                 )
-
     elif test_id == "mechanical-edge":
         current_ready = unique_analysis(snapshot, "ready")
         if next_turn in (5, 6) and current_ready is None:
@@ -3228,10 +3292,11 @@ def run_test(args, case):
                         scope_history,
                     )
                 )
-            elif args.test in SINGLE_ANALYSIS_REPORT_CASES:
-                expected_route, allowed_supports = SINGLE_ANALYSIS_REPORT_CASES[
-                    args.test
-                ]
+            elif args.test in ANALYSIS_REPORT_LIFECYCLES:
+                route_rule = SINGLE_ANALYSIS_REPORT_CASES.get(args.test)
+                expected_route, allowed_supports = (
+                    route_rule if route_rule else (None, None)
+                )
                 scope_errors.extend(
                     check_single_analysis_report_scopes(
                         number,
@@ -3239,6 +3304,7 @@ def run_test(args, case):
                         scope_history,
                         expected_route,
                         allowed_supports,
+                        ANALYSIS_REPORT_LIFECYCLES[args.test],
                     )
                 )
             elif args.test == "mechanical-edge":

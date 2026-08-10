@@ -651,7 +651,7 @@ class RunnerTests(unittest.TestCase):
                 with self.assertRaisesRegex(RUNNER.RunError, "schema_version 1"):
                     RUNNER.load_cases()
 
-    def test_registry_contains_exactly_four_live_cases(self):
+    def test_registry_contains_exactly_five_live_cases(self):
         cases = RUNNER.load_cases()
         self.assertEqual(tuple(cases), RUNNER.TEST_IDS)
         self.assertEqual(
@@ -661,6 +661,7 @@ class RunnerTests(unittest.TestCase):
                 "college-discovery-handoff": 8,
                 "star-interference-saturation": 10,
                 "schooling-iv-late": 10,
+                "productivity-open-consultation": 12,
             },
         )
 
@@ -938,6 +939,276 @@ class RunnerTests(unittest.TestCase):
             )
         )
 
+    def open_analysis_snapshot(
+        self,
+        status,
+        *,
+        route="longitudinal_gmethods",
+        support="statistical-validity",
+        scope_id="productivity-1",
+    ):
+        return {
+            "analysis": {
+                route: {
+                    "scope_id": scope_id,
+                    "scope_revision": 1,
+                    "current_status": status,
+                    "support": support,
+                    "last_updated": "2026-01-01T00:00:07Z",
+                }
+            },
+            "report": None,
+        }
+
+    def test_open_consultation_registry_leaves_method_choice_open(self):
+        test_id = "productivity-open-consultation"
+        case = RUNNER.load_cases()[test_id]
+        turns = case["turns"]
+        self.assertEqual(len(turns), 12)
+        self.assertEqual(RUNNER.APPROVAL_BOUND_TURNS[test_id], {8, 11})
+        self.assertEqual(
+            RUNNER.ANALYSIS_REPORT_LIFECYCLES[test_id],
+            (7, 8, 10, 11, 12),
+        )
+        self.assertNotIn(test_id, RUNNER.SINGLE_ANALYSIS_REPORT_CASES)
+        self.assertEqual(case["data"]["rows"], 816)
+        self.assertIn("region", case["data"]["required_columns"])
+        self.assertEqual(
+            [turn["artifacts"].get("new") for turn in turns],
+            [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0],
+        )
+        self.assertEqual(
+            [turn["artifacts"]["analysis_execution"] for turn in turns],
+            [0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1],
+        )
+        self.assertEqual(
+            [turn["artifacts"]["report_writer"] for turn in turns],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
+        )
+        self.assertTrue(
+            all(turn["artifacts"]["causal_discovery"] == 0 for turn in turns)
+        )
+        prompts = "\n".join(turn["prompt"] for turn in turns)
+        for route in (
+            "randomized_assignment",
+            "single_time_observational",
+            "longitudinal_gmethods",
+            "difference_in_differences",
+            "regression_discontinuity",
+            "instrumental_variables",
+            "synthetic_control_time_series",
+            "interference_spillovers",
+            "descriptive_association",
+            "heterogeneous-effects",
+            "dose-response",
+            "mediation",
+            "policy-making-and-transportability",
+            "non-continuous-outcomes",
+            "statistical-validity",
+        ):
+            self.assertNotIn(route, prompts)
+        reference = (ROOT / "references" / f"{test_id}.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("no hidden correct estimator", reference)
+        self.assertIn("any controller-valid route", reference)
+
+    def test_open_consultation_scope_lifecycle_accepts_any_route(self):
+        lifecycle = RUNNER.ANALYSIS_REPORT_LIFECYCLES[
+            "productivity-open-consultation"
+        ]
+        empty = {"analysis": {}, "report": None}
+        ready = self.open_analysis_snapshot("ready")
+        done = self.open_analysis_snapshot("done")
+        report_ready = self.report_snapshot(
+            done, "productivity-report-1", 1, "ready", "2026-01-01T00:00:10Z"
+        )
+        report_done = self.report_snapshot(
+            done, "productivity-report-1", 1, "done", "2026-01-01T00:00:11Z"
+        )
+        sequence = {
+            **{turn: deepcopy(empty) for turn in range(1, 7)},
+            7: ready,
+            8: done,
+            9: deepcopy(done),
+            10: report_ready,
+            11: report_done,
+            12: deepcopy(report_done),
+        }
+        history = {}
+        for turn, snapshot in sequence.items():
+            with self.subTest(turn=turn):
+                self.assertEqual(
+                    RUNNER.check_single_analysis_report_scopes(
+                        turn,
+                        snapshot,
+                        history,
+                        None,
+                        None,
+                        lifecycle,
+                    ),
+                    [],
+                )
+
+        unexpected = {
+            "analysis": {},
+            "report": None,
+            "discovery": self.discovery_entry(
+                "scoped", "2026-01-01T00:00:02Z"
+            ),
+        }
+        self.assertIn(
+            "single-analysis/report lifecycle must not contain a discovery scope",
+            RUNNER.check_single_analysis_report_scopes(
+                1, unexpected, {}, None, None, lifecycle
+            ),
+
+        )
+        multiple = deepcopy(ready)
+        multiple["analysis"]["descriptive_association"] = {
+            **next(iter(ready["analysis"].values())),
+            "scope_id": "productivity-2",
+        }
+        self.assertIn(
+            "turn 7 must contain exactly one analysis scope",
+            RUNNER.check_single_analysis_report_scopes(
+                7, multiple, {}, None, None, lifecycle
+            ),
+        )
+
+        for changed in (
+            self.open_analysis_snapshot("done", route="descriptive_association"),
+            self.open_analysis_snapshot("done", support=None),
+            self.open_analysis_snapshot("done", scope_id="productivity-2"),
+        ):
+            with self.subTest(changed=changed):
+                errors = RUNNER.check_single_analysis_report_scopes(
+                    8, changed, {7: ready}, None, None, lifecycle
+                )
+                self.assertIn(
+                    "turn 8 must preserve the exact approved analysis scope",
+                    errors,
+                )
+
+    def test_open_consultation_continues_after_completion_or_infeasibility(self):
+        test_id = "productivity-open-consultation"
+        ready = self.open_analysis_snapshot("ready")
+        reference = ["productivity-1", 1]
+        cases = (
+            (
+                self.open_analysis_snapshot("done"),
+                {
+                    "counts": {"analysis_execution": 1},
+                    "usable_scope_refs": {"analysis_execution": [reference]},
+                },
+            ),
+            (
+                self.open_analysis_snapshot("blocked"),
+                {
+                    "counts": {},
+                    "infeasibility_scope_refs": {
+                        "analysis_execution": [reference]
+                    },
+                },
+            ),
+        )
+        for current, evidence in cases:
+            evidence.update(
+                {
+                    "intact_routes": {"analysis_execution": True},
+                    "changed_scope_refs": {"analysis_execution": []},
+                }
+            )
+            with self.subTest(status=next(iter(current["analysis"].values()))["current_status"]):
+                self.assertEqual(
+                    RUNNER.next_prompt_blockers(
+                        test_id,
+                        9,
+                        current,
+                        {7: ready, 8: current},
+                        evidence,
+                    ),
+                    [],
+                )
+
+        self.assertIn(
+            "the next step requires the exact analysis completion or valid infeasibility evidence",
+            RUNNER.next_prompt_blockers(
+                test_id,
+                9,
+                self.open_analysis_snapshot("done"),
+                {7: ready, 8: self.open_analysis_snapshot("done")},
+                {
+                    "counts": {},
+                    "intact_routes": {"analysis_execution": True},
+                    "changed_scope_refs": {"analysis_execution": []},
+                },
+            ),
+        )
+
+    def test_open_consultation_report_gates_use_the_selected_evidence(self):
+        test_id = "productivity-open-consultation"
+        ready = self.open_analysis_snapshot("ready")
+        done = self.open_analysis_snapshot("done")
+        report_ready = self.report_snapshot(
+            done, "productivity-report-1", 1, "ready", "2026-01-01T00:00:10Z"
+        )
+        analysis_reference = ["productivity-1", 1]
+        analysis_evidence = {
+            "counts": {"analysis_execution": 1},
+            "usable_scope_refs": {"analysis_execution": [analysis_reference]},
+            "intact_routes": {
+                "analysis_execution": True,
+                "report_writer": True,
+            },
+            "changed_scope_refs": {
+                "analysis_execution": [],
+                "report_writer": [],
+            },
+        }
+        history = {7: ready, 8: done, 9: deepcopy(done), 10: report_ready}
+        self.assertEqual(
+            RUNNER.next_prompt_blockers(
+                test_id, 11, report_ready, history, analysis_evidence
+            ),
+            [],
+        )
+        self.assertIn(
+            "the next approval has no unique ready report scope",
+            RUNNER.next_prompt_blockers(
+                test_id, 11, done, {**history, 10: done}, analysis_evidence
+            ),
+        )
+
+        report_done = self.report_snapshot(
+            done, "productivity-report-1", 1, "done", "2026-01-01T00:00:11Z"
+        )
+        complete_evidence = deepcopy(analysis_evidence)
+        complete_evidence["counts"]["report_writer"] = 1
+        complete_evidence["usable_scope_refs"]["report_writer"] = [
+            ["productivity-report-1", 1]
+        ]
+        self.assertEqual(
+            RUNNER.next_prompt_blockers(
+                test_id,
+                12,
+                report_done,
+                {**history, 11: report_done},
+                complete_evidence,
+            ),
+            [],
+        )
+        missing_report = deepcopy(analysis_evidence)
+        self.assertIn(
+            "the final synthesis requires the exact report completion or valid infeasibility evidence",
+            RUNNER.next_prompt_blockers(
+                test_id,
+                12,
+                report_done,
+                {**history, 11: report_done},
+                missing_report,
+            ),
+        )
     def test_observational_registry_allows_only_optional_audit_artifacts(self):
         turns = RUNNER.load_cases()["college-observational-policy"]["turns"]
         for turn in turns[2:4]:
@@ -959,6 +1230,7 @@ class RunnerTests(unittest.TestCase):
                 "5a373ac7af1bc13caae0e08bc3e7230fac28eb5be265132372f5bc5ffe65806c",
                 "0613304257a0722d776cfaac3b2d9fae513e32969395f7b312ed6303db8a7b27",
                 "23a5bf9cd485e660f7d7c8af1c10ff8efdad84d36302f35ab056e12a7f98afbf",
+                "06efcab49def5f8120190bdfedc0883da1acad0c46c7e4651e6378ffead87ca9",
             },
         )
 

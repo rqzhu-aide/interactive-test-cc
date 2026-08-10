@@ -253,6 +253,78 @@
           "artifacts": {"analysis_execution": 1, "report_writer": 1, "total": 2, "new": 0}
         }
       ]
+    },
+    "productivity-open-consultation": {
+      "description": "Twelve-turn open consultation on a state productivity panel, allowing the consultant to explore the data, choose a defensible analysis route and support, execute one approved scope, report it, and synthesize a policy decision.",
+      "data": {
+        "name": "plm Produc",
+        "filename": "data.csv",
+        "rows": 816,
+        "required_columns": ["state", "year", "region", "pcap", "hwy", "water", "util", "pc", "gsp", "emp", "unemp"],
+        "canonical_sha256": "06efcab49def5f8120190bdfedc0883da1acad0c46c7e4651e6378ffead87ca9"
+      },
+      "turns": [
+        {
+          "label": "Frame an open infrastructure decision",
+          "prompt": "Use the causal-consultant skill. A state infrastructure team wants to know what this historical panel can credibly say about whether additional public capital could improve later state economic performance. Start by framing the decision, possible interventions and outcomes, stakeholders, and factual questions that must be resolved. Do not assume a causal design or method, inspect data, prepare a scope, or run analysis.",
+          "artifacts": {"causal_discovery": 0, "analysis_execution": 0, "report_writer": 0, "new": 0}
+        },
+        {
+          "label": "Explore the panel data",
+          "prompt": "Here is data.csv. Explore what the data actually contain before choosing a target or method. Audit the unit, state and year identifiers, panel balance, dates, duplicates, missingness, scales, and relationships among pcap, hwy, water, util, pc, gsp, emp, unemp, and region. Identify measurement, deflation, historical-comparability, and temporal-ordering questions. Do not run causal review, recommend a method, prepare a scope, estimate an effect, or create output.",
+          "artifacts": {"causal_discovery": 0, "analysis_execution": 0, "report_writer": 0, "new": 0}
+        },
+        {
+          "label": "Establish domain and timing context",
+          "prompt": "Using the completed data audit, review the economic and policy context needed to interpret this panel: the public-capital measures and treatment versions, economic-performance outcomes, plausible mechanisms and lags, state and regional context, spillovers, historical period, and transport to a current infrastructure decision. Treat audited data facts as fixed. Do not choose a final analysis route, inspect data again, prepare a scope, estimate an effect, or create analysis or report output.",
+          "artifacts": {"causal_discovery": 0, "analysis_execution": 0, "report_writer": 0, "new": 0}
+        },
+        {
+          "label": "Map defensible questions",
+          "prompt": "Using the current domain and data findings, explain which bounded policy questions these data could address and which they cannot. You may distinguish causal, associational, and diagnostic targets and present Consultant Options only if two or more choices would materially change the policy question or workflow. Do not choose for me when a user decision is genuinely required, and do not prepare a scope, run analysis, or create analysis or report output.",
+          "artifacts": {"causal_discovery": 0, "analysis_execution": 0, "report_writer": 0, "new": 0}
+        },
+        {
+          "label": "Assess methods for the chosen direction",
+          "prompt": "Focus the consultation on a feasible increase in state highway capital and later state economic performance. Using the existing audit and domain context, choose a defensible outcome, contrast, population, and time horizon, assess causal readiness, compare plausible designs or bounded noncausal alternatives, and recommend the most useful next analysis. Choose the method route and any support based on the evidence rather than a benchmark answer. Do not prepare an approval-ready scope, execute analysis, or create analysis or report output.",
+          "artifacts": {"causal_discovery": 0, "analysis_execution": 0, "report_writer": 0, "new": 0}
+        },
+        {
+          "label": "Stress-test the recommendation",
+          "prompt": "Before scoping, stress-test your current recommendation against state and time confounding, reverse causation, trends and dynamics, spillovers, dependence and effective sample size, measurement, and historical transport. Revise the recommendation if needed, then state the single current route, any justified support, and the claim boundary you would use. Do not prepare a scope, execute analysis, or create analysis or report output.",
+          "artifacts": {"causal_discovery": 0, "analysis_execution": 0, "report_writer": 0, "new": 0}
+        },
+        {
+          "label": "Prepare the consultant-selected analysis scope",
+          "prompt": "Prepare one approval-ready analysis scope for the current recommendation. Choose the design route, support, estimator or diagnostic approach, software, required checks, outputs, and claim boundary from the consultation so far. The scope may be causally identified or explicitly bounded as noncausal, but it must be feasible and useful for the stated decision. Do not rerun data or causal review, execute the scope, or create analysis or report output.",
+          "artifacts": {"causal_discovery": 0, "analysis_execution": 0, "report_writer": 0, "new": 0}
+        },
+        {
+          "label": "Approve the consultant-selected analysis",
+          "prompt": "I approve the exact current analysis scope you selected, including its route, support, diagnostics, outputs, and claim boundary. Execute it without changes. If an unforeseen data or method condition prevents responsible completion, record valid infeasibility evidence for that same scope rather than substituting another analysis.",
+          "artifacts": {"causal_discovery": 0, "analysis_execution": 1, "report_writer": 0, "new": 1}
+        },
+        {
+          "label": "Interpret the decision evidence",
+          "prompt": "A policymaker wants to treat the main numerical result as the effect of building more highways today. Explain what the completed analysis or infeasibility evidence actually changes for the decision, what it does not establish, and which assumptions or historical differences matter most. Do not run another model, revise the approved scope, or create a new artifact.",
+          "artifacts": {"causal_discovery": 0, "analysis_execution": 1, "report_writer": 0, "new": 0}
+        },
+        {
+          "label": "Prepare an evidence-bound report scope",
+          "prompt": "Prepare one HTML decision-report scope using the existing analysis completion or infeasibility evidence. Choose a clear structure for the infrastructure team, but bind every proposed claim and display to evidence already produced. Include the selected target and method, diagnostics, results or unmet requirement, limitations, historical-transport boundary, and practical next evidence need. Do not run new analysis or generate the report yet.",
+          "artifacts": {"causal_discovery": 0, "analysis_execution": 1, "report_writer": 0, "new": 0}
+        },
+        {
+          "label": "Approve the evidence-bound report",
+          "prompt": "I approve the exact current HTML report scope. Generate it without changing the evidence basis, analysis status, or claim boundary. If the report cannot responsibly be completed, record valid infeasibility evidence for that same report scope.",
+          "artifacts": {"causal_discovery": 0, "analysis_execution": 1, "report_writer": 1, "new": 1}
+        },
+        {
+          "label": "Synthesize the infrastructure decision",
+          "prompt": "Give the infrastructure team a compact final recommendation using only the existing analysis and report evidence. Separate what the historical panel supports, how much it should influence a current highway-investment decision, and the smallest better data or design step that would materially improve the decision. Do not run more work, revise a scope, or create another artifact.",
+          "artifacts": {"causal_discovery": 0, "analysis_execution": 1, "report_writer": 1, "new": 0}
+        }
+      ]
     }
   }
 }

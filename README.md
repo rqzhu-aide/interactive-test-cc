@@ -2,7 +2,7 @@
 
 [![Version](https://img.shields.io/badge/version-5.3.1-blue.svg)]()
 
-Four reproducible, multi-turn regression tests for `causal-consultant`:
+Five reproducible, multi-turn regression tests for `causal-consultant`:
 
 - `college-observational-policy`: observational dose response, heterogeneity,
   report generation, and derivative scope preparation
@@ -12,6 +12,8 @@ Four reproducible, multi-turn regression tests for `causal-consultant`:
   support, contamination, policy boundaries, and a report
 - `schooling-iv-late`: IV diagnostics, weak-IV inference, LATE boundaries,
   and a report
+- `productivity-open-consultation`: open panel-data exploration, consultant-
+  selected analysis, reporting, and policy synthesis
 
 The runner resumes one exact Claude Code session and validates the response
 shell, idle controller state, scope identity, artifact roles, schema-1 and
@@ -31,7 +33,8 @@ The work directory must contain only the case's canonical CSV renamed to
 `data.csv`. Dataset dimensions, required columns, and fingerprints are in
 [`references/test-cases.json`](references/test-cases.json). The College case
 uses the existing cleaned ISLR College export. STAR uses `Ecdat::Star` and the
-IV case uses `Ecdat::Schooling`, each exported without its row-name column.
+IV case uses `Ecdat::Schooling`. The open consultation uses `plm::Produc`.
+Each Rdatasets export is prepared without its row-name column.
 Dataset provisioning and private runtime infrastructure remain outside this
 repository.
 

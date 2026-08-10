@@ -1,6 +1,6 @@
 ---
 name: interactive-test-cc
-description: Run reproducible multi-turn regression tests for the causal-consultant skill. Use for the College observational-policy, College discovery-handoff, STAR interference-saturation, or Schooling IV-LATE case, including exact-session execution, controller validation, artifact checks, and result capture.
+description: Run reproducible multi-turn regression tests for the causal-consultant skill. Use for the College observational-policy, College discovery-handoff, STAR interference-saturation, Schooling IV-LATE, or Productivity open-consultation case, including exact-session execution, controller validation, artifact checks, and result capture.
 ---
 
 # Interactive causal-consultant tests
@@ -16,6 +16,7 @@ Choose one explicit case and load its case reference plus the shared
 | `college-discovery-handoff` | [`references/college-discovery-handoff.md`](references/college-discovery-handoff.md) | Bounded discovery, independent review, and analysis handoff |
 | `star-interference-saturation` | [`references/star-interference-saturation.md`](references/star-interference-saturation.md) | Interference exposure mapping, saturation support, and policy boundary |
 | `schooling-iv-late` | [`references/schooling-iv-late.md`](references/schooling-iv-late.md) | Instrumental variables, weak-IV validity, and LATE boundary |
+| `productivity-open-consultation` | [`references/productivity-open-consultation.md`](references/productivity-open-consultation.md) | Open panel-data consultation with consultant-selected method and support |
 
 Exact prompts, dataset fingerprints, and per-turn artifact expectations have one
 machine-readable source: [`references/test-cases.json`](references/test-cases.json).
@@ -26,8 +27,8 @@ Do not rewrite or adapt them during a registered test.
 1. Install or symlink the intended causal-consultant package at
    `${CLAUDE_CONFIG_DIR:-~/.claude}/skills/causal-consultant`.
 2. Prepare a fresh work directory containing only the case's canonical dataset
-   renamed to `data.csv`. Remove the source row-name column when the registry
-   describes the cleaned Ecdat export.
+   renamed to `data.csv`. Remove the source row-name column when the case
+   reference identifies a cleaned Rdatasets export.
 3. Choose a missing or empty results directory outside the work directory.
 4. Run:
 
@@ -59,7 +60,7 @@ conceivable action was not offered.
 
 ## Evaluate a completed run
 
-All four cases require manual review. Read the saved case reference, shared
+All five cases require manual review. Read the saved case reference, shared
 evaluation guide, conversation, state snapshots, manifests, receipts, code, and
 outputs. Judge actual contract fidelity rather than treating a receipt as proof,
 and distinguish decision-impacting failures from minor, decision-equivalent
