@@ -131,7 +131,7 @@
       ]
     },
     "star-interference-saturation": {
-      "description": "Ten-turn interference workflow covering school-level exposure mapping, domain review, saturation-support and contamination auditing, one approved bounded analysis, an HTML report, and decision synthesis.",
+      "description": "Twelve-turn open STAR consultation for a novice education-board user, covering consultant-selected question and method choice, one approved analysis, one approved HTML report, and evidence-bound decision synthesis.",
       "data": {
         "name": "Ecdat Star",
         "filename": "data.csv",
@@ -141,54 +141,64 @@
       },
       "turns": [
         {
-          "label": "Frame the interference decision",
-          "prompt": "Use the causal-consultant skill. I am evaluating whether expanding small kindergarten classes within a school could affect not only assigned pupils but also pupils in other classrooms through shared resources or peer mechanisms. Treat these benchmark facts as fixed: pupils were randomly assigned within schools to small, regular, or regular-with-aide classes; tmathssk and treadssk were measured after kindergarten assignment; schidkn identifies the school; and the supplied data contain no classroom identifier, peer network, or documented two-stage randomization of school treatment saturation. Frame the treatment and outcome units, plausible interference mechanisms, partial-interference assumption, direct and spillover targets, and school-allocation decision boundary only. Do not inspect data, prepare a scope, or run analysis.",
-          "artifacts": {"analysis_execution": 0, "report_writer": 0, "total": 0, "new": 0}
+          "label": "Frame an open classroom decision",
+          "prompt": "Use the causal-consultant skill. I work with a state education board and know very little about causal inference. I have pupil-level data from Tennessee's Project STAR, and I want to know what this historical study can credibly tell us about kindergarten class arrangements and early test scores. Before seeing the file, frame the practical decision, the people affected, plausible class arrangements and outcomes, and the factual questions that must be resolved. Explain unfamiliar terms in ordinary language. Do not select a final target, causal claim, analysis method, or software, inspect data, prepare a scope, or run analysis.",
+          "artifacts": {"causal_discovery": 0, "analysis_execution": 0, "report_writer": 0, "new": 0}
         },
         {
-          "label": "Audit the interference map",
-          "prompt": "Here is data.csv. Use data audit only to verify the pupil and school units, arm coding, school sizes and within-school arm composition, missingness, outcome ranges, variable timing, and support for a leave-one-out school exposure map based on other pupils' class assignments. Examine own-arm by other-pupil small-class-share cells and whether regular-with-aide needs a separate exposure definition. Do not run causal review, prepare a scope, estimate an effect, or create output.",
-          "artifacts": {"analysis_execution": 0, "report_writer": 0, "total": 0, "new": 0}
+          "label": "Explore and audit the STAR data",
+          "prompt": "Here is data.csv. Treat these study facts as fixed: each row represents a kindergarten pupil; pupils were randomly assigned within schools to small, regular, or regular-with-aide conditions; tmathssk and treadssk were measured after kindergarten assignment; and schidkn identifies the school. Audit what the file contains, including column meanings and coding, duplicate rows, missingness, arm sizes, school structure, outcome ranges, available identifiers, and the timing and possible roles of the remaining variables. State what the extract cannot reveal. Do not choose the final target or method, estimate an effect, or prepare or execute an analysis or report scope yet.",
+          "artifacts": {"causal_discovery": 0, "analysis_execution": 0, "report_writer": 0}
         },
         {
-          "label": "Review the interference domain",
-          "prompt": "Use domain review only. Using the fixed study facts and completed data audit, review the education and trial context needed to interpret kindergarten class assignment and school-level small-class saturation: the three assignment arms, pupil and school decision units, outcome meaning and timing, plausible shared-resource or peer mechanisms, the school partial-interference boundary, and the limitations created by missing classroom, peer-network, and saturation-design information. Treat audited data facts as fixed and do not inspect the data again. Do not run causal review, recommend an analysis design, prepare a scope, estimate an effect, or create output.",
-          "artifacts": {"analysis_execution": 0, "report_writer": 0, "total": 0, "new": 0}
+          "label": "Explain the study context",
+          "prompt": "Using the fixed study facts and completed audit, explain the education and trial context needed for a responsible analysis. Cover what the three class conditions mean, how random assignment helps and what it does not guarantee, plausible ways class arrangements could affect scores, the historical study population, and limits on applying the findings to schools today. Treat audited data facts as fixed and do not inspect the file again. Use plain language and define necessary technical terms. Do not choose the final question or method, prepare a scope, estimate an effect, or create output.",
+          "artifacts": {"causal_discovery": 0, "analysis_execution": 0, "report_writer": 0, "new": 0}
         },
         {
-          "label": "Review interference readiness",
-          "prompt": "Use causal review, using the current data and domain reviews, to assess whether the supplied STAR data can identify direct, spillover, or overall effects of changing a school's small-class saturation. Distinguish randomized own assignment from any randomization of other-pupil exposure; address the partial-interference boundary, missing classroom and network information, exposure mapping, own-treatment by spillover support, contamination, dependence-aware inference, and the school-allocation decision. For this benchmark, if a causal spillover effect is not identified, recommend `interference_spillovers` with `policy-making-and-transportability` for a bounded exposure-support and contamination audit rather than reverting to an ordinary randomized-assignment analysis. Treat the missing saturation randomization as a causal claim boundary, not a blocker to that bounded audit. Establish the current design and support recommendation or the smallest remaining blocker. Do not prepare a scope or execute analysis.",
-          "artifacts": {"analysis_execution": 0, "report_writer": 0, "total": 0, "new": 0}
+          "label": "Map questions the data could address",
+          "prompt": "Using the current data and domain findings, describe a small set of materially different questions that this file could answer, partially address, or only explore. For each, state in plain language what would be compared, which outcome and pupils it concerns, whether the evidence could be causal or only descriptive, the main assumption, and the school-board decision it could inform. If you need a decision from me, offer only choices that would materially change the question or workflow and recommend a sensible default. Do not make me choose an estimator or software package, select a final method, prepare a scope, execute analysis, or create output.",
+          "artifacts": {"causal_discovery": 0, "analysis_execution": 0, "report_writer": 0, "new": 0}
         },
         {
-          "label": "Prepare interference audit scope",
-          "prompt": "Using only the current causal review, prepare one approval-ready `interference_spillovers` scope with `policy-making-and-transportability` support for a school-level saturation, exposure-support, and contamination audit. Define own class assignment, a leave-one-out other-pupil small-class share, the school interference boundary, support cells, dependence-aware inference, sensitivity to exposure definitions, and a policy claim boundary. Do not estimate a separate direct intention-to-treat effect in this operation; own-assignment randomization may appear only as design context. Label outcome patterns across saturation as noncausal unless the documented design identifies them. Do not rerun review, execute analysis, or create output.",
-          "artifacts": {"analysis_execution": 0, "report_writer": 0, "total": 0, "new": 0}
+          "label": "Select the most useful direction",
+          "prompt": "I care more about a trustworthy and useful answer than about any particular treatment comparison or causal claim. Assess causal readiness and choose the single most defensible analysis question for this school-board decision. You may select any class-arrangement target, comparison, outcome, population, and causal or explicitly noncausal interpretation justified by the study. Explain why this question is more useful and credible than the alternatives in language I can understand. Recommend one analysis approach and any additional validity review it genuinely needs. Do not prepare an approval-ready scope, execute analysis, or create output.",
+          "artifacts": {"causal_discovery": 0, "analysis_execution": 0, "report_writer": 0, "new": 0}
         },
         {
-          "label": "Approve interference audit",
-          "prompt": "I approve the exact current interference and school-saturation audit scope, including its exposure map and policy claim boundary. Execute it without changes.",
-          "artifacts": {"analysis_execution": 1, "report_writer": 0, "total": 1, "new": 1}
+          "label": "Stress-test and explain the recommendation",
+          "prompt": "Before scoping, stress-test the current recommendation against the study and data facts that could change it. Check whether the assignment and class coding are usable, outcomes were measured at the right time, missing data matter, pupils in the same school have related outcomes, examining many comparisons or outcomes could create chance findings, or variables measured after assignment are being used incorrectly. Also consider how much this historical Tennessee study can tell us about current schools. Revise the recommendation if needed. End with exactly one current recommendation and explain its comparison, outcome, population, what the analysis will estimate or summarize, strongest assumption, and what it would and would not establish. Do not prepare a scope, execute analysis, or create output.",
+          "artifacts": {"causal_discovery": 0, "analysis_execution": 0, "report_writer": 0, "new": 0}
         },
         {
-          "label": "Test the spillover boundary",
-          "prompt": "A board member argues that any better scores in schools with a larger small-class share prove a beneficial spillover and justify scaling that allocation. Explain what the approved operation evidence actually establishes. Distinguish randomized own assignment, descriptive saturation patterns, causal indirect effects, and an overall school-allocation policy effect. Do not run additional analysis, revise the scope, or create output.",
-          "artifacts": {"analysis_execution": 1, "report_writer": 0, "total": 1, "new": 0}
+          "label": "Prepare the consultant-selected analysis scope",
+          "prompt": "Prepare one approval-ready analysis scope, meaning the exact plan I would approve, for the single current recommendation. Make it precise about who is included, what class arrangement or exposure is compared with what, which outcome or outcomes are primary, what the analysis will estimate or summarize, how uncertainty and multiple comparisons or outcomes will be handled, required checks, output files, and what can and cannot be concluded. Choose the technical method, any additional validity review, and software internally, then explain those choices briefly in language I can understand. The scope may support a causal conclusion or an explicitly bounded noncausal conclusion, but it must be feasible and useful. Do not rerun data or causal review, execute the scope, generate a report, or create output.",
+          "artifacts": {"causal_discovery": 0, "analysis_execution": 0, "report_writer": 0, "new": 0}
         },
         {
-          "label": "Prepare interference report scope",
-          "prompt": "Prepare an HTML decision-report scope for an education-board audience using only the approved interference operation evidence and its limitations. Require the exposure map, own-arm by saturation support, contamination and dependence findings, the estimates or infeasibility evidence actually produced, what additional design or data would identify spillovers, and the school-allocation claim boundary. Do not generate the report yet.",
-          "artifacts": {"analysis_execution": 1, "report_writer": 0, "total": 1, "new": 0}
+          "label": "Approve the consultant-selected analysis",
+          "prompt": "I approve the exact current analysis scope you selected, including who and what it compares, its checks, outputs, and limits. Execute it without changes. If an unforeseen data or method condition prevents responsible completion, record valid infeasibility evidence for that same scope instead of substituting another analysis.",
+          "artifacts": {"causal_discovery": 0, "analysis_execution": 1, "report_writer": 0, "new": 1}
         },
         {
-          "label": "Approve interference report",
-          "prompt": "I approve the exact current HTML report scope. Generate it from the approved interference evidence without strengthening any spillover or school-allocation claim.",
-          "artifacts": {"analysis_execution": 1, "report_writer": 1, "total": 2, "new": 1}
+          "label": "Interpret the evidence for a novice",
+          "prompt": "I do not know causal inference. Explain what the completed analysis or infeasibility evidence actually says in ordinary language. If a numerical result was produced, explain its direction, size, uncertainty, comparison group, and population without relying on statistical significance alone. A colleague wants to say, 'Project STAR shows that our state should adopt the analyzed class arrangement now and should expect the same score change.' Explain whether the evidence supports that statement and why. Separate study facts, assumptions, results, and present-day policy limits. Do not calculate anything new, revise the approved scope, or create output.",
+          "artifacts": {"causal_discovery": 0, "analysis_execution": 1, "report_writer": 0, "new": 0}
         },
         {
-          "label": "Synthesize the allocation decision",
-          "prompt": "Give the board a compact recommendation based only on the existing interference operation and report evidence. State what can be decided now, whether a causal spillover claim is supported, and the smallest design or data improvement needed for a school-saturation policy estimate. Do not run more analysis, revise a scope, or create another artifact.",
-          "artifacts": {"analysis_execution": 1, "report_writer": 1, "total": 2, "new": 0}
+          "label": "Prepare an evidence-bound HTML report scope",
+          "prompt": "Prepare one HTML decision-report scope for a school-board audience that knows little causal inference. Use only the completed analysis or its valid infeasibility evidence. Choose a clear structure, but require a plain-language question, the selected comparison and population, an accessible explanation of the approach, the checks and results or unmet requirement actually produced, uncertainty, limitations, what the board can and cannot conclude, and the most useful next evidence step. Bind every proposed claim, table, and figure to existing evidence. Do not run new analysis or generate the report yet.",
+          "artifacts": {"causal_discovery": 0, "analysis_execution": 1, "report_writer": 0, "new": 0}
+        },
+        {
+          "label": "Approve the HTML report",
+          "prompt": "I approve the exact current HTML report scope. Generate it without changing the evidence basis, analysis status, or claim boundary. If the report cannot responsibly be completed, record valid infeasibility evidence for that same report scope instead of silently changing it.",
+          "artifacts": {"causal_discovery": 0, "analysis_execution": 1, "report_writer": 1, "new": 1}
+        },
+        {
+          "label": "Synthesize the board decision",
+          "prompt": "Give the board a compact final recommendation using only the existing analysis and report evidence. Start with the decision implication, then summarize the main result or infeasibility finding, the most important uncertainty and present-day transport limit, one action the board can reasonably take now, and the single data or design improvement that would most improve the decision. Use plain language. Do not run more work, revise a scope, or create another artifact.",
+          "artifacts": {"causal_discovery": 0, "analysis_execution": 1, "report_writer": 1, "new": 0}
         }
       ]
     },
@@ -251,78 +261,6 @@
           "label": "Synthesize the access-policy decision",
           "prompt": "Give the policy team a compact recommendation based only on the existing operation and report evidence, distinguishing what the evidence supports from what still depends on exclusion, monotonicity, and transport beyond compliers. Do not run more analysis, revise a scope, or create another artifact.",
           "artifacts": {"analysis_execution": 1, "report_writer": 1, "total": 2, "new": 0}
-        }
-      ]
-    },
-    "productivity-open-consultation": {
-      "description": "Twelve-turn open consultation on a state productivity panel, allowing the consultant to explore the data, choose a defensible analysis route and support, execute one approved scope, report it, and synthesize a policy decision.",
-      "data": {
-        "name": "plm Produc",
-        "filename": "data.csv",
-        "rows": 816,
-        "required_columns": ["state", "year", "region", "pcap", "hwy", "water", "util", "pc", "gsp", "emp", "unemp"],
-        "canonical_sha256": "06efcab49def5f8120190bdfedc0883da1acad0c46c7e4651e6378ffead87ca9"
-      },
-      "turns": [
-        {
-          "label": "Frame an open infrastructure decision",
-          "prompt": "Use the causal-consultant skill. A state infrastructure team wants to know what this historical panel can credibly say about whether additional public capital could improve later state economic performance. Start by framing the decision, possible interventions and outcomes, stakeholders, and factual questions that must be resolved. Do not assume a causal design or method, inspect data, prepare a scope, or run analysis.",
-          "artifacts": {"causal_discovery": 0, "analysis_execution": 0, "report_writer": 0, "new": 0}
-        },
-        {
-          "label": "Explore the panel data",
-          "prompt": "Here is data.csv. Explore what the data actually contain before choosing a target or method. Audit the unit, state and year identifiers, panel balance, dates, duplicates, missingness, scales, and relationships among pcap, hwy, water, util, pc, gsp, emp, unemp, and region. Identify measurement, deflation, historical-comparability, and temporal-ordering questions. Do not run causal review, recommend a method, prepare a scope, estimate an effect, or create output.",
-          "artifacts": {"causal_discovery": 0, "analysis_execution": 0, "report_writer": 0, "new": 0}
-        },
-        {
-          "label": "Establish domain and timing context",
-          "prompt": "Using the completed data audit, review the economic and policy context needed to interpret this panel: the public-capital measures and treatment versions, economic-performance outcomes, plausible mechanisms and lags, state and regional context, spillovers, historical period, and transport to a current infrastructure decision. Treat audited data facts as fixed. Do not choose a final analysis route, inspect data again, prepare a scope, estimate an effect, or create analysis or report output.",
-          "artifacts": {"causal_discovery": 0, "analysis_execution": 0, "report_writer": 0, "new": 0}
-        },
-        {
-          "label": "Map defensible questions",
-          "prompt": "Using the current domain and data findings, explain which bounded policy questions these data could address and which they cannot. You may distinguish causal, associational, and diagnostic targets and present Consultant Options only if two or more choices would materially change the policy question or workflow. Do not choose for me when a user decision is genuinely required, and do not prepare a scope, run analysis, or create analysis or report output.",
-          "artifacts": {"causal_discovery": 0, "analysis_execution": 0, "report_writer": 0, "new": 0}
-        },
-        {
-          "label": "Assess methods for the chosen direction",
-          "prompt": "Focus the consultation on a feasible increase in state highway capital and later state economic performance. Using the existing audit and domain context, choose a defensible outcome, contrast, population, and time horizon, assess causal readiness, compare plausible designs or bounded noncausal alternatives, and recommend the most useful next analysis. Choose the method route and any support based on the evidence rather than a benchmark answer. Do not prepare an approval-ready scope, execute analysis, or create analysis or report output.",
-          "artifacts": {"causal_discovery": 0, "analysis_execution": 0, "report_writer": 0, "new": 0}
-        },
-        {
-          "label": "Stress-test the recommendation",
-          "prompt": "Before scoping, stress-test your current recommendation against state and time confounding, reverse causation, trends and dynamics, spillovers, dependence and effective sample size, measurement, and historical transport. Revise the recommendation if needed, then state the single current route, any justified support, and the claim boundary you would use. Do not prepare a scope, execute analysis, or create analysis or report output.",
-          "artifacts": {"causal_discovery": 0, "analysis_execution": 0, "report_writer": 0, "new": 0}
-        },
-        {
-          "label": "Prepare the consultant-selected analysis scope",
-          "prompt": "Prepare one approval-ready analysis scope for the current recommendation. Choose the design route, support, estimator or diagnostic approach, software, required checks, outputs, and claim boundary from the consultation so far. The scope may be causally identified or explicitly bounded as noncausal, but it must be feasible and useful for the stated decision. Do not rerun data or causal review, execute the scope, or create analysis or report output.",
-          "artifacts": {"causal_discovery": 0, "analysis_execution": 0, "report_writer": 0, "new": 0}
-        },
-        {
-          "label": "Approve the consultant-selected analysis",
-          "prompt": "I approve the exact current analysis scope you selected, including its route, support, diagnostics, outputs, and claim boundary. Execute it without changes. If an unforeseen data or method condition prevents responsible completion, record valid infeasibility evidence for that same scope rather than substituting another analysis.",
-          "artifacts": {"causal_discovery": 0, "analysis_execution": 1, "report_writer": 0, "new": 1}
-        },
-        {
-          "label": "Interpret the decision evidence",
-          "prompt": "A policymaker wants to treat the main numerical result as the effect of building more highways today. Explain what the completed analysis or infeasibility evidence actually changes for the decision, what it does not establish, and which assumptions or historical differences matter most. Do not run another model, revise the approved scope, or create a new artifact.",
-          "artifacts": {"causal_discovery": 0, "analysis_execution": 1, "report_writer": 0, "new": 0}
-        },
-        {
-          "label": "Prepare an evidence-bound report scope",
-          "prompt": "Prepare one HTML decision-report scope using the existing analysis completion or infeasibility evidence. Choose a clear structure for the infrastructure team, but bind every proposed claim and display to evidence already produced. Include the selected target and method, diagnostics, results or unmet requirement, limitations, historical-transport boundary, and practical next evidence need. Do not run new analysis or generate the report yet.",
-          "artifacts": {"causal_discovery": 0, "analysis_execution": 1, "report_writer": 0, "new": 0}
-        },
-        {
-          "label": "Approve the evidence-bound report",
-          "prompt": "I approve the exact current HTML report scope. Generate it without changing the evidence basis, analysis status, or claim boundary. If the report cannot responsibly be completed, record valid infeasibility evidence for that same report scope.",
-          "artifacts": {"causal_discovery": 0, "analysis_execution": 1, "report_writer": 1, "new": 1}
-        },
-        {
-          "label": "Synthesize the infrastructure decision",
-          "prompt": "Give the infrastructure team a compact final recommendation using only the existing analysis and report evidence. Separate what the historical panel supports, how much it should influence a current highway-investment decision, and the smallest better data or design step that would materially improve the decision. Do not run more work, revise a scope, or create another artifact.",
-          "artifacts": {"causal_discovery": 0, "analysis_execution": 1, "report_writer": 1, "new": 0}
         }
       ]
     }

@@ -1,11 +1,11 @@
 ---
 name: interactive-test-cc
-description: Run reproducible multi-turn regression tests for the causal-consultant skill. Use for the College observational-policy, College discovery-handoff, STAR interference-saturation, Schooling IV-LATE, or Productivity open-consultation case, including exact-session execution, controller validation, artifact checks, and result capture.
+description: Run reproducible multi-turn regression tests for the causal-consultant skill. Use for the College observational-policy, College discovery-handoff, open STAR consultation, or Schooling IV-LATE case, including exact-session execution, controller validation, artifact checks, and result capture.
 ---
 
 # Interactive causal-consultant tests
 
-Version: `5.3.1`
+Version: `5.3.2`
 
 Choose one explicit case and load its case reference plus the shared
 [`evaluation guide`](references/evaluation-guide.md):
@@ -14,9 +14,8 @@ Choose one explicit case and load its case reference plus the shared
 |---|---|---|
 | `college-observational-policy` | [`references/college-observational-policy.md`](references/college-observational-policy.md) | Observational dose response, heterogeneity, and report lifecycle |
 | `college-discovery-handoff` | [`references/college-discovery-handoff.md`](references/college-discovery-handoff.md) | Bounded discovery, independent review, and analysis handoff |
-| `star-interference-saturation` | [`references/star-interference-saturation.md`](references/star-interference-saturation.md) | Interference exposure mapping, saturation support, and policy boundary |
+| `star-interference-saturation` | [`references/star-interference-saturation.md`](references/star-interference-saturation.md) | Open novice consultation with consultant-selected analysis and report |
 | `schooling-iv-late` | [`references/schooling-iv-late.md`](references/schooling-iv-late.md) | Instrumental variables, weak-IV validity, and LATE boundary |
-| `productivity-open-consultation` | [`references/productivity-open-consultation.md`](references/productivity-open-consultation.md) | Open panel-data consultation with consultant-selected method and support |
 
 Exact prompts, dataset fingerprints, and per-turn artifact expectations have one
 machine-readable source: [`references/test-cases.json`](references/test-cases.json).
@@ -60,7 +59,7 @@ conceivable action was not offered.
 
 ## Evaluate a completed run
 
-All five cases require manual review. Read the saved case reference, shared
+All four cases require manual review. Read the saved case reference, shared
 evaluation guide, conversation, state snapshots, manifests, receipts, code, and
 outputs. Judge actual contract fidelity rather than treating a receipt as proof,
 and distinguish decision-impacting failures from minor, decision-equivalent

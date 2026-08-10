@@ -27,7 +27,6 @@ TEST_IDS = (
     "college-discovery-handoff",
     "star-interference-saturation",
     "schooling-iv-late",
-    "productivity-open-consultation",
 )
 ARTIFACT_ROUTES = {
     "data_audit",
@@ -107,8 +106,8 @@ MANUAL_RATINGS = {
     "college-discovery-handoff": {"pass", "weak", "fail"},
     "star-interference-saturation": {"pass", "weak", "fail"},
     "schooling-iv-late": {"pass", "weak", "fail"},
-    "productivity-open-consultation": {"pass", "weak", "fail"},
     # Retain finalization support for previously recorded result folders.
+    "productivity-open-consultation": {"pass", "weak", "fail"},
     "mechanical-edge": {"pass", "fail"},
     "standard": {"pass", "fail"},
     "discovery": {"pass", "fail"},
@@ -117,9 +116,8 @@ MANUAL_RATINGS = {
 APPROVAL_BOUND_TURNS = {
     "college-observational-policy": {7, 10, 12},
     "college-discovery-handoff": {7},
-    "star-interference-saturation": {6, 9},
+    "star-interference-saturation": {8, 11},
     "schooling-iv-late": {6, 9},
-    "productivity-open-consultation": {8, 11},
     # Historical IDs remain valid for saved-result assessment and unit fixtures.
     "standard": {7, 10, 12},
     "discovery": {7},
@@ -127,19 +125,14 @@ APPROVAL_BOUND_TURNS = {
     "causal-edge": {8},
 }
 SINGLE_ANALYSIS_REPORT_CASES = {
-    "star-interference-saturation": (
-        "interference_spillovers",
-        ("policy-making-and-transportability",),
-    ),
     "schooling-iv-late": (
         "instrumental_variables",
         (None, "statistical-validity"),
     ),
 }
 ANALYSIS_REPORT_LIFECYCLES = {
-    "star-interference-saturation": (5, 6, 8, 9, 10),
+    "star-interference-saturation": (7, 8, 10, 11, 12),
     "schooling-iv-late": (5, 6, 8, 9, 10),
-    "productivity-open-consultation": (7, 8, 10, 11, 12),
 }
 SUMMARY_SCHEMA_VERSION = 2
 EXIT_PENDING = 3

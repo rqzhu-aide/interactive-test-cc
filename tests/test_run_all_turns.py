@@ -651,17 +651,18 @@ class RunnerTests(unittest.TestCase):
                 with self.assertRaisesRegex(RUNNER.RunError, "schema_version 1"):
                     RUNNER.load_cases()
 
-    def test_registry_contains_exactly_five_live_cases(self):
+    def test_registry_contains_exactly_four_live_cases(self):
         cases = RUNNER.load_cases()
         self.assertEqual(tuple(cases), RUNNER.TEST_IDS)
+        self.assertNotIn("productivity-open-consultation", RUNNER.TEST_IDS)
+        self.assertIn("productivity-open-consultation", RUNNER.MANUAL_RATINGS)
         self.assertEqual(
             {test_id: len(case["turns"]) for test_id, case in cases.items()},
             {
                 "college-observational-policy": 13,
                 "college-discovery-handoff": 8,
-                "star-interference-saturation": 10,
+                "star-interference-saturation": 12,
                 "schooling-iv-late": 10,
-                "productivity-open-consultation": 12,
             },
         )
 
@@ -697,64 +698,33 @@ class RunnerTests(unittest.TestCase):
         ):
             self.assertIn(requirement, reference)
 
-    def test_new_method_cases_have_fixed_routes_and_bounded_supports(self):
+    def test_iv_case_has_fixed_route_and_bounded_support(self):
         expected = {
-            "star-interference-saturation": (
-                "interference_spillovers",
-                ("policy-making-and-transportability",),
-            ),
             "schooling-iv-late": (
                 "instrumental_variables",
                 (None, "statistical-validity"),
-            ),
+            )
         }
         self.assertEqual(RUNNER.SINGLE_ANALYSIS_REPORT_CASES, expected)
         self.assertEqual(
-            RUNNER.APPROVAL_BOUND_TURNS["star-interference-saturation"], {6, 9}
-        )
-        self.assertEqual(
             RUNNER.APPROVAL_BOUND_TURNS["schooling-iv-late"], {6, 9}
         )
-        for test_id, (route, supports) in expected.items():
-            with self.subTest(test_id=test_id):
-                reference = (ROOT / "references" / f"{test_id}.md").read_text(
-                    encoding="utf-8"
-                )
-                self.assertIn(route, reference)
-                for support in supports:
-                    if support is not None:
-                        self.assertIn(support, reference)
-                turns = RUNNER.load_cases()[test_id]["turns"]
-                self.assertIn("domain", turns[2]["label"].lower())
-                self.assertEqual(turns[2]["artifacts"]["total"], 0)
-                self.assertIn("Use causal review", turns[3]["prompt"])
-
-        interference = RUNNER.load_cases()["star-interference-saturation"]
-        prompts = "\n".join(turn["prompt"] for turn in interference["turns"])
-        for requirement in (
-            "leave-one-out school exposure map",
-            "randomization of other-pupil exposure",
-            "Do not estimate a separate direct intention-to-treat effect",
-            "Label outcome patterns across saturation as noncausal",
-        ):
-            self.assertIn(requirement, prompts)
         reference = (
-            ROOT / "references" / "star-interference-saturation.md"
+            ROOT / "references" / "schooling-iv-late.md"
         ).read_text(encoding="utf-8")
-        for requirement in (
-            "does not invent classroom or peer ties",
-            "rather than an interference solution",
-            "causal spillover estimates",
-        ):
-            self.assertIn(requirement, reference)
+        self.assertIn("instrumental_variables", reference)
+        turns = RUNNER.load_cases()["schooling-iv-late"]["turns"]
+        self.assertIn("domain", turns[2]["label"].lower())
+        self.assertEqual(turns[2]["artifacts"]["total"], 0)
+        self.assertIn("Use causal review", turns[3]["prompt"])
 
-    def interference_snapshot(
+    def single_analysis_snapshot(
         self,
         status,
         *,
-        route="interference_spillovers",
-        support="policy-making-and-transportability",
-        scope_id="interference-1",
+        route="randomized_assignment",
+        support=None,
+        scope_id="star-analysis-1",
     ):
         return {
             "analysis": {
@@ -763,67 +733,20 @@ class RunnerTests(unittest.TestCase):
                     "scope_revision": 1,
                     "current_status": status,
                     "support": support,
-                    "last_updated": "2026-01-01T00:00:04Z",
+                    "last_updated": "2026-01-01T00:00:07Z",
                 }
             },
             "report": None,
         }
 
-    def test_single_case_approval_requires_the_expected_route(self):
-        ready = self.interference_snapshot("ready")
-        self.assertEqual(
-            RUNNER.next_prompt_blockers(
-                "star-interference-saturation",
-                6,
-                ready,
-                {5: ready},
-                {"counts": {}},
-            ),
-            [],
-        )
-        wrong_route = self.interference_snapshot(
-            "ready", route="randomized_assignment"
-        )
-        blockers = RUNNER.next_prompt_blockers(
-            "star-interference-saturation",
-            6,
-            wrong_route,
-            {5: wrong_route},
-            {"counts": {}},
-        )
-        self.assertIn(
-            "the next approval requires one ready interference_spillovers scope",
-            blockers,
-        )
-
-        wrong_support = self.interference_snapshot("ready", support=None)
-        self.assertEqual(
-            RUNNER.next_prompt_blockers(
-                "star-interference-saturation",
-                6,
-                wrong_support,
-                {5: wrong_support},
-                {"counts": {}},
-            ),
-            [],
-        )
-        errors = RUNNER.check_single_analysis_report_scopes(
-            5,
-            wrong_support,
-            {},
-            "interference_spillovers",
-            ("policy-making-and-transportability",),
-        )
-        self.assertIn(
-            "turn 5 interference_spillovers scope has unsupported support",
-            errors,
-        )
-
     def test_iv_scope_accepts_no_support_or_statistical_validity(self):
         for support in (None, "statistical-validity"):
             with self.subTest(support=support):
-                ready = self.interference_snapshot(
-                    "ready", route="instrumental_variables", support=support
+                ready = self.single_analysis_snapshot(
+                    "ready",
+                    route="instrumental_variables",
+                    support=support,
+                    scope_id="schooling-analysis-1",
                 )
                 self.assertEqual(
                     RUNNER.check_single_analysis_report_scopes(
@@ -846,122 +769,8 @@ class RunnerTests(unittest.TestCase):
                     [],
                 )
 
-    def test_interference_scope_oracle_requires_exact_preservation(self):
-        ready = self.interference_snapshot("ready")
-        completed = self.interference_snapshot("done")
-        history = {}
-        self.assertEqual(
-            RUNNER.check_single_analysis_report_scopes(
-                5,
-                ready,
-                history,
-                "interference_spillovers",
-                ("policy-making-and-transportability",),
-            ),
-            [],
-        )
-        self.assertEqual(
-            RUNNER.check_single_analysis_report_scopes(
-                6,
-                completed,
-                history,
-                "interference_spillovers",
-                ("policy-making-and-transportability",),
-            ),
-            [],
-        )
-        changed = self.interference_snapshot("done", scope_id="interference-2")
-        errors = RUNNER.check_single_analysis_report_scopes(
-            6,
-            changed,
-            {5: ready},
-            "interference_spillovers",
-            ("policy-making-and-transportability",),
-        )
-        self.assertIn("turn 6 must preserve the exact approved analysis scope", errors)
-
-    def test_interference_continuation_accepts_completion_or_infeasibility(self):
-        ready = self.interference_snapshot("ready")
-        reference = ["interference-1", 1]
-        cases = (
-            (
-                self.interference_snapshot("done"),
-                {
-                    "counts": {"analysis_execution": 1},
-                    "usable_scope_refs": {"analysis_execution": [reference]},
-                },
-            ),
-            (
-                self.interference_snapshot("blocked"),
-                {
-                    "counts": {},
-                    "infeasibility_scope_refs": {
-                        "analysis_execution": [reference]
-                    },
-                },
-            ),
-        )
-        for current, evidence in cases:
-            status = next(iter(current["analysis"].values()))["current_status"]
-            with self.subTest(status=status):
-                evidence.update(
-                    {
-                        "intact_routes": {"analysis_execution": True},
-                        "changed_scope_refs": {"analysis_execution": []},
-                    }
-                )
-                self.assertEqual(
-                    RUNNER.next_prompt_blockers(
-                        "star-interference-saturation",
-                        7,
-                        current,
-                        {5: ready, 6: current},
-                        evidence,
-                    ),
-                    [],
-                )
-
-        changed_support = self.interference_snapshot("done", support=None)
-        self.assertTrue(
-            RUNNER.next_prompt_blockers(
-                "star-interference-saturation",
-                7,
-                changed_support,
-                {5: ready, 6: changed_support},
-                {
-                    "counts": {"analysis_execution": 1},
-                    "usable_scope_refs": {
-                        "analysis_execution": [["interference-1", 1]]
-                    },
-                    "intact_routes": {"analysis_execution": True},
-                    "changed_scope_refs": {"analysis_execution": []},
-                },
-            )
-        )
-
-    def open_analysis_snapshot(
-        self,
-        status,
-        *,
-        route="longitudinal_gmethods",
-        support="statistical-validity",
-        scope_id="productivity-1",
-    ):
-        return {
-            "analysis": {
-                route: {
-                    "scope_id": scope_id,
-                    "scope_revision": 1,
-                    "current_status": status,
-                    "support": support,
-                    "last_updated": "2026-01-01T00:00:07Z",
-                }
-            },
-            "report": None,
-        }
-
-    def test_open_consultation_registry_leaves_method_choice_open(self):
-        test_id = "productivity-open-consultation"
+    def test_star_open_registry_leaves_method_choice_open(self):
+        test_id = "star-interference-saturation"
         case = RUNNER.load_cases()[test_id]
         turns = case["turns"]
         self.assertEqual(len(turns), 12)
@@ -971,11 +780,11 @@ class RunnerTests(unittest.TestCase):
             (7, 8, 10, 11, 12),
         )
         self.assertNotIn(test_id, RUNNER.SINGLE_ANALYSIS_REPORT_CASES)
-        self.assertEqual(case["data"]["rows"], 816)
-        self.assertIn("region", case["data"]["required_columns"])
+        self.assertEqual(case["data"]["rows"], 5748)
+        self.assertIn("schidkn", case["data"]["required_columns"])
         self.assertEqual(
             [turn["artifacts"].get("new") for turn in turns],
-            [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0],
+            [0, None, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0],
         )
         self.assertEqual(
             [turn["artifacts"]["analysis_execution"] for turn in turns],
@@ -1007,24 +816,27 @@ class RunnerTests(unittest.TestCase):
             "statistical-validity",
         ):
             self.assertNotIn(route, prompts)
-        reference = (ROOT / "references" / f"{test_id}.md").read_text(
-            encoding="utf-8"
-        )
-        self.assertIn("no hidden correct estimator", reference)
+        self.assertIn("know very little about causal inference", prompts)
+        self.assertIn("ordinary language", prompts)
+        reference = (
+            ROOT / "references" / "star-interference-saturation.md"
+        ).read_text(encoding="utf-8")
+        self.assertIn("no hidden correct target", reference)
         self.assertIn("any controller-valid route", reference)
+        self.assertIn("novice", reference)
 
-    def test_open_consultation_scope_lifecycle_accepts_any_route(self):
+    def test_star_open_scope_lifecycle_accepts_selected_route(self):
         lifecycle = RUNNER.ANALYSIS_REPORT_LIFECYCLES[
-            "productivity-open-consultation"
+            "star-interference-saturation"
         ]
         empty = {"analysis": {}, "report": None}
-        ready = self.open_analysis_snapshot("ready")
-        done = self.open_analysis_snapshot("done")
+        ready = self.single_analysis_snapshot("ready")
+        done = self.single_analysis_snapshot("done")
         report_ready = self.report_snapshot(
-            done, "productivity-report-1", 1, "ready", "2026-01-01T00:00:10Z"
+            done, "star-report-1", 1, "ready", "2026-01-01T00:00:10Z"
         )
         report_done = self.report_snapshot(
-            done, "productivity-report-1", 1, "done", "2026-01-01T00:00:11Z"
+            done, "star-report-1", 1, "done", "2026-01-01T00:00:11Z"
         )
         sequence = {
             **{turn: deepcopy(empty) for turn in range(1, 7)},
@@ -1040,16 +852,22 @@ class RunnerTests(unittest.TestCase):
             with self.subTest(turn=turn):
                 self.assertEqual(
                     RUNNER.check_single_analysis_report_scopes(
-                        turn,
-                        snapshot,
-                        history,
-                        None,
-                        None,
-                        lifecycle,
+                        turn, snapshot, history, None, None, lifecycle
                     ),
                     [],
                 )
 
+        alternate = self.single_analysis_snapshot(
+            "ready",
+            route="descriptive_association",
+            support="statistical-validity",
+        )
+        self.assertEqual(
+            RUNNER.check_single_analysis_report_scopes(
+                7, alternate, {}, None, None, lifecycle
+            ),
+            [],
+        )
         unexpected = {
             "analysis": {},
             "report": None,
@@ -1062,12 +880,11 @@ class RunnerTests(unittest.TestCase):
             RUNNER.check_single_analysis_report_scopes(
                 1, unexpected, {}, None, None, lifecycle
             ),
-
         )
         multiple = deepcopy(ready)
         multiple["analysis"]["descriptive_association"] = {
             **next(iter(ready["analysis"].values())),
-            "scope_id": "productivity-2",
+            "scope_id": "star-analysis-2",
         }
         self.assertIn(
             "turn 7 must contain exactly one analysis scope",
@@ -1075,11 +892,10 @@ class RunnerTests(unittest.TestCase):
                 7, multiple, {}, None, None, lifecycle
             ),
         )
-
         for changed in (
-            self.open_analysis_snapshot("done", route="descriptive_association"),
-            self.open_analysis_snapshot("done", support=None),
-            self.open_analysis_snapshot("done", scope_id="productivity-2"),
+            self.single_analysis_snapshot("done", route="descriptive_association"),
+            self.single_analysis_snapshot("done", support="statistical-validity"),
+            self.single_analysis_snapshot("done", scope_id="star-analysis-2"),
         ):
             with self.subTest(changed=changed):
                 errors = RUNNER.check_single_analysis_report_scopes(
@@ -1090,20 +906,20 @@ class RunnerTests(unittest.TestCase):
                     errors,
                 )
 
-    def test_open_consultation_continues_after_completion_or_infeasibility(self):
-        test_id = "productivity-open-consultation"
-        ready = self.open_analysis_snapshot("ready")
-        reference = ["productivity-1", 1]
+    def test_star_open_continues_after_completion_or_infeasibility(self):
+        test_id = "star-interference-saturation"
+        ready = self.single_analysis_snapshot("ready")
+        reference = ["star-analysis-1", 1]
         cases = (
             (
-                self.open_analysis_snapshot("done"),
+                self.single_analysis_snapshot("done"),
                 {
                     "counts": {"analysis_execution": 1},
                     "usable_scope_refs": {"analysis_execution": [reference]},
                 },
             ),
             (
-                self.open_analysis_snapshot("blocked"),
+                self.single_analysis_snapshot("blocked"),
                 {
                     "counts": {},
                     "infeasibility_scope_refs": {
@@ -1119,25 +935,23 @@ class RunnerTests(unittest.TestCase):
                     "changed_scope_refs": {"analysis_execution": []},
                 }
             )
-            with self.subTest(status=next(iter(current["analysis"].values()))["current_status"]):
+            status = next(iter(current["analysis"].values()))["current_status"]
+            with self.subTest(status=status):
                 self.assertEqual(
                     RUNNER.next_prompt_blockers(
-                        test_id,
-                        9,
-                        current,
-                        {7: ready, 8: current},
-                        evidence,
+                        test_id, 9, current, {7: ready, 8: current}, evidence
                     ),
                     [],
                 )
 
+        done = self.single_analysis_snapshot("done")
         self.assertIn(
             "the next step requires the exact analysis completion or valid infeasibility evidence",
             RUNNER.next_prompt_blockers(
                 test_id,
                 9,
-                self.open_analysis_snapshot("done"),
-                {7: ready, 8: self.open_analysis_snapshot("done")},
+                done,
+                {7: ready, 8: done},
                 {
                     "counts": {},
                     "intact_routes": {"analysis_execution": True},
@@ -1146,14 +960,14 @@ class RunnerTests(unittest.TestCase):
             ),
         )
 
-    def test_open_consultation_report_gates_use_the_selected_evidence(self):
-        test_id = "productivity-open-consultation"
-        ready = self.open_analysis_snapshot("ready")
-        done = self.open_analysis_snapshot("done")
+    def test_star_open_report_gates_use_selected_evidence(self):
+        test_id = "star-interference-saturation"
+        ready = self.single_analysis_snapshot("ready")
+        done = self.single_analysis_snapshot("done")
         report_ready = self.report_snapshot(
-            done, "productivity-report-1", 1, "ready", "2026-01-01T00:00:10Z"
+            done, "star-report-1", 1, "ready", "2026-01-01T00:00:10Z"
         )
-        analysis_reference = ["productivity-1", 1]
+        analysis_reference = ["star-analysis-1", 1]
         analysis_evidence = {
             "counts": {"analysis_execution": 1},
             "usable_scope_refs": {"analysis_execution": [analysis_reference]},
@@ -1179,14 +993,13 @@ class RunnerTests(unittest.TestCase):
                 test_id, 11, done, {**history, 10: done}, analysis_evidence
             ),
         )
-
         report_done = self.report_snapshot(
-            done, "productivity-report-1", 1, "done", "2026-01-01T00:00:11Z"
+            done, "star-report-1", 1, "done", "2026-01-01T00:00:11Z"
         )
         complete_evidence = deepcopy(analysis_evidence)
         complete_evidence["counts"]["report_writer"] = 1
         complete_evidence["usable_scope_refs"]["report_writer"] = [
-            ["productivity-report-1", 1]
+            ["star-report-1", 1]
         ]
         self.assertEqual(
             RUNNER.next_prompt_blockers(
@@ -1198,7 +1011,6 @@ class RunnerTests(unittest.TestCase):
             ),
             [],
         )
-        missing_report = deepcopy(analysis_evidence)
         self.assertIn(
             "the final synthesis requires the exact report completion or valid infeasibility evidence",
             RUNNER.next_prompt_blockers(
@@ -1206,9 +1018,10 @@ class RunnerTests(unittest.TestCase):
                 12,
                 report_done,
                 {**history, 11: report_done},
-                missing_report,
+                deepcopy(analysis_evidence),
             ),
         )
+
     def test_observational_registry_allows_only_optional_audit_artifacts(self):
         turns = RUNNER.load_cases()["college-observational-policy"]["turns"]
         for turn in turns[2:4]:
@@ -1230,7 +1043,6 @@ class RunnerTests(unittest.TestCase):
                 "5a373ac7af1bc13caae0e08bc3e7230fac28eb5be265132372f5bc5ffe65806c",
                 "0613304257a0722d776cfaac3b2d9fae513e32969395f7b312ed6303db8a7b27",
                 "23a5bf9cd485e660f7d7c8af1c10ff8efdad84d36302f35ab056e12a7f98afbf",
-                "06efcab49def5f8120190bdfedc0883da1acad0c46c7e4651e6378ffead87ca9",
             },
         )
 

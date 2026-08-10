@@ -11,8 +11,9 @@ for the stated decision. Separate three kinds of findings:
   is represented as completed when only an unapproved or infeasible attempt
   exists.
 - A **material workflow failure** changes the evidence, claim, or decision:
-  the wrong design or support route is used, a required scope item is omitted or
-  materially substituted, an output does not support its stated claim, or a
+  a design or support route conflicts with a fixed case requirement or the
+  approved scope, a required scope item is omitted or materially substituted, an
+  output does not support its stated claim, or a
   causal boundary is crossed. Continue the replay when its next prompt still has
   trustworthy prerequisites, but rate the completed case `fail`.
 - A **minor issue** is visible but decision-equivalent, such as awkward wording,
