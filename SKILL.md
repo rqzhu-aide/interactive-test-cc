@@ -5,10 +5,11 @@ description: Run reproducible multi-turn regression tests for the causal-consult
 
 # Interactive causal-consultant tests
 
-Version: `5.3.2`
+Version: `6.0.1`
 
-Choose one explicit case and load its case reference plus the shared
-[`evaluation guide`](references/evaluation-guide.md):
+Choose one explicit case. The runner uses its registered prompts and saves the
+case reference plus the shared [`evaluation guide`](references/evaluation-guide.md)
+with the result:
 
 | Test ID | Reference | Main route coverage |
 |---|---|---|
@@ -53,30 +54,54 @@ operation recovery belongs to the controller's deterministic tests.
 
 The response shell requires `[> Framing]`, `[! Boundary]`, and
 `[? Next Steps]` once and in that order. `[+ Consultant Options]` is required
-during manual review only when the user must choose among two or more materially
-different legal next operations. Do not fail a response because another
-conceivable action was not offered.
+during qualitative review only when the user must choose among two or more
+materially different legal next operations. Do not fail a response because
+another conceivable action was not offered.
 
 ## Evaluate a completed run
 
-All four cases require manual review. Read the saved case reference, shared
-evaluation guide, conversation, state snapshots, manifests, receipts, code, and
-outputs. Judge actual contract fidelity rather than treating a receipt as proof,
-and distinguish decision-impacting failures from minor, decision-equivalent
-defects.
+All four cases require one qualitative review. Start with `summary.md` and
+`evaluation-dossier.md`. The dossier contains the case rules, shared guide,
+complete conversation, deterministic transition results, each new manifest and
+receipt once, frozen scope contracts when exposed by the controller, and
+readable artifact evidence. The runner has already checked
+session and project continuity, controller state, scope identity, artifact
+binding, hashes, and HTML references. Do not repeat those mechanical checks when
+they pass. Open a raw saved file only when the dossier flags a problem or leaves
+a semantic checkpoint unresolved.
 
-Save a brief assessment file inside the results directory, then finalize:
+Judge actual contract fulfillment, causal boundaries, decision usefulness, and
+the materiality of defects. Save one structured assessment inside the results
+directory:
+
+```json
+{
+  "schema_version": 1,
+  "summary": "Compact overall assessment.",
+  "findings": [
+    {
+      "severity": "minor",
+      "checkpoint": "Case checkpoint or approved scope item",
+      "description": "Specific defect and its effect on use."
+    }
+  ]
+}
+```
+
+Use an empty `findings` list when no defect warrants correction. The script
+derives `pass`, `weak`, or `fail` from the highest finding severity, so the
+rating cannot conflict with the recorded findings. Then finalize:
 
 ```bash
 python3 <skill-root>/scripts/run_all_turns.py \
   --assess-results <results-directory> \
-  --rating <pass|weak|fail> \
-  --notes-file <results-directory>/<assessment-notes>.md
+  --assessment-file <results-directory>/assessment.json
 ```
 
-An automated failure remains visible and cannot be overridden by the manual
+An automated failure remains visible and cannot be overridden by the qualitative
 rating. Finalization verifies that saved review evidence has not changed. Report
-the final result, not the automated result alone.
+the final result, not the automated result alone. Historical result folders may
+still use the legacy `--rating` plus `--notes-file` form.
 
 ## Focused transport check
 

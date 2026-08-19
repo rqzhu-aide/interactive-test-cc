@@ -2761,6 +2761,16 @@ class RunnerTests(unittest.TestCase):
 
     def test_summary_records_suite_target_and_runtime_provenance(self):
         record = self.passing_record()
+        record.update(
+            {
+                "cache_creation_input_tokens": 4,
+                "cache_read_input_tokens": 40,
+                "agent_turns": 3,
+                "api_duration_seconds": 1.25,
+                "reported_duration_seconds": 1.5,
+                "cost_usd": 0.125,
+            }
+        )
         target = {
             "test_suite_version": "5.1.1",
             "test_suite_runtime_sha256": "suite123",
@@ -2782,15 +2792,31 @@ class RunnerTests(unittest.TestCase):
             )
             summary = json.loads((results_dir / "summary.json").read_text(encoding="utf-8"))
         self.assertEqual(returned["final_result"]["status"], "pass")
-        self.assertEqual(summary["schema_version"], 2)
+        self.assertEqual(summary["schema_version"], 3)
         self.assertEqual(summary["test_suite"]["version"], "5.1.1")
         self.assertEqual(summary["test_suite"]["runtime_sha256"], "suite123")
         self.assertEqual(summary["test_suite"]["case_sha256"], "case123")
         self.assertEqual(summary["target"]["causal_consultant_version"], "5.1.0")
         self.assertEqual(summary["target"]["statectl_sha256"], "abc123")
         self.assertEqual(summary["target"]["skill_runtime_sha256"], "def456")
-        self.assertEqual(summary["runtime"]["models"], ["claude-opus"])
-        self.assertEqual(summary["runtime"]["fast_mode_states"], ["off"])
+        self.assertNotIn("runtime", summary)
+        self.assertEqual(
+            summary["tokens"],
+            {
+                "input": 10,
+                "cache_creation_input": 4,
+                "cache_read_input": 40,
+                "output": 5,
+                "total": 15,
+                "all_input_and_output": 59,
+            },
+        )
+        self.assertEqual(summary["efficiency"]["consultant_calls"], 1)
+        self.assertEqual(summary["efficiency"]["agent_turns"], 3)
+        self.assertEqual(summary["efficiency"]["api_duration_seconds"], 1.25)
+        self.assertEqual(summary["efficiency"]["reported_duration_seconds"], 1.5)
+        self.assertEqual(summary["efficiency"]["transport_duration_seconds"], 1.5)
+        self.assertEqual(summary["efficiency"]["cost_usd"], 0.125)
         turn_artifacts = summary["turns"][0]["artifacts"]
         self.assertEqual(turn_artifacts["manifest_counts"], {})
         self.assertEqual(turn_artifacts["counts"], {})
@@ -2800,6 +2826,620 @@ class RunnerTests(unittest.TestCase):
         self.assertEqual(summary["automated_checks"]["status"], "pass")
         self.assertEqual(summary["workflow_assessment"]["status"], "not_required")
         self.assertEqual(summary["final_result"]["status"], "pass")
+
+    def test_usage_metrics_collects_efficiency_without_accepting_invalid_values(self):
+        response = {
+            "usage": {
+                "input_tokens": 11,
+                "cache_creation_input_tokens": 7,
+                "cache_read_input_tokens": 101,
+                "output_tokens": 13,
+            },
+            "num_turns": 5,
+            "duration_api_ms": 2250,
+            "duration_ms": 3000,
+            "total_cost_usd": 0.75,
+        }
+        self.assertEqual(
+            RUNNER.usage_metrics(response),
+            {
+                "input_tokens": 11,
+                "cache_creation_input_tokens": 7,
+                "cache_read_input_tokens": 101,
+                "output_tokens": 13,
+                "agent_turns": 5,
+                "api_duration_seconds": 2.25,
+                "reported_duration_seconds": 3.0,
+                "cost_usd": 0.75,
+            },
+        )
+        invalid = RUNNER.usage_metrics(
+            {
+                "usage": {
+                    "input_tokens": True,
+                    "cache_creation_input_tokens": -1,
+                    "cache_read_input_tokens": "4",
+                    "output_tokens": None,
+                },
+                "num_turns": -3,
+                "duration_api_ms": False,
+                "duration_ms": -2,
+                "total_cost_usd": "1.0",
+            }
+        )
+        self.assertEqual(invalid, {key: 0 for key in invalid})
+
+    def test_summary_compacts_controller_payload_without_losing_boundary_identity(self):
+        record = self.passing_record()
+        record["state"] = {
+            "ok": True,
+            "errors": [],
+            "diagnostics": ["diagnostic retained"],
+            "validator": {
+                "code": "VALID",
+                "project_id": "project-1",
+                "revision": 9,
+                "warnings": ["historical artifact unavailable"],
+                "pending_decision": {
+                    "decision_id": "decision-1",
+                    "options": [
+                        {"id": "option-1", "label": "First"},
+                        {"id": "option-2", "label": "Second"},
+                    ],
+                },
+                "response_receipt": {
+                    "operation_id": "operation-1",
+                    "revision": 9,
+                    "response_markdown": "large duplicated assistant response",
+                },
+                "scope_snapshot": {"analysis": {}, "report": None},
+            },
+        }
+        summary = RUNNER.build_summary(
+            "smoke", 1, [record], None, self.summary_target()
+        )
+        state = summary["turns"][0]["state_protocol"]
+        self.assertEqual(state["project_id"], "project-1")
+        self.assertEqual(state["revision"], 9)
+        self.assertEqual(state["diagnostics"], ["diagnostic retained"])
+        self.assertEqual(
+            state["pending_decision"],
+            {"decision_id": "decision-1", "option_count": 2},
+        )
+        self.assertEqual(
+            state["response_receipt"],
+            {"operation_id": "operation-1", "revision": 9},
+        )
+        serialized = json.dumps(state)
+        self.assertNotIn("validator", state)
+        self.assertNotIn("large duplicated assistant response", serialized)
+        self.assertNotIn("scope_snapshot", serialized)
+        self.assertNotIn("option-1", serialized)
+
+    def test_evaluation_dossier_deduplicates_scopes_and_indexes_semantic_evidence(self):
+        first = self.passing_record()
+        first["state"]["validator"] = {
+            "revision": 2,
+            "scope_snapshot": {
+                "analysis": {
+                    "propensity_score": {
+                        "scope_id": "analysis-1",
+                        "scope_revision": 1,
+                        "current_status": "ready",
+                        "support": None,
+                        "last_updated": "2026-01-01T00:00:00Z",
+                    }
+                },
+                "report": None,
+            },
+            "pending_decision": {
+                "decision_id": "decision-secret",
+                "options": [{"label": "private option text"}],
+            },
+            "response_receipt": {"response_markdown": "duplicated receipt text"},
+        }
+        first["artifacts"].update(
+            {
+                "new_count": 1,
+                "new_manifests": [
+                    {
+                        "path": "output/analysis/artifact-manifest.json",
+                        "route": "analysis_execution",
+                        "scope_ref": {
+                            "kind": "analysis",
+                            "id": "analysis-1",
+                            "revision": 1,
+                        },
+                        "artifact_role": "completion",
+                        "execution_receipt": {
+                            "completed_requirements": ["primary estimate"],
+                            "unmet_requirements": [],
+                            "supplemental_work": [],
+                            "evidence_files": ["output/analysis/result.txt"],
+                        },
+                        "files": [
+                            "output/analysis/code.py",
+                            "output/analysis/result.txt",
+                        ],
+                    }
+                ],
+            }
+        )
+        second = deepcopy(first)
+        second.update(
+            {
+                "turn": 2,
+                "label": "Continuation",
+                "prompt": "Continue.",
+                "response": "[> Framing]\nFrame 2.\n[! Boundary]\nBoundary.\n[? Next Steps]\nNext.",
+            }
+        )
+        second["state"]["validator"]["revision"] = 4
+        second["state"]["validator"]["scope_snapshot"]["analysis"][
+            "propensity_score"
+        ]["last_updated"] = "2026-01-01T00:01:00Z"
+        second["artifacts"]["new_count"] = 0
+        second["artifacts"]["new_manifests"] = []
+
+        with TemporaryDirectory() as temporary:
+            results_dir = Path(temporary)
+            (results_dir / "playground" / "output" / "analysis").mkdir(
+                parents=True
+            )
+            (results_dir / "test-reference.md").write_text(
+                "# Case\nJudge the workflow.\n", encoding="utf-8"
+            )
+            (results_dir / "evaluation-guide.md").write_text(
+                "# Guide\nApply semantic checkpoints.\n", encoding="utf-8"
+            )
+            RUNNER.write_conversation(results_dir, [first, second])
+            (results_dir / "playground" / "output" / "analysis" / "result.txt").write_text(
+                "Estimated effect: 2.0 with a bounded causal interpretation.\n",
+                encoding="utf-8",
+            )
+            (results_dir / "playground" / "output" / "analysis" / "code.py").write_text(
+                "print('reproducible analysis')\n",
+                encoding="utf-8",
+            )
+            (results_dir / "playground" / "output" / "analysis" / "unlisted.txt").write_text(
+                "UNLISTED FORENSIC FILE SHOULD NOT BE INLINED\n",
+                encoding="utf-8",
+            )
+            dossier = RUNNER.render_evaluation_dossier(
+                results_dir, "college-observational-policy", [first, second]
+            )
+
+        scope_section = dossier.split("## Scope transitions", 1)[1].split(
+            "## Artifact manifests and receipts", 1
+        )[0]
+        self.assertIn("### Turn 1", scope_section)
+        self.assertNotIn("### Turn 2", scope_section)
+        self.assertNotIn("last_updated", scope_section)
+        self.assertIn("primary estimate", dossier)
+        self.assertIn("Estimated effect: 2.0", dossier)
+        self.assertLess(
+            dossier.index("### `output/analysis/result.txt`"),
+            dossier.index("### `output/analysis/code.py`"),
+        )
+        self.assertIn("## Conversation", dossier)
+        self.assertNotIn("duplicated receipt text", dossier)
+        self.assertNotIn("private option text", dossier)
+        self.assertNotIn("decision-secret", dossier)
+        self.assertNotIn("UNLISTED FORENSIC FILE SHOULD NOT BE INLINED", dossier)
+        self.assertNotIn("claude-opus", dossier)
+
+    def test_dossier_scope_transition_omits_repeated_discovery_contract(self):
+        snapshot = {
+            "analysis": {},
+            "report": None,
+            "discovery": {
+                "scope_id": "discovery-1",
+                "scope_revision": 1,
+                "status": "scoped",
+                "execution_contract": self.discovery_contract(),
+                "last_updated": "2026-01-01T00:00:00Z",
+            },
+        }
+        stable = RUNNER.stable_scope_snapshot(snapshot)
+        self.assertEqual(
+            stable["discovery"],
+            {
+                "scope_id": "discovery-1",
+                "scope_revision": 1,
+                "status": "scoped",
+            },
+        )
+
+    def test_evaluation_dossier_indexes_large_text_without_inlining_it(self):
+        record = self.passing_record()
+        record["state"]["validator"] = {
+            "revision": 2,
+            "scope_snapshot": {"analysis": {}, "report": None},
+            "pending_decision": None,
+            "response_receipt": None,
+        }
+        record["artifacts"].update(
+            {
+                "new_count": 1,
+                "new_manifests": [
+                    {
+                        "path": "output/analysis/artifact-manifest.json",
+                        "route": "analysis_execution",
+                        "files": ["output/analysis/large.txt"],
+                    }
+                ],
+            }
+        )
+        marker = "CONTENT_MARKER_THAT_MUST_NOT_BE_INLINED"
+        with TemporaryDirectory() as temporary:
+            results_dir = Path(temporary)
+            output_dir = results_dir / "playground" / "output" / "analysis"
+            output_dir.mkdir(parents=True)
+            (results_dir / "test-reference.md").write_text("Case.\n", encoding="utf-8")
+            (results_dir / "evaluation-guide.md").write_text("Guide.\n", encoding="utf-8")
+            RUNNER.write_conversation(results_dir, [record])
+            (output_dir / "large.txt").write_text(
+                marker + ("x" * RUNNER.DOSSIER_INLINE_FILE_BYTES),
+                encoding="utf-8",
+            )
+            dossier = RUNNER.render_evaluation_dossier(
+                results_dir, "college-observational-policy", [record]
+            )
+        self.assertIn("exceeds the dossier inline budget", dossier)
+        self.assertNotIn(marker, dossier)
+
+    def test_review_contract_capture_is_optional_and_identity_bound(self):
+        requested = [
+            {
+                "kind": "analysis",
+                "route": "propensity_score",
+                "id": "analysis-1",
+                "revision": 1,
+            },
+            {"kind": "report", "id": "report-1", "revision": 1},
+            {"kind": "discovery", "id": "discovery-1", "revision": 1},
+        ]
+        with patch.object(RUNNER, "run_json") as run_json:
+            self.assertIsNone(
+                RUNNER.capture_review_contracts(
+                    Path("statectl.cjs"),
+                    "node",
+                    Path("work"),
+                    "project-1",
+                    9,
+                    {},
+                    requested,
+                    7,
+                )
+            )
+            run_json.assert_not_called()
+
+        payload = {
+            "ok": True,
+            "project_id": "project-1",
+            "revision": 9,
+            "turn_context": {
+                "audience": "router",
+                "state": {
+                    "analysis_execution": {
+                        "propensity_score": {
+                            "scope_id": "analysis-1",
+                            "scope_revision": 1,
+                            "support": "overlap-and-weighting",
+                            "execution_contract": {"target": "ATE"},
+                            "summary": "post-execution summary must be excluded",
+                        },
+                        "unused": {"scope_id": None},
+                    },
+                    "report": {
+                        "assembly": {
+                            "scope_id": "report-1",
+                            "scope_revision": 1,
+                            "current_format": "html",
+                            "report_goal": "Decision report",
+                            "audience": "Policy team",
+                            "target_section": "Full report",
+                            "planned_structure": ["Decision"],
+                            "key_points": ["Evidence"],
+                            "wording_constraints": ["Plain language"],
+                            "draft_notes": ["post-execution note must be excluded"],
+                        }
+                    },
+                    "core_status": {
+                        "causal_discovery": {
+                            "sidecar": {
+                                "scope_id": "discovery-1",
+                                "scope_revision": 1,
+                                "execution_contract": {"claim_boundary": "candidate_only"},
+                                "findings": ["post-execution finding must be excluded"],
+                            }
+                        },
+                        "causal_check": {
+                            "facts": {
+                                "causal_checked": "checked",
+                                "analysis_readiness": "ready",
+                                "causal_question": "Does treatment affect outcome?",
+                                "exposure_or_intervention": "Treatment",
+                                "outcome": "Outcome",
+                                "estimand": "ATE",
+                                "assumptions": ["Exchangeability"],
+                                "threats": ["Residual confounding"],
+                                "support_status": "adequate",
+                                "recommended_checks": ["Balance"],
+                                "recommended_method_routes": ["propensity_score"],
+                                "last_updated": "excluded",
+                            }
+                        },
+                    },
+                    "project_summary": {"excluded": True},
+                },
+            },
+        }
+        with patch.object(RUNNER, "run_json", return_value=(0, payload, "")):
+            captured = RUNNER.capture_review_contracts(
+                Path("statectl.cjs"),
+                "node",
+                Path("work"),
+                "project-1",
+                9,
+                {"turn_context": 1},
+                requested,
+                7,
+            )
+        self.assertEqual(
+            set(captured),
+            {
+                "captured_after_turn",
+                "scope_contracts",
+                "causal_review",
+                "missing_scope_refs",
+            },
+        )
+        self.assertEqual(len(captured["scope_contracts"]), 3)
+        serialized = json.dumps(captured)
+        self.assertNotIn("post-execution", serialized)
+        self.assertNotIn("last_updated", serialized)
+        self.assertIn("Residual confounding", serialized)
+        self.assertIn('"current_format": "html"', serialized)
+
+        unbound_format = deepcopy(payload)
+        unbound_format["turn_context"]["state"]["report"]["assembly"][
+            "current_format"
+        ] = None
+        with patch.object(RUNNER, "run_json", return_value=(0, unbound_format, "")):
+            report_only = RUNNER.capture_review_contracts(
+                Path("statectl.cjs"),
+                "node",
+                Path("work"),
+                "project-1",
+                9,
+                {"turn_context": 1},
+                [{"kind": "report", "id": "report-1", "revision": 1}],
+                7,
+            )
+        self.assertNotIn("current_format", report_only["scope_contracts"][0])
+
+        changed = deepcopy(payload)
+        changed["revision"] = 10
+        with patch.object(RUNNER, "run_json", return_value=(0, changed, "")):
+            mismatch = RUNNER.capture_review_contracts(
+                Path("statectl.cjs"),
+                "node",
+                Path("work"),
+                "project-1",
+                9,
+                {"turn_context": 1},
+                requested,
+                7,
+            )
+        self.assertIn("unavailable", mismatch)
+
+    def test_review_contract_capture_preserves_replaced_scopes_and_deduplicates_causal_facts(self):
+        accumulated = {
+            "scope_contracts": [],
+            "causal_review_snapshots": [],
+            "unavailable": [],
+        }
+        causal = {"analysis_readiness": "ready", "threats": ["Attrition"]}
+        first = {
+            "captured_after_turn": 9,
+            "scope_contracts": [
+                {
+                    "kind": "report",
+                    "id": "completed-report",
+                    "revision": 1,
+                    "report_goal": "Completed HTML report",
+                }
+            ],
+            "causal_review": causal,
+            "missing_scope_refs": [],
+        }
+        replacement = {
+            "captured_after_turn": 13,
+            "scope_contracts": [
+                {
+                    "kind": "report",
+                    "id": "derivative-report",
+                    "revision": 1,
+                    "report_goal": "New derivative scope",
+                }
+            ],
+            "causal_review": deepcopy(causal),
+            "missing_scope_refs": [],
+        }
+        RUNNER.merge_review_contract_capture(accumulated, first)
+        RUNNER.merge_review_contract_capture(accumulated, replacement)
+        self.assertEqual(
+            [item["id"] for item in accumulated["scope_contracts"]],
+            ["completed-report", "derivative-report"],
+        )
+        self.assertEqual(len(accumulated["causal_review_snapshots"]), 1)
+
+    def test_structured_assessment_derives_rating_from_finding_severity(self):
+        cases = (
+            ([], "pass"),
+            (
+                [
+                    {
+                        "severity": "minor",
+                        "checkpoint": "novice clarity",
+                        "description": "One label should be explained.",
+                    }
+                ],
+                "weak",
+            ),
+            (
+                [
+                    {
+                        "severity": "material",
+                        "checkpoint": "claim boundary",
+                        "description": "The recommendation exceeds the evidence.",
+                    }
+                ],
+                "fail",
+            ),
+            (
+                [
+                    {
+                        "severity": "fundamental",
+                        "checkpoint": "workflow",
+                        "description": "The requested analysis was never performed.",
+                    }
+                ],
+                "fail",
+            ),
+        )
+        for findings, expected in cases:
+            with self.subTest(expected=expected), TemporaryDirectory() as temporary:
+                path = Path(temporary) / "assessment.json"
+                path.write_text(
+                    json.dumps(
+                        {
+                            "schema_version": 1,
+                            "summary": "Qualitative review complete.",
+                            "findings": findings,
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+                _, summary, counts, rating = RUNNER.load_structured_assessment(path)
+                self.assertEqual(summary, "Qualitative review complete.")
+                self.assertEqual(rating, expected)
+                self.assertEqual(sum(counts.values()), len(findings))
+
+    def test_structured_assessment_rejects_uncontrolled_or_empty_findings(self):
+        invalid = (
+            {
+                "schema_version": True,
+                "summary": "Reviewed.",
+                "findings": [],
+            },
+            {
+                "schema_version": 1,
+                "summary": "Reviewed.",
+                "findings": [
+                    {
+                        "severity": "warning",
+                        "checkpoint": "clarity",
+                        "description": "Issue.",
+                    }
+                ],
+            },
+            {
+                "schema_version": 1,
+                "summary": "Reviewed.",
+                "findings": [
+                    {
+                        "severity": "minor",
+                        "checkpoint": " ",
+                        "description": "Issue.",
+                    }
+                ],
+            },
+            {
+                "schema_version": 1,
+                "summary": "Reviewed.",
+                "findings": [],
+                "rating": "pass",
+            },
+        )
+        for assessment in invalid:
+            with self.subTest(assessment=assessment), TemporaryDirectory() as temporary:
+                path = Path(temporary) / "assessment.json"
+                path.write_text(json.dumps(assessment), encoding="utf-8")
+                with self.assertRaises(RUNNER.RunError):
+                    RUNNER.load_structured_assessment(path)
+
+    def test_structured_assessment_finalizes_summary_with_script_derived_rating(self):
+        summary = RUNNER.build_summary(
+            "college-observational-policy",
+            1,
+            [self.passing_record()],
+            None,
+            self.summary_target(),
+        )
+        with TemporaryDirectory() as temporary:
+            results_dir = Path(temporary).resolve()
+            self.write_assessable_summary(results_dir, summary)
+            assessment = results_dir / "workflow-assessment.json"
+            assessment.write_text(
+                json.dumps(
+                    {
+                        "schema_version": 1,
+                        "summary": "One minor usability issue remains.",
+                        "findings": [
+                            {
+                                "severity": "minor",
+                                "checkpoint": "novice clarity",
+                                "description": "A technical term lacks a plain explanation.",
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            final = RUNNER.assess_results(
+                results_dir, assessment_file=assessment
+            )
+            recorded = json.loads(
+                (results_dir / "summary.json").read_text(encoding="utf-8")
+            )
+        self.assertEqual(final, "weak")
+        workflow = recorded["workflow_assessment"]
+        self.assertEqual(workflow["status"], "complete")
+        self.assertEqual(workflow["method"], "structured_qualitative")
+        self.assertEqual(workflow["rating"], "weak")
+        self.assertEqual(workflow["finding_counts"]["minor"], 1)
+        self.assertEqual(recorded["final_result"]["status"], "weak")
+
+    def test_structured_assessment_cannot_override_automated_failure(self):
+        failed = self.passing_record()
+        failed["shell"] = {"ok": False, "errors": ["missing heading"]}
+        summary = RUNNER.build_summary(
+            "college-observational-policy",
+            1,
+            [failed],
+            None,
+            self.summary_target(),
+        )
+        with TemporaryDirectory() as temporary:
+            results_dir = Path(temporary).resolve()
+            self.write_assessable_summary(results_dir, summary)
+            assessment = results_dir / "workflow-assessment.json"
+            assessment.write_text(
+                json.dumps(
+                    {
+                        "schema_version": 1,
+                        "summary": "No qualitative defect found.",
+                        "findings": [],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            final = RUNNER.assess_results(
+                results_dir, assessment_file=assessment
+            )
+        self.assertEqual(final, "fail")
 
     def test_diagnostic_only_summary_remains_passing(self):
         record = self.passing_record()
@@ -2840,6 +3480,7 @@ class RunnerTests(unittest.TestCase):
             None,
             self.summary_target(),
         )
+        summary["schema_version"] = 2
         with TemporaryDirectory() as temporary:
             results_dir = Path(temporary).resolve()
             self.write_assessable_summary(results_dir, summary)
@@ -2863,6 +3504,7 @@ class RunnerTests(unittest.TestCase):
         )
         self.assertEqual(recorded["final_result"]["status"], "pass")
         self.assertIn("Final result: **PASS**", markdown)
+        self.assertNotIn("Evaluation dossier:", markdown)
 
     def test_assessment_rejects_invalid_rating(self):
         summary = RUNNER.build_summary(

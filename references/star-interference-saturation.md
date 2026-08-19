@@ -35,7 +35,7 @@ classroom or peer ties or treat an undocumented school-level exposure as
 randomized. A descriptive analysis is acceptable when its noncausal boundary is
 explicit.
 
-Manual review should check that a causal-inference novice can understand the
+Qualitative review should check that a causal-inference novice can understand the
 comparison, result or unmet requirement, uncertainty, assumptions, limits, and
 recommended action. Define unavoidable technical terms, but do not require
 specific jargon or a Consultant Options menu when the consultant can responsibly
