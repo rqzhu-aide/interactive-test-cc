@@ -1,11 +1,11 @@
 ---
 name: interactive-test-cc
-description: Run reproducible multi-turn regression tests for the causal-consultant skill. Use for the College observational-policy, College discovery-handoff, open STAR consultation, or Schooling IV-LATE case, including exact-session execution, controller validation, artifact checks, and result capture.
+description: Run reproducible multi-turn regression tests for the causal-consultant skill. Use for the College observational-policy, College discovery-handoff, open STAR consultation, or Schooling IV-LATE case, including exact outer-session execution, controller validation, artifact checks, and result capture.
 ---
 
 # Interactive causal-consultant tests
 
-Version: `6.0.1`
+Version: `6.1.0`
 
 Choose one explicit case. The runner uses its registered prompts and saves the
 case reference plus the shared [`evaluation guide`](references/evaluation-guide.md)
@@ -40,7 +40,7 @@ python3 <skill-root>/scripts/run_all_turns.py \
   --statectl <Claude-visible-causal-consultant-root>/scripts/statectl.cjs
 ```
 
-The runner owns exact session resumption, response-shell checks, strict idle-state
+The runner owns exact outer-session resumption, response-shell checks, strict idle-state
 validation, scope transitions, manifest and receipt integrity, immutable artifact
 snapshots, HTML links, and input and runtime provenance. It accepts legacy
 schema-1 completion manifests and current schema-2 completion or infeasibility
@@ -62,13 +62,21 @@ another conceivable action was not offered.
 
 All four cases require one qualitative review. Start with `summary.md` and
 `evaluation-dossier.md`. The dossier contains the case rules, shared guide,
-complete conversation, deterministic transition results, each new manifest and
-receipt once, frozen scope contracts when exposed by the controller, and
-readable artifact evidence. The runner has already checked
-session and project continuity, controller state, scope identity, artifact
-binding, hashes, and HTML references. Do not repeat those mechanical checks when
-they pass. Open a raw saved file only when the dossier flags a problem or leaves
-a semantic checkpoint unresolved.
+complete user-facing conversation, deterministic transition results, each new
+manifest and receipt once, frozen scope contracts when exposed by the controller,
+and readable artifact evidence. The runner has already checked outer-session and
+project continuity, controller state, scope identity, artifact binding, hashes,
+and HTML references. Do not repeat those mechanical checks when they pass. Open a
+raw saved file only when the dossier flags a problem or leaves a semantic
+checkpoint unresolved.
+
+Internal router, worker, and team-lead phases may use fresh contexts while the
+outer user conversation remains one resumed session. Phase capsules and
+`.statectl-tmp/phase-context.json` are temporary transport, not review evidence;
+their absence after closeout is expected. Treat phase isolation as unobserved
+unless direct trace evidence establishes it. Transport-reported agent turns,
+tokens, API time, and cost are descriptive efficiency telemetry, not correctness
+criteria or counts of the registered user turns.
 
 Judge actual contract fulfillment, causal boundaries, decision usefulness, and
 the materiality of defects. Save one structured assessment inside the results

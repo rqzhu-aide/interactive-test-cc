@@ -2,12 +2,19 @@
 
 Use this guide with the selected case reference after a registered run completes.
 
-Start from the generated evaluation dossier. Treat passing checks for session
-continuity, controller closure, scope identity, manifest and receipt structure,
-file hashes, and HTML references as mechanically established. Reopen raw
-evidence only when the dossier reports a failure or a semantic question cannot
+Start from the generated evaluation dossier. Treat passing checks for outer-session
+and project continuity, controller closure, scope identity, manifest and receipt
+structure, file hashes, and HTML references as mechanically established. Reopen
+raw evidence only when the dossier reports a failure or a semantic question cannot
 be resolved from its transcript and artifact excerpts. Do not grade the runtime
 provider or fast-mode setting.
+
+Internal router, worker, and team-lead phases may use fresh contexts. Their phase
+capsules and `.statectl-tmp/phase-context.json` are temporary transport, not
+qualitative evidence. Absence of internal trace evidence means phase isolation was
+not observed, not that it failed. Record a protocol issue only when direct evidence
+establishes one. Treat transport-reported agent turns, tokens, API time, and cost as
+descriptive efficiency telemetry rather than correctness criteria or user turns.
 
 For HTML, the dossier supplies readable visible text while the runner checks
 links and file integrity. Open the saved HTML in a renderer only when layout,

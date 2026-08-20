@@ -133,7 +133,10 @@ def main():
 
     turns = response.get("num_turns", "?")
     duration = response.get("duration_ms", 0) / 1000
-    print(f"[send_one] completed: {turns} agent turns, {duration:.1f}s", file=sys.stderr)
+    print(
+        f"[send_one] completed: {turns} transport-reported agent turns, {duration:.1f}s",
+        file=sys.stderr,
+    )
     return 0
 
 

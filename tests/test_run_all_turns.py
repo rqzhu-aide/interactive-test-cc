@@ -2778,6 +2778,10 @@ class RunnerTests(unittest.TestCase):
             "causal_consultant_version": "5.1.0",
             "statectl_sha256": "abc123",
             "skill_runtime_sha256": "def456",
+            "controller_capabilities": {
+                "phase_capsule": 1,
+                "begin_artifact_reservation": 1,
+            },
             "input_data": None,
         }
         with TemporaryDirectory() as temporary:
@@ -2791,6 +2795,7 @@ class RunnerTests(unittest.TestCase):
                 target,
             )
             summary = json.loads((results_dir / "summary.json").read_text(encoding="utf-8"))
+            summary_markdown = (results_dir / "summary.md").read_text(encoding="utf-8")
         self.assertEqual(returned["final_result"]["status"], "pass")
         self.assertEqual(summary["schema_version"], 3)
         self.assertEqual(summary["test_suite"]["version"], "5.1.1")
@@ -2799,6 +2804,10 @@ class RunnerTests(unittest.TestCase):
         self.assertEqual(summary["target"]["causal_consultant_version"], "5.1.0")
         self.assertEqual(summary["target"]["statectl_sha256"], "abc123")
         self.assertEqual(summary["target"]["skill_runtime_sha256"], "def456")
+        self.assertEqual(
+            summary["target"]["controller_capabilities"],
+            {"phase_capsule": 1, "begin_artifact_reservation": 1},
+        )
         self.assertNotIn("runtime", summary)
         self.assertEqual(
             summary["tokens"],
@@ -2817,6 +2826,10 @@ class RunnerTests(unittest.TestCase):
         self.assertEqual(summary["efficiency"]["reported_duration_seconds"], 1.5)
         self.assertEqual(summary["efficiency"]["transport_duration_seconds"], 1.5)
         self.assertEqual(summary["efficiency"]["cost_usd"], 0.125)
+        self.assertIn("outer call attempts: 1", summary_markdown)
+        self.assertIn("transport-reported agent turns: 3", summary_markdown)
+        self.assertIn("Transport-reported turns", summary_markdown)
+        self.assertNotIn("consultant calls", summary_markdown)
         turn_artifacts = summary["turns"][0]["artifacts"]
         self.assertEqual(turn_artifacts["manifest_counts"], {})
         self.assertEqual(turn_artifacts["counts"], {})

@@ -1,6 +1,6 @@
 # interactive-test-cc
 
-[![Version](https://img.shields.io/badge/version-6.0.1-blue.svg)]()
+[![Version](https://img.shields.io/badge/version-6.1.0-blue.svg)]()
 
 Four reproducible, multi-turn regression tests for `causal-consultant`:
 
@@ -13,21 +13,25 @@ Four reproducible, multi-turn regression tests for `causal-consultant`:
 - `schooling-iv-late`: IV diagnostics, weak-IV inference, LATE boundaries,
   and a report
 
-The runner resumes one exact Claude Code session and validates the response
+The runner resumes one exact outer Claude Code session and validates the response
 shell, idle controller state, scope identity, artifact roles, schema-1 and
 schema-2 manifests, execution receipts, immutable files, HTML references, and
 run provenance after every turn. It continues past nonblocking findings when
 the next registered prompt still has trustworthy prerequisites.
 
+The outer session preserves the user conversation. Internal router, worker, and
+team-lead phases may use fresh contexts without changing that continuity.
+Temporary phase capsules are transport, not evaluation evidence.
+
 After replay, the runner creates `evaluation-dossier.md`. This compact review
-input combines the case rules, transcript, scope transitions, manifests,
-receipts, frozen scope contracts, and readable artifact evidence while
-preserving all raw files for targeted drill-down. Mechanical checks stay in
+input combines the case rules, user-facing transcript, scope transitions,
+manifests, receipts, frozen scope contracts, and readable artifact evidence while
+preserving saved raw review evidence for targeted drill-down. Mechanical checks stay in
 code; one structured qualitative review handles contract fidelity, causal
-boundaries, usability, and defect severity. The summary also reports internal
-agent turns, API time, cache use,
-and reported cost.
-Registered prompts, turn counts, and exact-session replay are unchanged.
+boundaries, usability, and defect severity. The summary also reports
+transport-reported agent turns, API time, cache use, and reported cost. These are
+descriptive efficiency metrics, not correctness criteria.
+Registered prompts, turn counts, and exact outer-session replay are unchanged.
 
 ```bash
 python3 scripts/run_all_turns.py \
