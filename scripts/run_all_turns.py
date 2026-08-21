@@ -44,7 +44,8 @@ MANIFEST_BASE_KEYS = {
     "completed_at",
     "summary",
 }
-MANIFEST_V2_KEYS = {"artifact_role", "execution_receipt"}
+MANIFEST_RECEIPT_KEYS = {"artifact_role", "execution_receipt"}
+MANIFEST_REQUIREMENTS_KEYS = {"requirements"}
 ARTIFACT_ROLES = ("completion", "infeasibility_evidence")
 EXECUTION_RECEIPT_KEYS = {
     "contract_hash",
@@ -53,6 +54,33 @@ EXECUTION_RECEIPT_KEYS = {
     "supplemental_work",
     "evidence_files",
 }
+EXECUTION_RECEIPT_V3_KEYS = {
+    *EXECUTION_RECEIPT_KEYS,
+    "requirement_evidence",
+    "deviations",
+}
+REQUIREMENT_EVIDENCE_KEYS = {"requirement_id", "file", "locator"}
+MANIFEST_REQUIREMENT_KEYS = {"id", "kind", "description"}
+REQUIREMENT_KINDS = {
+    "target",
+    "input_ref",
+    "method_plan",
+    "execution_requirement",
+    "output_type",
+    "claim_boundary",
+    "variable",
+    "constraint",
+    "diagnostic_requirement",
+    "report_goal",
+    "audience",
+    "target_section",
+    "planned_structure",
+    "key_points",
+    "wording_constraints",
+    "current_format",
+}
+MAX_EVIDENCE_LOCATOR_LENGTH = 500
+MAX_RECEIPT_DEVIATIONS = 20
 MANIFEST_OPTIONAL_KEYS = {"discovery_contract"}
 DISCOVERY_CONTRACT_KEYS = {
     "target",
@@ -90,6 +118,7 @@ OPTION_NUMBER_PATTERN = re.compile(r"^\s*(\d+)\.\s+\S")
 VERSION_PATTERN = re.compile(r"^Version: `([^`]+)`$", re.MULTILINE)
 WINDOWS_ABSOLUTE_REFERENCE = re.compile(r"^[A-Za-z]:[\\/]")
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
+REQUIREMENT_ID_PATTERN = re.compile(r"^req-[0-9a-f]{16}$")
 UUID_PATTERN = re.compile(
     r"^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
     re.IGNORECASE,
@@ -467,6 +496,8 @@ def validate_data(path, requirement):
 
 def require_controller_capabilities(test_id, template_result):
     capabilities = template_result.get("capabilities")
+    # Capability values are binary. requirement_evidence distinguishes the
+    # current completion-protocol-2 contract from historical receipt support.
     required = [
         "response_rendering",
         "pending_decision",
@@ -476,6 +507,9 @@ def require_controller_capabilities(test_id, template_result):
         "analysis_contract",
         "completion_protocol",
         "artifact_roles",
+        "analysis_options",
+        "requirement_evidence",
+        "direct_assignment",
     ]
     if test_id == "college-discovery-handoff":
         required.append("discovery_contract")
@@ -611,8 +645,15 @@ def check_response_state(text, validator):
     has_visible_options = len(option_positions) == 1
     pending = validator.get("pending_decision")
     has_pending_decision = pending is not None
+    direct_assignment = (
+        receipt.get("direct_assignment") if isinstance(receipt, dict) else None
+    )
     if has_visible_options and not has_pending_decision:
         errors.append("Consultant Options have no pending_decision")
+    if direct_assignment is not None and has_pending_decision:
+        errors.append("response_receipt cannot bind both a direct assignment and a pending decision")
+    if direct_assignment is not None and has_visible_options:
+        errors.append("a direct assignment cannot accompany visible Consultant Options")
 
     if has_visible_options and isinstance(pending, dict):
         options = pending.get("options")
@@ -672,12 +713,21 @@ def response_matches_approval_receipt(text, validator):
     text = normalize_approval_receipt_text(text)
     if stored == text:
         return True
+    assignments = []
     decision = validator.get("pending_decision")
-    if not isinstance(decision, dict) or not isinstance(decision.get("options"), list):
+    if isinstance(decision, dict) and isinstance(decision.get("options"), list):
+        assignments.extend(
+            option.get("assignment")
+            for option in decision["options"]
+            if isinstance(option, dict)
+        )
+    direct_assignment = receipt.get("direct_assignment")
+    if isinstance(direct_assignment, dict):
+        assignments.append(direct_assignment)
+    if not assignments:
         return False
     allowed_scope_ids = set()
-    for option in decision["options"]:
-        assignment = option.get("assignment") if isinstance(option, dict) else None
+    for assignment in assignments:
         reference = assignment.get("scope_ref") if isinstance(assignment, dict) else None
         scope_id = reference.get("id") if isinstance(reference, dict) else None
         if isinstance(scope_id, str) and UUID_PATTERN.fullmatch(scope_id):
@@ -1903,7 +1953,96 @@ def is_rfc3339_utc(value):
         return False
 
 
-def validate_execution_receipt(receipt, artifact_role, files, label):
+def requirement_id(contract_hash, index, kind, description):
+    serialized = json.dumps(
+        {
+            "contract_hash": contract_hash,
+            "index": index,
+            "kind": kind,
+            "description": description,
+        },
+        ensure_ascii=False,
+        separators=(",", ":"),
+    )
+    return f"req-{hashlib.sha256(serialized.encode('utf-8')).hexdigest()[:16]}"
+
+
+def validate_manifest_requirements(requirements, contract_hash, label):
+    errors = []
+    if not isinstance(requirements, list):
+        return [], [f"{label}: requirements must be a list"]
+    if contract_hash is None and requirements:
+        errors.append(
+            f"{label}: requirements must be empty when execution_receipt is null"
+        )
+
+    requirement_ids = []
+    for index, item in enumerate(requirements):
+        item_label = f"{label}: requirements[{index}]"
+        if not isinstance(item, dict):
+            errors.append(f"{item_label} must be an object")
+            continue
+        missing = sorted(MANIFEST_REQUIREMENT_KEYS - set(item))
+        unknown = sorted(set(item) - MANIFEST_REQUIREMENT_KEYS)
+        if missing:
+            errors.append(f"{item_label} is missing: {', '.join(missing)}")
+        if unknown:
+            errors.append(f"{item_label} has unknown fields: {', '.join(unknown)}")
+
+        canonical = {}
+        for field in ("id", "kind", "description"):
+            value = item.get(field)
+            if (
+                not isinstance(value, str)
+                or not value.strip()
+                or value != value.strip()
+            ):
+                errors.append(
+                    f"{item_label}.{field} must be a canonical nonempty string"
+                )
+            else:
+                canonical[field] = value
+
+        requirement_value = canonical.get("id")
+        if requirement_value is not None:
+            if not REQUIREMENT_ID_PATTERN.fullmatch(requirement_value):
+                errors.append(
+                    f"{item_label}.id must be a canonical requirement ID"
+                )
+            else:
+                requirement_ids.append(requirement_value)
+        kind = canonical.get("kind")
+        if kind is not None and kind not in REQUIREMENT_KINDS:
+            errors.append(f"{item_label}.kind is not a supported requirement kind")
+        if (
+            isinstance(contract_hash, str)
+            and SHA256_PATTERN.fullmatch(contract_hash)
+            and set(canonical) == MANIFEST_REQUIREMENT_KEYS
+        ):
+            expected = requirement_id(
+                contract_hash,
+                index,
+                canonical["kind"],
+                canonical["description"],
+            )
+            if canonical["id"] != expected:
+                errors.append(
+                    f"{item_label}.id does not match its contract, order, kind, and description"
+                )
+
+    if len(set(requirement_ids)) != len(requirement_ids):
+        errors.append(f"{label}: requirements must not contain duplicate requirement IDs")
+    return requirement_ids, errors
+
+
+def validate_execution_receipt(
+    receipt,
+    artifact_role,
+    files,
+    label,
+    schema_version=2,
+    manifest_requirement_ids=None,
+):
     errors = []
     if receipt is None:
         if artifact_role == "infeasibility_evidence":
@@ -1912,8 +2051,11 @@ def validate_execution_receipt(receipt, artifact_role, files, label):
     if not isinstance(receipt, dict):
         return [f"{label}: execution_receipt must be an object or null"]
 
-    missing = sorted(EXECUTION_RECEIPT_KEYS - set(receipt))
-    unknown = sorted(set(receipt) - EXECUTION_RECEIPT_KEYS)
+    receipt_keys = (
+        EXECUTION_RECEIPT_V3_KEYS if schema_version == 3 else EXECUTION_RECEIPT_KEYS
+    )
+    missing = sorted(receipt_keys - set(receipt))
+    unknown = sorted(set(receipt) - receipt_keys)
     if missing:
         errors.append(
             f"{label}: execution_receipt is missing: {', '.join(missing)}"
@@ -1992,6 +2134,122 @@ def validate_execution_receipt(receipt, artifact_role, files, label):
             errors.append(
                 f"{label}: execution_receipt evidence file is not listed in the manifest ({item})"
             )
+
+    if schema_version == 3:
+        required_ids = set(manifest_requirement_ids or [])
+        receipt_ids = completed | unmet
+        if not receipt_ids.issubset(required_ids):
+            errors.append(
+                f"{label}: receipt requirement IDs must belong to manifest requirements"
+            )
+        if artifact_role == "completion" and completed != required_ids:
+            errors.append(
+                f"{label}: completion must account for every manifest requirement as completed"
+            )
+        if (
+            artifact_role == "infeasibility_evidence"
+            and receipt_ids != required_ids
+        ):
+            errors.append(
+                f"{label}: infeasibility evidence must fully account for manifest requirements"
+            )
+
+        requirement_evidence = receipt.get("requirement_evidence")
+        mapped_ids = []
+        if not isinstance(requirement_evidence, list):
+            errors.append(
+                f"{label}: execution_receipt.requirement_evidence must be a list"
+            )
+            requirement_evidence = []
+        for index, item in enumerate(requirement_evidence):
+            item_label = f"{label}: execution_receipt.requirement_evidence[{index}]"
+            if not isinstance(item, dict):
+                errors.append(f"{item_label} must be an object")
+                continue
+            item_missing = sorted(REQUIREMENT_EVIDENCE_KEYS - set(item))
+            item_unknown = sorted(set(item) - REQUIREMENT_EVIDENCE_KEYS)
+            if item_missing:
+                errors.append(f"{item_label} is missing: {', '.join(item_missing)}")
+            if item_unknown:
+                errors.append(
+                    f"{item_label} has unknown fields: {', '.join(item_unknown)}"
+                )
+            requirement_id = item.get("requirement_id")
+            if (
+                not isinstance(requirement_id, str)
+                or not requirement_id.strip()
+                or requirement_id != requirement_id.strip()
+            ):
+                errors.append(f"{item_label}.requirement_id must be a canonical nonempty string")
+            else:
+                mapped_ids.append(requirement_id)
+            evidence_file = item.get("file")
+            if (
+                not isinstance(evidence_file, str)
+                or not evidence_file.strip()
+                or evidence_file != evidence_file.strip()
+                or evidence_file != evidence_file.replace("\\", "/")
+                or posixpath.normpath(evidence_file) != evidence_file
+                or not evidence_file.startswith("output/")
+                or WINDOWS_ABSOLUTE_REFERENCE.match(evidence_file)
+            ):
+                errors.append(f"{item_label}.file must be a canonical output path")
+            else:
+                if evidence_file not in evidence_files:
+                    errors.append(
+                        f"{item_label}.file must also appear in execution_receipt.evidence_files"
+                    )
+                if evidence_file not in manifest_files:
+                    errors.append(f"{item_label}.file is not listed in the manifest")
+            locator = item.get("locator")
+            if (
+                not isinstance(locator, str)
+                or not locator.strip()
+                or locator != locator.strip()
+                or "\n" in locator
+                or "\r" in locator
+                or len(locator) > MAX_EVIDENCE_LOCATOR_LENGTH
+            ):
+                errors.append(
+                    f"{item_label}.locator must be a canonical single line of at most "
+                    f"{MAX_EVIDENCE_LOCATOR_LENGTH} characters"
+                )
+        if len(set(mapped_ids)) != len(mapped_ids):
+            errors.append(
+                f"{label}: execution_receipt.requirement_evidence must not contain duplicate requirement IDs"
+            )
+        if set(mapped_ids) != completed or len(mapped_ids) != len(completed):
+            errors.append(
+                f"{label}: requirement_evidence must contain exactly one entry per completed requirement"
+            )
+
+        deviations = receipt.get("deviations")
+        if not isinstance(deviations, list):
+            errors.append(f"{label}: execution_receipt.deviations must be a string list")
+            deviations = []
+        if len(deviations) > MAX_RECEIPT_DEVIATIONS:
+            errors.append(
+                f"{label}: execution_receipt.deviations may contain at most "
+                f"{MAX_RECEIPT_DEVIATIONS} items"
+            )
+        valid_deviations = []
+        for index, item in enumerate(deviations):
+            if (
+                not isinstance(item, str)
+                or not item.strip()
+                or item != item.strip()
+                or "\n" in item
+                or "\r" in item
+                or len(item) > MAX_EVIDENCE_LOCATOR_LENGTH
+            ):
+                errors.append(
+                    f"{label}: execution_receipt.deviations[{index}] must be a canonical "
+                    f"single line of at most {MAX_EVIDENCE_LOCATOR_LENGTH} characters"
+                )
+                continue
+            valid_deviations.append(item)
+        if len(set(valid_deviations)) != len(valid_deviations):
+            errors.append(f"{label}: execution_receipt.deviations must not contain duplicates")
     return errors
 
 
@@ -2266,14 +2524,26 @@ def inspect_artifacts(workdir, expected, previous=None):
             artifact_role = "completion"
             execution_receipt = None
         elif schema_version == 2:
-            required_keys = MANIFEST_BASE_KEYS | MANIFEST_V2_KEYS
+            required_keys = MANIFEST_BASE_KEYS | MANIFEST_RECEIPT_KEYS
+            allowed_keys = required_keys | MANIFEST_OPTIONAL_KEYS
+            artifact_role = manifest.get("artifact_role")
+            execution_receipt = manifest.get("execution_receipt")
+        elif schema_version == 3:
+            required_keys = (
+                MANIFEST_BASE_KEYS
+                | MANIFEST_RECEIPT_KEYS
+                | MANIFEST_REQUIREMENTS_KEYS
+            )
             allowed_keys = required_keys | MANIFEST_OPTIONAL_KEYS
             artifact_role = manifest.get("artifact_role")
             execution_receipt = manifest.get("execution_receipt")
         else:
             required_keys = MANIFEST_BASE_KEYS
             allowed_keys = (
-                MANIFEST_BASE_KEYS | MANIFEST_V2_KEYS | MANIFEST_OPTIONAL_KEYS
+                MANIFEST_BASE_KEYS
+                | MANIFEST_RECEIPT_KEYS
+                | MANIFEST_REQUIREMENTS_KEYS
+                | MANIFEST_OPTIONAL_KEYS
             )
             artifact_role = manifest.get("artifact_role")
             execution_receipt = manifest.get("execution_receipt")
@@ -2356,7 +2626,7 @@ def inspect_artifacts(workdir, expected, previous=None):
             and execution_receipt is None
         ):
             errors.append(
-                f"{relative}: scoped schema-2 artifact requires an execution_receipt"
+                f"{relative}: scoped schema-{schema_version} artifact requires an execution_receipt"
             )
         discovery_contract = manifest.get("discovery_contract")
         if route == "causal_discovery":
@@ -2377,9 +2647,30 @@ def inspect_artifacts(workdir, expected, previous=None):
         ):
             errors.append(f"{relative}: files must be a nonempty string list")
             files = []
+        manifest_requirement_ids = []
+        if schema_version == 3:
+            if execution_receipt is None:
+                receipt_contract_hash = None
+            elif isinstance(execution_receipt, dict):
+                receipt_contract_hash = execution_receipt.get("contract_hash", "")
+            else:
+                receipt_contract_hash = ""
+            manifest_requirement_ids, requirement_errors = (
+                validate_manifest_requirements(
+                    manifest.get("requirements"),
+                    receipt_contract_hash,
+                    relative,
+                )
+            )
+            errors.extend(requirement_errors)
         errors.extend(
             validate_execution_receipt(
-                execution_receipt, artifact_role, files, relative
+                execution_receipt,
+                artifact_role,
+                files,
+                relative,
+                schema_version,
+                manifest_requirement_ids,
             )
         )
         resolved_files = []
@@ -2482,6 +2773,8 @@ def inspect_artifacts(workdir, expected, previous=None):
             "files": resolved_files,
             "valid": manifest_valid,
         }
+        if schema_version == 3:
+            manifest_entry["requirements"] = manifest.get("requirements")
         manifests.append(manifest_entry)
         if (
             route in ("causal_discovery", "analysis_execution", "report_writer")
@@ -2796,6 +3089,11 @@ def compact_state_check(state):
         else {
             "operation_id": receipt.get("operation_id") if isinstance(receipt, dict) else None,
             "revision": receipt.get("revision") if isinstance(receipt, dict) else None,
+            **(
+                {"direct_assignment": receipt.get("direct_assignment")}
+                if isinstance(receipt, dict) and "direct_assignment" in receipt
+                else {}
+            ),
         }
     )
     return compact
@@ -3419,6 +3717,7 @@ def capture_review_contracts(
                 "support_status",
                 "recommended_checks",
                 "recommended_method_routes",
+                "analysis_options",
             )
         }
         if isinstance(causal, dict)
@@ -3544,8 +3843,8 @@ def render_evaluation_dossier(results_dir, test_id, records, review_contracts=No
         "",
         "## Deterministic turn results",
         "",
-        "| Turn | Revision | Shell | State | Scope | Artifacts | Pending choices | New artifacts |",
-        "|---:|---:|---|---|---|---|---:|---:|",
+        "| Turn | Revision | Shell | State | Scope | Artifacts | Approval binding | New artifacts |",
+        "|---:|---:|---|---|---|---|---|---:|",
     ]
     failures = []
     diagnostics = []
@@ -3559,6 +3858,17 @@ def render_evaluation_dossier(results_dir, test_id, records, review_contracts=No
             if isinstance(pending, dict) and isinstance(pending.get("options"), list)
             else 0
         )
+        receipt = validator.get("response_receipt") if isinstance(validator, dict) else None
+        direct_assignment = (
+            receipt.get("direct_assignment") if isinstance(receipt, dict) else None
+        )
+        approval_binding = (
+            "direct"
+            if isinstance(direct_assignment, dict)
+            else f"menu ({option_count})"
+            if option_count
+            else "none"
+        )
         artifacts = record.get("artifacts")
         if record.get("failure_reason") and record.get("failure_phase") != "turn_validation":
             failures.append(
@@ -3570,7 +3880,7 @@ def render_evaluation_dossier(results_dir, test_id, records, review_contracts=No
             f"{check_status(record.get('shell')).upper()} | "
             f"{check_status(state).upper()} | "
             f"{check_status(record.get('scope')).upper()} | "
-            f"{check_status(artifacts).upper()} | {option_count} | "
+            f"{check_status(artifacts).upper()} | {approval_binding} | "
             f"{artifacts.get('new_count', 0) if isinstance(artifacts, dict) else 0} |"
         )
         for label, check in (

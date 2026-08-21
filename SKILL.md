@@ -43,8 +43,16 @@ python3 <skill-root>/scripts/run_all_turns.py \
 The runner owns exact outer-session resumption, response-shell checks, strict idle-state
 validation, scope transitions, manifest and receipt integrity, immutable artifact
 snapshots, HTML links, and input and runtime provenance. It accepts legacy
-schema-1 completion manifests and current schema-2 completion or infeasibility
-manifests according to the installed controller's declared capabilities.
+schema-1 completion manifests, historical schema-2 receipt manifests, and current
+schema-3 completion or infeasibility manifests. Current receipts validate
+requirement-level evidence locators and disclosed deviations. Current manifests
+also persist the exact ordered requirement IDs, kinds, and descriptions. The
+runner verifies their contract-bound IDs and full receipt accounting while
+preserving schema-1 and schema-2 result compatibility. Current bound operations
+use completion protocol 2; an in-flight migrated protocol-1 operation may still
+close with its historical schema-2 receipt. A schema-3 completion may use a
+null receipt only for protocol-0 work, including migrated scoped recovery, and
+then its ordered `requirements` must be `[]`.
 
 A diagnostic alone does not stop the replay. Continue from a trustworthy idle
 boundary whenever the next prompt still has its required scope or evidence.
@@ -63,8 +71,11 @@ another conceivable action was not offered.
 All four cases require one qualitative review. Start with `summary.md` and
 `evaluation-dossier.md`. The dossier contains the case rules, shared guide,
 complete user-facing conversation, deterministic transition results, each new
-manifest and receipt once, frozen scope contracts when exposed by the controller,
-and readable artifact evidence. The runner has already checked outer-session and
+manifest and receipt once, frozen scope contracts and causal strategy portfolios
+when exposed by the controller, direct or numbered approval bindings, and readable
+artifact evidence. Schema-3 manifest entries retain their requirement
+descriptions even if the live scope is later revised. The runner has already
+checked outer-session and
 project continuity, controller state, scope identity, artifact binding, hashes,
 and HTML references. Do not repeat those mechanical checks when they pass. Open a
 raw saved file only when the dossier flags a problem or leaves a semantic

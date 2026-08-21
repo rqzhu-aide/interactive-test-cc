@@ -42,10 +42,22 @@ for the stated decision. Separate three kinds of findings:
 For every scoped artifact, compare the approved scope and frozen execution
 contract with the actual code, settings, diagnostics, and rendered outputs. A
 manifest or execution receipt is an index of claimed coverage, not proof. Check
+each schema-3 requirement description against its recorded evidence file and
+locator, then judge whether the cited content actually supports the requirement.
+Use the manifest's ordered requirement IDs, kinds, and descriptions as the
+durable review index when the live scope has since been revised. Treat disclosed
+deviations as review leads, not automatic defects, and check whether their effect
+is represented accurately. Check
 the target and estimand, design and support method, analysis population and
 support rule, required diagnostics and outputs, and claim boundary. Additional
 work is allowed when it stays within route authority and the claim boundary; it
 must not replace a required item silently.
+
+When causal review records an analysis strategy portfolio, judge whether the
+preferred route and any credible alternatives help the user's decision. Each
+alternative should make its requirements, main risk, and conditions for preferring
+it clear. Do not require alternatives when none are materially credible, and do
+not treat a nonpreferred strategy as approval to execute it.
 
 Trace any identification condition that causal review calls necessary or
 unresolved through the approved scope, execution evidence, report, and final

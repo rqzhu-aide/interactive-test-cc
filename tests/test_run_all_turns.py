@@ -168,6 +168,45 @@ class RunnerTests(unittest.TestCase):
         }
         self.assertEqual(RUNNER.check_response_state(response, validator), [])
 
+    def test_response_state_accepts_direct_assignment_and_rejects_dual_binding(self):
+        response = (
+            "[> Framing]\nThe ready analysis can run.\n\n"
+            "[! Boundary]\nNo analysis has run.\n\n"
+            "[? Next Steps]\nApprove this exact analysis."
+        )
+        assignment = {
+            "route": "analysis_execution.propensity_score",
+            "support": "overlap-and-weighting",
+            "scope_ref": {
+                "kind": "analysis",
+                "id": "aaaaaaaa-1111-4111-8111-111111111111",
+                "revision": 1,
+            },
+        }
+        validator = {
+            "response_receipt": {
+                "response_markdown": response,
+                "direct_assignment": assignment,
+            },
+            "pending_decision": None,
+        }
+        self.assertEqual(RUNNER.check_response_state(response, validator), [])
+
+        menu = response.replace(
+            "[! Boundary]",
+            "[+ Consultant Options]\n    1. Run it.\n\n[! Boundary]",
+        )
+        dual = {
+            "response_receipt": {
+                "response_markdown": menu,
+                "direct_assignment": assignment,
+            },
+            "pending_decision": {"options": [{"number": 1}]},
+        }
+        errors = RUNNER.check_response_state(menu, dual)
+        self.assertTrue(any("both a direct assignment" in error for error in errors))
+        self.assertTrue(any("cannot accompany visible" in error for error in errors))
+
     def test_response_state_rejects_missing_receipt_and_diagnoses_mismatch(self):
         response = "Rendered response"
         missing = RUNNER.check_response_state(
@@ -296,6 +335,40 @@ class RunnerTests(unittest.TestCase):
                 approval_receipt_matches=approval_receipt_matches,
             ),
             [],
+        )
+
+    def test_scope_id_omission_does_not_block_bound_direct_approval(self):
+        scope_id = "f91e1e5c-1111-4111-8111-111111111111"
+        receipt = (
+            "[> Framing]\nThe current report scope `f91e1e5c` is ready.\n"
+            "[! Boundary]\nNo report was generated.\n"
+            "[? Next Steps]\nApprove this exact report."
+        )
+        delivered = receipt.replace("scope `f91e1e5c` is", "scope is")
+        validator = {
+            "response_receipt": {
+                "response_markdown": receipt,
+                "direct_assignment": {
+                    "route": "report_writer",
+                    "support": None,
+                    "scope_ref": {
+                        "kind": "report",
+                        "id": scope_id,
+                        "revision": 1,
+                    },
+                },
+            },
+            "pending_decision": None,
+        }
+        self.assertTrue(
+            RUNNER.response_matches_approval_receipt(delivered, validator)
+        )
+        stale = deepcopy(validator)
+        stale["response_receipt"]["direct_assignment"]["scope_ref"]["id"] = (
+            "aaaaaaaa-1111-4111-8111-111111111111"
+        )
+        self.assertFalse(
+            RUNNER.response_matches_approval_receipt(delivered, stale)
         )
 
     def test_scope_id_exception_rejects_multiple_omissions(self):
@@ -597,6 +670,9 @@ class RunnerTests(unittest.TestCase):
             "analysis_contract": 1,
             "completion_protocol": 1,
             "artifact_roles": 1,
+            "analysis_options": 1,
+            "requirement_evidence": 1,
+            "direct_assignment": 1,
         }
         for capability in required:
             capabilities = dict(required)
@@ -621,6 +697,9 @@ class RunnerTests(unittest.TestCase):
             "analysis_contract": 1,
             "completion_protocol": 1,
             "artifact_roles": 1,
+            "analysis_options": 1,
+            "requirement_evidence": 1,
+            "direct_assignment": 1,
         }
         with self.assertRaisesRegex(RUNNER.RunError, "discovery_contract 1"):
             RUNNER.require_controller_capabilities(
@@ -2129,6 +2208,53 @@ class RunnerTests(unittest.TestCase):
         self.write_artifact_state(workdir, manifest, "output/analysis")
         return reference
 
+    def write_schema3_analysis_artifact(self, workdir, artifact_role):
+        reference = self.write_schema2_analysis_artifact(workdir, artifact_role)
+        manifest_path = workdir / "output" / "analysis" / "artifact-manifest.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        receipt = manifest["execution_receipt"]
+        manifest["schema_version"] = 3
+        requirements = [
+            {
+                "kind": "target",
+                "description": "Estimate the approved causal target",
+            },
+            {
+                "kind": "execution_requirement",
+                "description": "fit approved estimator",
+            },
+        ]
+        manifest["requirements"] = [
+            {
+                "id": RUNNER.requirement_id(
+                    receipt["contract_hash"],
+                    index,
+                    item["kind"],
+                    item["description"],
+                ),
+                **item,
+            }
+            for index, item in enumerate(requirements)
+        ]
+        requirement_ids = [item["id"] for item in manifest["requirements"]]
+        if artifact_role == "completion":
+            receipt["completed_requirements"] = requirement_ids
+            receipt["unmet_requirements"] = []
+        else:
+            receipt["completed_requirements"] = requirement_ids[:1]
+            receipt["unmet_requirements"] = requirement_ids[1:]
+        receipt["requirement_evidence"] = [
+            {
+                "requirement_id": requirement_id,
+                "file": receipt["evidence_files"][0],
+                "locator": "Line 1: execution evidence",
+            }
+            for requirement_id in receipt["completed_requirements"]
+        ]
+        receipt["deviations"] = []
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+        return reference
+
     def write_report_artifact(self, workdir, html_content=""):
         artifact = workdir / "output" / "report"
         artifact.mkdir(parents=True)
@@ -2338,6 +2464,322 @@ class RunnerTests(unittest.TestCase):
                         "analysis_execution", result["usable_scope_refs"]
                     )
 
+    def test_schema3_roles_and_requirement_evidence_are_usable(self):
+        for artifact_role in ("completion", "infeasibility_evidence"):
+            with self.subTest(artifact_role=artifact_role), TemporaryDirectory() as temporary:
+                workdir = Path(temporary)
+                reference = self.write_schema3_analysis_artifact(
+                    workdir, artifact_role
+                )
+                result = RUNNER.inspect_artifacts(
+                    workdir, {"analysis_execution": 1, "new": 1}
+                )
+                self.assertTrue(result["ok"], result["errors"])
+                manifest = result["manifests"][0]
+                self.assertEqual(manifest["schema_version"], 3)
+                self.assertEqual(
+                    manifest["requirements"],
+                    json.loads(
+                        (
+                            workdir
+                            / "output"
+                            / "analysis"
+                            / "artifact-manifest.json"
+                        ).read_text(encoding="utf-8")
+                    )["requirements"],
+                )
+                self.assertEqual(
+                    manifest["execution_receipt"]["deviations"], []
+                )
+                identity = [(reference["id"], reference["revision"])]
+                refs = (
+                    result["usable_scope_refs"]
+                    if artifact_role == "completion"
+                    else result["infeasibility_scope_refs"]
+                )
+                self.assertEqual(refs["analysis_execution"], identity)
+
+    def test_requirement_id_matches_consultant_javascript_serialization(self):
+        self.assertEqual(
+            RUNNER.requirement_id(
+                "0" * 64,
+                0,
+                "target",
+                "Estimate the approved causal target",
+            ),
+            "req-d2d05928171546ea",
+        )
+
+    def test_schema3_unscoped_completion_accepts_null_receipt(self):
+        with TemporaryDirectory() as temporary:
+            workdir = Path(temporary)
+            self.write_data_audit_artifact(workdir)
+            manifest_path = workdir / "output" / "audit" / "artifact-manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest.update(
+                schema_version=3,
+                artifact_role="completion",
+                execution_receipt=None,
+                requirements=[],
+            )
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            result = RUNNER.inspect_artifacts(workdir, {"data_audit": 1, "new": 1})
+            self.assertTrue(result["ok"], result["errors"])
+
+            manifest["requirements"] = [
+                {
+                    "id": "req-0000000000000000",
+                    "kind": "target",
+                    "description": "Unbound requirement",
+                }
+            ]
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            invalid = RUNNER.inspect_artifacts(
+                workdir, {"data_audit": 1, "new": 1}
+            )
+            self.assertFalse(invalid["ok"])
+            self.assertTrue(
+                any(
+                    "requirements must be empty when execution_receipt is null"
+                    in error
+                    for error in invalid["errors"]
+                ),
+                invalid["errors"],
+            )
+
+    def test_schema3_scoped_completion_accepts_null_receipt(self):
+        with TemporaryDirectory() as temporary:
+            workdir = Path(temporary)
+            reference = self.write_schema2_analysis_artifact(
+                workdir, "completion"
+            )
+            manifest_path = workdir / "output" / "analysis" / "artifact-manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest.update(
+                schema_version=3,
+                execution_receipt=None,
+                requirements=[],
+            )
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            result = RUNNER.inspect_artifacts(
+                workdir, {"analysis_execution": 1, "new": 1}
+            )
+            self.assertTrue(result["ok"], result["errors"])
+            self.assertEqual(
+                result["usable_scope_refs"]["analysis_execution"],
+                [(reference["id"], reference["revision"])],
+            )
+
+            manifest["requirements"] = [
+                {
+                    "id": "req-0000000000000000",
+                    "kind": "target",
+                    "description": "Unbound requirement",
+                }
+            ]
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            invalid = RUNNER.inspect_artifacts(
+                workdir, {"analysis_execution": 1, "new": 1}
+            )
+            self.assertFalse(invalid["ok"])
+            self.assertTrue(
+                any(
+                    "requirements must be empty when execution_receipt is null"
+                    in error
+                    for error in invalid["errors"]
+                ),
+                invalid["errors"],
+            )
+
+    def test_schema3_manifest_requirements_are_strict_and_contract_bound(self):
+        cases = (
+            (
+                "missing",
+                lambda manifest: manifest.pop("requirements"),
+                "manifest is missing: requirements",
+            ),
+            (
+                "tampered description",
+                lambda manifest: manifest["requirements"][0].update(
+                    description="A changed target"
+                ),
+                "does not match its contract, order, kind, and description",
+            ),
+            (
+                "reordered",
+                lambda manifest: manifest.update(
+                    requirements=list(reversed(manifest["requirements"]))
+                ),
+                "does not match its contract, order, kind, and description",
+            ),
+            (
+                "extra object field",
+                lambda manifest: manifest["requirements"][0].update(extra=True),
+                "requirements[0] has unknown fields: extra",
+            ),
+            (
+                "duplicate ID",
+                lambda manifest: manifest["requirements"][1].update(
+                    id=manifest["requirements"][0]["id"]
+                ),
+                "requirements must not contain duplicate requirement IDs",
+            ),
+            (
+                "unsupported kind",
+                lambda manifest: manifest["requirements"][0].update(
+                    kind="unsupported"
+                ),
+                "kind is not a supported requirement kind",
+            ),
+        )
+        for label, mutate, message in cases:
+            with self.subTest(label=label), TemporaryDirectory() as temporary:
+                workdir = Path(temporary)
+                self.write_schema3_analysis_artifact(workdir, "completion")
+                manifest_path = (
+                    workdir / "output" / "analysis" / "artifact-manifest.json"
+                )
+                manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+                mutate(manifest)
+                manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+                result = RUNNER.inspect_artifacts(
+                    workdir, {"analysis_execution": 1, "new": 1}
+                )
+                self.assertFalse(result["ok"])
+                self.assertTrue(
+                    any(message in error for error in result["errors"]),
+                    result["errors"],
+                )
+
+    def test_schema3_receipt_rejects_requirement_ids_outside_manifest(self):
+        with TemporaryDirectory() as temporary:
+            workdir = Path(temporary)
+            self.write_schema3_analysis_artifact(workdir, "completion")
+            manifest_path = workdir / "output" / "analysis" / "artifact-manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            unknown = "req-ffffffffffffffff"
+            manifest["execution_receipt"]["completed_requirements"][0] = unknown
+            manifest["execution_receipt"]["requirement_evidence"][0][
+                "requirement_id"
+            ] = unknown
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            result = RUNNER.inspect_artifacts(
+                workdir, {"analysis_execution": 1, "new": 1}
+            )
+            self.assertFalse(result["ok"])
+            self.assertTrue(
+                any(
+                    "receipt requirement IDs must belong to manifest requirements"
+                    in error
+                    for error in result["errors"]
+                ),
+                result["errors"],
+            )
+
+    def test_schema3_receipt_rejects_invalid_evidence_mapping_and_deviations(self):
+        cases = (
+            (
+                "missing mapping",
+                lambda receipt: receipt.pop("requirement_evidence"),
+                "execution_receipt is missing: requirement_evidence",
+            ),
+            (
+                "incomplete mapping",
+                lambda receipt: receipt.update(requirement_evidence=[]),
+                "exactly one entry per completed requirement",
+            ),
+            (
+                "unlisted evidence",
+                lambda receipt: receipt["requirement_evidence"][0].update(
+                    file="output/analysis/unlisted.txt"
+                ),
+                "must also appear in execution_receipt.evidence_files",
+            ),
+            (
+                "multiline locator",
+                lambda receipt: receipt["requirement_evidence"][0].update(
+                    locator="Line 1\nLine 2"
+                ),
+                "locator must be a canonical single line",
+            ),
+            (
+                "missing deviations",
+                lambda receipt: receipt.pop("deviations"),
+                "execution_receipt is missing: deviations",
+            ),
+            (
+                "duplicate deviations",
+                lambda receipt: receipt.update(deviations=["Changed seed", "Changed seed"]),
+                "deviations must not contain duplicates",
+            ),
+        )
+        for label, mutate, message in cases:
+            with self.subTest(label=label), TemporaryDirectory() as temporary:
+                workdir = Path(temporary)
+                self.write_schema3_analysis_artifact(workdir, "completion")
+                manifest_path = (
+                    workdir / "output" / "analysis" / "artifact-manifest.json"
+                )
+                manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+                mutate(manifest["execution_receipt"])
+                manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+                result = RUNNER.inspect_artifacts(
+                    workdir, {"analysis_execution": 1, "new": 1}
+                )
+                self.assertFalse(result["ok"])
+                self.assertTrue(
+                    any(message in error for error in result["errors"]),
+                    result["errors"],
+                )
+
+    def test_schema2_receipt_rejects_schema3_only_fields(self):
+        with TemporaryDirectory() as temporary:
+            workdir = Path(temporary)
+            self.write_schema2_analysis_artifact(workdir, "completion")
+            manifest_path = workdir / "output" / "analysis" / "artifact-manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["execution_receipt"].update(
+                requirement_evidence=[],
+                deviations=[],
+            )
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            result = RUNNER.inspect_artifacts(
+                workdir, {"analysis_execution": 1, "new": 1}
+            )
+            self.assertFalse(result["ok"])
+            self.assertTrue(
+                any("unknown fields" in error for error in result["errors"])
+            )
+
+    def test_schema1_and_schema2_reject_manifest_requirements(self):
+        for schema_version in (1, 2):
+            with self.subTest(schema_version=schema_version), TemporaryDirectory() as temporary:
+                workdir = Path(temporary)
+                if schema_version == 1:
+                    self.write_data_audit_artifact(workdir)
+                    manifest_path = (
+                        workdir / "output" / "audit" / "artifact-manifest.json"
+                    )
+                    expected = {"data_audit": 1, "new": 1}
+                else:
+                    self.write_schema2_analysis_artifact(workdir, "completion")
+                    manifest_path = (
+                        workdir / "output" / "analysis" / "artifact-manifest.json"
+                    )
+                    expected = {"analysis_execution": 1, "new": 1}
+                manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+                manifest["requirements"] = []
+                manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+                result = RUNNER.inspect_artifacts(workdir, expected)
+                self.assertFalse(result["ok"])
+                self.assertTrue(
+                    any(
+                        "manifest has unknown fields: requirements" in error
+                        for error in result["errors"]
+                    ),
+                    result["errors"],
+                )
+
     def test_execution_receipt_enforces_role_semantics(self):
         receipt = {
             "contract_hash": "0" * 64,
@@ -2365,7 +2807,7 @@ class RunnerTests(unittest.TestCase):
 
     def test_artifact_manifest_schema_is_strict(self):
         cases = (
-            ("schema", lambda manifest: manifest.update(schema_version=3), "schema_version"),
+            ("schema", lambda manifest: manifest.update(schema_version=4), "schema_version"),
             ("operation", lambda manifest: manifest.update(operation_id="op-1"), "not a UUID"),
             ("timestamp", lambda manifest: manifest.update(completed_at="12:00:00"), "RFC3339 UTC"),
             ("scope", lambda manifest: manifest.update(scope_ref={"kind": "analysis"}), "must be null"),
@@ -2904,6 +3346,15 @@ class RunnerTests(unittest.TestCase):
                     "operation_id": "operation-1",
                     "revision": 9,
                     "response_markdown": "large duplicated assistant response",
+                    "direct_assignment": {
+                        "route": "report_writer",
+                        "support": None,
+                        "scope_ref": {
+                            "kind": "report",
+                            "id": "aaaaaaaa-1111-4111-8111-111111111111",
+                            "revision": 1,
+                        },
+                    },
                 },
                 "scope_snapshot": {"analysis": {}, "report": None},
             },
@@ -2921,7 +3372,19 @@ class RunnerTests(unittest.TestCase):
         )
         self.assertEqual(
             state["response_receipt"],
-            {"operation_id": "operation-1", "revision": 9},
+            {
+                "operation_id": "operation-1",
+                "revision": 9,
+                "direct_assignment": {
+                    "route": "report_writer",
+                    "support": None,
+                    "scope_ref": {
+                        "kind": "report",
+                        "id": "aaaaaaaa-1111-4111-8111-111111111111",
+                        "revision": 1,
+                    },
+                },
+            },
         )
         serialized = json.dumps(state)
         self.assertNotIn("validator", state)
@@ -2931,6 +3394,19 @@ class RunnerTests(unittest.TestCase):
 
     def test_evaluation_dossier_deduplicates_scopes_and_indexes_semantic_evidence(self):
         first = self.passing_record()
+        contract_hash = "0" * 64
+        requirement = {
+            "id": RUNNER.requirement_id(
+                contract_hash,
+                0,
+                "target",
+                "Original approved primary estimate after later scope revision",
+            ),
+            "kind": "target",
+            "description": (
+                "Original approved primary estimate after later scope revision"
+            ),
+        }
         first["state"]["validator"] = {
             "revision": 2,
             "scope_snapshot": {
@@ -2957,6 +3433,7 @@ class RunnerTests(unittest.TestCase):
                 "new_manifests": [
                     {
                         "path": "output/analysis/artifact-manifest.json",
+                        "schema_version": 3,
                         "route": "analysis_execution",
                         "scope_ref": {
                             "kind": "analysis",
@@ -2964,11 +3441,21 @@ class RunnerTests(unittest.TestCase):
                             "revision": 1,
                         },
                         "artifact_role": "completion",
+                        "requirements": [requirement],
                         "execution_receipt": {
-                            "completed_requirements": ["primary estimate"],
+                            "contract_hash": contract_hash,
+                            "completed_requirements": [requirement["id"]],
                             "unmet_requirements": [],
                             "supplemental_work": [],
                             "evidence_files": ["output/analysis/result.txt"],
+                            "requirement_evidence": [
+                                {
+                                    "requirement_id": requirement["id"],
+                                    "file": "output/analysis/result.txt",
+                                    "locator": "Line 1: estimated effect",
+                                }
+                            ],
+                            "deviations": [],
                         },
                         "files": [
                             "output/analysis/code.py",
@@ -3028,7 +3515,10 @@ class RunnerTests(unittest.TestCase):
         self.assertIn("### Turn 1", scope_section)
         self.assertNotIn("### Turn 2", scope_section)
         self.assertNotIn("last_updated", scope_section)
-        self.assertIn("primary estimate", dossier)
+        self.assertIn(
+            "Original approved primary estimate after later scope revision",
+            dossier,
+        )
         self.assertIn("Estimated effect: 2.0", dossier)
         self.assertLess(
             dossier.index("### `output/analysis/result.txt`"),
@@ -3180,6 +3670,19 @@ class RunnerTests(unittest.TestCase):
                                 "support_status": "adequate",
                                 "recommended_checks": ["Balance"],
                                 "recommended_method_routes": ["propensity_score"],
+                                "analysis_options": [
+                                    {
+                                        "role": "preferred",
+                                        "target": "ATE",
+                                        "approach": "Weight for observed confounders.",
+                                        "design": "propensity_score",
+                                        "support": "overlap-and-weighting",
+                                        "data_work": ["Check overlap"],
+                                        "requirements": ["Measured exchangeability"],
+                                        "main_risk": "Residual confounding",
+                                        "prefer_when": "The causal ATE remains the target.",
+                                    }
+                                ],
                                 "last_updated": "excluded",
                             }
                         },
@@ -3213,6 +3716,7 @@ class RunnerTests(unittest.TestCase):
         self.assertNotIn("post-execution", serialized)
         self.assertNotIn("last_updated", serialized)
         self.assertIn("Residual confounding", serialized)
+        self.assertIn("Weight for observed confounders", serialized)
         self.assertIn('"current_format": "html"', serialized)
 
         unbound_format = deepcopy(payload)
