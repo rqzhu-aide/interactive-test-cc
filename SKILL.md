@@ -5,7 +5,7 @@ description: Run reproducible multi-turn regression tests for the causal-consult
 
 # Interactive causal-consultant tests
 
-Version: `6.1.0`
+Version: `6.1.1`
 
 Choose one explicit case. The runner uses its registered prompts and saves the
 case reference plus the shared [`evaluation guide`](references/evaluation-guide.md)
@@ -126,4 +126,6 @@ still use the legacy `--rating` plus `--notes-file` form.
 
 Use `scripts/send_one.py` directly only for a requested single-turn or transport
 diagnosis. Resume later calls with the exact returned `session_id`, never ambient
-continuation.
+continuation. Invocation modes (one-shot `-p`, ambient `-c -p`, explicit
+`--resume`) are documented in
+[`references/claude-conversation-modes.md`](references/claude-conversation-modes.md).

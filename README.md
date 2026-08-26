@@ -1,6 +1,6 @@
 # interactive-test-cc
 
-[![Version](https://img.shields.io/badge/version-6.1.0-blue.svg)]()
+[![Version](https://img.shields.io/badge/version-6.1.1-blue.svg)]()
 
 Four reproducible, multi-turn regression tests for `causal-consultant`:
 
