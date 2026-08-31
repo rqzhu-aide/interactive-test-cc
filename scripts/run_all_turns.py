@@ -2,6 +2,7 @@
 """Run one registered multi-turn causal-consultant test."""
 
 import argparse
+from contextlib import contextmanager
 import csv
 from datetime import datetime, timezone
 import hashlib
@@ -15,6 +16,7 @@ import re
 import shutil
 import subprocess
 import sys
+from tempfile import TemporaryDirectory
 import time
 from urllib.parse import unquote, urlsplit
 
@@ -28,6 +30,33 @@ TEST_IDS = (
     "star-interference-saturation",
     "schooling-iv-late",
 )
+REPORT_EVIDENCE_BINDING_TESTS = {
+    "college-observational-policy",
+    "star-interference-saturation",
+    "schooling-iv-late",
+}
+EXPECTED_CONTROLLER_CAPABILITIES = {
+    "scope_snapshot": 1,
+    "response_rendering": 1,
+    "pending_decision": 1,
+    "response_receipt": 1,
+    "direct_assignment": 1,
+    "causal_scope_basis": 1,
+    "startup_notice": 1,
+    "discovery_contract": 1,
+    "analysis_contract": 1,
+    "completion_protocol": 1,
+    "artifact_roles": 1,
+    "analysis_options": 1,
+    "requirement_evidence": 1,
+    "turn_context": 1,
+    "required_references": 1,
+    "operation_packet_ref": 1,
+    "phase_capsule": 1,
+    "begin_artifact_reservation": 1,
+    "conditional_references": 1,
+    "report_evidence_binding": 1,
+}
 ARTIFACT_ROUTES = {
     "data_audit",
     "causal_discovery",
@@ -78,6 +107,7 @@ REQUIREMENT_KINDS = {
     "key_points",
     "wording_constraints",
     "current_format",
+    "analysis_artifact_id",
 }
 MAX_EVIDENCE_LOCATOR_LENGTH = 500
 MAX_RECEIPT_DEVIATIONS = 20
@@ -119,6 +149,29 @@ VERSION_PATTERN = re.compile(r"^Version: `([^`]+)`$", re.MULTILINE)
 WINDOWS_ABSOLUTE_REFERENCE = re.compile(r"^[A-Za-z]:[\\/]")
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 REQUIREMENT_ID_PATTERN = re.compile(r"^req-[0-9a-f]{16}$")
+REPORT_PLACEHOLDER_NAMES = {
+    "REPORT_TITLE",
+    "REPORT_SUBTITLE",
+    "GENERATED_AT",
+    "EVIDENCE_STATUS",
+    "CLAIM_BOUNDARY",
+    "TABLE_OF_CONTENTS_HTML",
+    "REPORT_BODY_HTML",
+    "EVIDENCE_SOURCES_HTML",
+    "LIMITATIONS_HTML",
+}
+REPORT_PLACEHOLDER_PATTERN = re.compile(
+    r"\{\{\s*(" + "|".join(sorted(REPORT_PLACEHOLDER_NAMES)) + r")\s*\}\}"
+)
+REPORT_SHELL_ELEMENTS = {
+    "report shell": ("div", "report-shell"),
+    "report header": ("header", "report-header"),
+    "report layout": ("main", "report-layout"),
+    "report body": ("article", "report-body"),
+    "evidence panel": ("section", "evidence-panel"),
+    "limitations panel": ("section", "limitations-panel"),
+    "report footer": ("footer", "report-footer"),
+}
 UUID_PATTERN = re.compile(
     r"^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
     re.IGNORECASE,
@@ -343,14 +396,56 @@ class HtmlLinks(HTMLParser):
         self.ids = set()
         self.duplicate_ids = set()
         self.references = []
+        self.elements = []
+        self.html_langs = []
+        self.images = []
+        self.title_count = 0
+        self.title_depth = 0
+        self.title_text = []
+        self.source_text = ""
 
     def handle_starttag(self, tag, attrs):
-        self._collect(attrs)
+        self._collect(tag, attrs)
 
     def handle_startendtag(self, tag, attrs):
-        self._collect(attrs)
+        self._collect(tag, attrs)
 
-    def _collect(self, attrs):
+    def handle_endtag(self, tag):
+        if tag.lower() == "title" and self.title_depth:
+            self.title_depth -= 1
+
+    def handle_data(self, data):
+        if self.title_depth:
+            self.title_text.append(data)
+
+    def _collect(self, tag, attrs):
+        tag = tag.lower()
+        normalized = {
+            name.lower(): value
+            for name, value in attrs
+            if isinstance(name, str)
+        }
+        classes = {
+            value
+            for value in (normalized.get("class") or "").split()
+            if value
+        }
+        self.elements.append((tag, classes))
+        if tag == "html":
+            self.html_langs.append(normalized.get("lang"))
+        elif tag == "title":
+            self.title_count += 1
+            self.title_depth += 1
+        elif tag == "img":
+            self.images.append(
+                {
+                    "src": normalized.get("src") or "",
+                    "has_alt": any(
+                        isinstance(name, str) and name.lower() == "alt"
+                        for name, _ in attrs
+                    ),
+                }
+            )
         for name, value in attrs:
             if not isinstance(value, str):
                 continue
@@ -373,6 +468,7 @@ def parse_html(path):
         parser.close()
     except Exception as exc:
         return None, f"cannot parse HTML ({exc})"
+    parser.source_text = text
     return parser, None
 
 
@@ -430,7 +526,7 @@ def load_cases():
     return tests
 
 
-def run_json(command, *, cwd=None, timeout=60):
+def run_json(command, *, cwd=None, timeout=60, input_payload=None, env=None):
     try:
         completed = subprocess.run(
             command,
@@ -439,6 +535,12 @@ def run_json(command, *, cwd=None, timeout=60):
             text=True,
             encoding="utf-8",
             errors="replace",
+            input=(
+                json.dumps(input_payload, ensure_ascii=False)
+                if input_payload is not None
+                else None
+            ),
+            env=env,
             timeout=timeout,
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
@@ -513,9 +615,713 @@ def require_controller_capabilities(test_id, template_result):
     ]
     if test_id == "college-discovery-handoff":
         required.append("discovery_contract")
+    if test_id in REPORT_EVIDENCE_BINDING_TESTS:
+        required.append("report_evidence_binding")
     for capability in required:
         if not isinstance(capabilities, dict) or capabilities.get(capability) != 1:
             raise RunError(f"{test_id} requires controller capability {capability} 1")
+
+
+def require_controller_capability_baseline(template_result):
+    capabilities = template_result.get("capabilities")
+    if not isinstance(capabilities, dict):
+        raise RunError("controller capability map is missing")
+    expected_keys = set(EXPECTED_CONTROLLER_CAPABILITIES)
+    actual_keys = set(capabilities)
+    missing = sorted(expected_keys - actual_keys)
+    unexpected = sorted(actual_keys - expected_keys)
+    changed = sorted(
+        key
+        for key in expected_keys & actual_keys
+        if type(capabilities[key]) is not int
+        or capabilities[key] != EXPECTED_CONTROLLER_CAPABILITIES[key]
+    )
+    if not (missing or unexpected or changed):
+        return
+    differences = []
+    if missing:
+        differences.append(f"missing: {', '.join(missing)}")
+    if unexpected:
+        differences.append(f"unexpected: {', '.join(unexpected)}")
+    if changed:
+        differences.append(
+            "changed: "
+            + ", ".join(
+                f"{key}={capabilities[key]!r} "
+                f"(expected {EXPECTED_CONTROLLER_CAPABILITIES[key]!r})"
+                for key in changed
+            )
+        )
+    raise RunError(
+        "controller capability map differs from the committed suite baseline "
+        f"({'; '.join(differences)}); suite outdated vs consultant"
+    )
+
+
+def probe_controller_contract(statectl, node_bin, *, timeout=30):
+    """Exercise one real analysis-to-evidence-bound-report controller lifecycle."""
+    deadline = time.monotonic() + timeout
+    skill_root = statectl.resolve().parent.parent
+    environment = {**os.environ, "STATECTL_SKILL_ROOT": str(skill_root)}
+    operational_codes = {
+        "CONTEXT_FILE_CLEANUP_FAILED",
+        "INJECTED_WRITE_FAILURE",
+        "INTERNAL_ERROR",
+        "IO_ERROR",
+    }
+
+    def remaining_timeout():
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise RunError(
+                "controller contract probe could not complete: overall timeout expired"
+            )
+        return min(10, remaining)
+
+    def outdated(message):
+        raise RunError(
+            f"suite outdated vs consultant: controller contract probe {message}"
+        )
+
+    def require(condition, message):
+        if not condition:
+            outdated(message)
+
+    def identity(result):
+        project_id = result.get("project_id")
+        revision = result.get("revision")
+        require(
+            isinstance(project_id, str)
+            and bool(project_id)
+            and isinstance(revision, int)
+            and not isinstance(revision, bool),
+            "received an invalid project identity or revision",
+        )
+        return {
+            "expected_project_id": project_id,
+            "expected_revision": revision,
+        }
+
+    def presentation(direct_assignment=None):
+        return {
+            "confirmation": "The contract-probe operation is complete.",
+            "framing": "The deterministic compatibility lifecycle can continue.",
+            "options": [],
+            "boundary": "This private probe does not make a substantive causal claim.",
+            "next_steps": (
+                "Execute the exact ready scope."
+                if direct_assignment is not None
+                else "Continue the deterministic compatibility lifecycle."
+            ),
+            "direct_assignment": direct_assignment,
+        }
+
+    @contextmanager
+    def temporary_probe_project():
+        try:
+            with TemporaryDirectory(
+                prefix="interactive-test-cc-contract-probe-"
+            ) as temporary:
+                yield Path(temporary)
+        except OSError as exc:
+            raise RunError(
+                f"controller contract probe could not complete during temporary I/O: {exc}"
+            ) from exc
+
+    with temporary_probe_project() as project_root:
+        data_path = project_root / "data" / "probe.csv"
+        data_path.parent.mkdir()
+        data_path.write_text("treatment,outcome\n0,1\n1,2\n", encoding="utf-8")
+
+        def call(step, action, payload=None, expected_code=None):
+            command = [
+                node_bin,
+                str(statectl),
+                action,
+                "--project-root",
+                str(project_root),
+            ]
+            if payload is not None:
+                command.extend(("--input", "-"))
+            try:
+                code, result, stderr = run_json(
+                    command,
+                    cwd=project_root,
+                    timeout=remaining_timeout(),
+                    input_payload=payload,
+                    env=environment,
+                )
+            except RunError as exc:
+                raise RunError(
+                    f"controller contract probe could not complete at {step}: {exc}"
+                ) from exc
+            if code != 0 or not result.get("ok"):
+                detail = (
+                    result.get("message")
+                    or result.get("code")
+                    or stderr
+                    or f"exit code {code}"
+                )
+                if result.get("code") in operational_codes:
+                    raise RunError(
+                        f"controller contract probe could not complete at {step}: "
+                        f"{result.get('code')} ({detail})"
+                    )
+                outdated(f"lifecycle step {step} was rejected ({detail})")
+            if expected_code is not None and result.get("code") != expected_code:
+                outdated(
+                    f"lifecycle step {step} returned {result.get('code')!r}; "
+                    f"expected {expected_code!r}"
+                )
+            identity(result)
+            return result
+
+        def begin(prior, route, **extras):
+            return call(
+                f"begin {route}",
+                "begin",
+                {
+                    **identity(prior),
+                    "route": route,
+                    "intent_summary": f"Probe the {route} controller contract.",
+                    **extras,
+                },
+                "BEGAN_WORKER",
+            )
+
+        def apply(prior, actor, updates, **extras):
+            return call(
+                f"apply {actor}",
+                "apply",
+                {
+                    **identity(prior),
+                    "operation_id": prior["operation_id"],
+                    "actor": actor,
+                    "updates": updates,
+                    **extras,
+                },
+                "WORKER_APPLIED",
+            )
+
+        def finish(prior, direct_assignment=None):
+            return call(
+                f"finish {prior.get('operation_id', 'operation')}",
+                "finish",
+                {
+                    **identity(prior),
+                    "operation_id": prior["operation_id"],
+                    "updates": {},
+                    "presentation": presentation(direct_assignment),
+                },
+                "OPERATION_FINISHED",
+            )
+
+        def chamber(status, summary, **extras):
+            return {
+                "current_status": status,
+                "summary": summary,
+                "questions_for_user": [],
+                "feedback_to_route": [],
+                **extras,
+            }
+
+        def scope_from(result, kind):
+            context = result.get("turn_context")
+            operation = context.get("operation") if isinstance(context, dict) else None
+            reference = operation.get("scope_ref") if isinstance(operation, dict) else None
+            require(
+                isinstance(reference, dict)
+                and set(reference) == {"kind", "id", "revision"}
+                and reference.get("kind") == kind
+                and isinstance(reference.get("id"), str)
+                and UUID_PATTERN.fullmatch(reference["id"])
+                and isinstance(reference.get("revision"), int)
+                and not isinstance(reference.get("revision"), bool)
+                and reference["revision"] >= 1,
+                f"did not expose a valid {kind} scope reference",
+            )
+            return dict(reference)
+
+        def snapshot_from(result, label):
+            context = result.get("turn_context")
+            snapshot = context.get("scope_snapshot") if isinstance(context, dict) else None
+            normalized, errors = normalize_scope_snapshot(snapshot)
+            require(not errors, f"{label} scope snapshot was rejected ({'; '.join(errors)})")
+            return snapshot, normalized
+
+        def artifact_path(result):
+            relative = result.get("temporary_path")
+            require(
+                isinstance(relative, str)
+                and bool(relative)
+                and "\\" not in relative
+                and not Path(relative).is_absolute()
+                and not WINDOWS_ABSOLUTE_REFERENCE.match(relative),
+                "returned an invalid temporary artifact path",
+            )
+            target = (project_root / Path(*relative.split("/"))).resolve()
+            require(
+                is_within(target, project_root),
+                "returned a temporary artifact path outside the probe project",
+            )
+            return target
+
+        def receipt_for(result):
+            packet = result.get("operation_packet")
+            requirements = packet.get("requirements") if isinstance(packet, dict) else None
+            contract_hash = packet.get("contract_hash") if isinstance(packet, dict) else None
+            intent = result.get("artifact_intent")
+            location = intent.get("location") if isinstance(intent, dict) else None
+            require(
+                isinstance(requirements, list)
+                and bool(requirements)
+                and all(
+                    isinstance(item, dict)
+                    and isinstance(item.get("id"), str)
+                    and item["id"]
+                    for item in requirements
+                )
+                and isinstance(contract_hash, str)
+                and SHA256_PATTERN.fullmatch(contract_hash)
+                and isinstance(location, str)
+                and location.startswith("output/"),
+                "returned an invalid scoped operation packet or artifact intent",
+            )
+            requirement_ids = [item["id"] for item in requirements]
+            return {
+                "contract_hash": contract_hash,
+                "completed_requirements": requirement_ids,
+                "unmet_requirements": [],
+                "supplemental_work": [],
+                "evidence_files": [location],
+                "requirement_evidence": [
+                    {
+                        "requirement_id": requirement_id,
+                        "file": location,
+                        "locator": "Contract probe deliverable",
+                    }
+                    for requirement_id in requirement_ids
+                ],
+                "deviations": [],
+            }
+
+        current = call("open", "open", expected_code="CREATED")
+
+        prerequisite_updates = (
+            (
+                "data_audit",
+                {
+                    "data_facts": {
+                        "data_checked": "passing",
+                        "data_sources": ["data/probe.csv"],
+                        "audit_scope": "Contract probe",
+                        "unit_of_observation": "Row",
+                    },
+                    "council_chamber": {
+                        "data_audit": chamber(
+                            "complete", "Probe data passed structural checks."
+                        )
+                    },
+                },
+            ),
+            (
+                "domain_expert",
+                {
+                    "domain_knowledge": {
+                        "domain_checked": "passing",
+                        "domain_scope": "Synthetic contract probe",
+                    },
+                    "council_chamber": {
+                        "domain_expert": chamber(
+                            "complete", "Probe domain review is complete."
+                        )
+                    },
+                },
+            ),
+            (
+                "causal_check",
+                {
+                    "causal_facts": {
+                        "causal_checked": "passing",
+                        "analysis_readiness": "ready",
+                        "support_status": "The probe design is ready for scope review.",
+                        "recommended_checks": [],
+                        "recommended_method_routes": [
+                            {
+                                "id": "single_time_observational",
+                                "category": "design",
+                                "route_cautions": [],
+                            }
+                        ],
+                        "analysis_options": [
+                            {
+                                "role": "preferred",
+                                "target": "Estimate the synthetic treatment contrast.",
+                                "approach": "Use the single-time observational route.",
+                                "design": "single_time_observational",
+                                "data_work": [],
+                                "requirements": [
+                                    "Respect the declared input and claim boundary."
+                                ],
+                                "main_risk": "The synthetic design is for protocol testing only.",
+                                "prefer_when": "The deterministic contract probe is running.",
+                            }
+                        ],
+                    },
+                    "council_chamber": {
+                        "causal_check": chamber(
+                            "review_complete", "Probe causal review is complete."
+                        )
+                    },
+                },
+            ),
+        )
+        for route, updates in prerequisite_updates:
+            started = begin(current, route)
+            applied = apply(started, route, updates)
+            current = finish(applied)
+
+        analysis_route = "analysis_execution.single_time_observational"
+        analysis_contract = {
+            "target": "Estimate the synthetic treatment contrast.",
+            "input_refs": ["data/probe.csv"],
+            "method_plan": "Compute a deterministic illustrative contrast.",
+            "execution_requirements": [
+                "Write one nonempty estimate table.",
+                "Preserve the synthetic claim boundary.",
+            ],
+            "output_type": "CSV estimate table",
+            "claim_boundary": "Protocol compatibility evidence only.",
+        }
+        started = begin(current, analysis_route, support=None)
+        applied = apply(
+            started,
+            analysis_route,
+            {
+                "council_chamber": {
+                    "analysis_execution": {
+                        "single_time_observational": chamber(
+                            "ready",
+                            "The bounded probe analysis scope is ready.",
+                            support=None,
+                            execution_contract=analysis_contract,
+                        )
+                    }
+                }
+            },
+            scope_transition="new",
+        )
+        analysis_scope = scope_from(applied, "analysis")
+        analysis_ready_raw, _ = snapshot_from(applied, "ready analysis")
+        current = finish(
+            applied,
+            {
+                "route": analysis_route,
+                "support": None,
+                "intent_summary": "Execute the exact ready analysis scope.",
+                "scope_ref": analysis_scope,
+            },
+        )
+
+        started = begin(
+            current,
+            analysis_route,
+            support=None,
+            scope_ref=analysis_scope,
+            artifact_reservation={
+                "kind": "file",
+                "slug": "contract-probe-analysis",
+                "extension": "csv",
+            },
+        )
+        analysis_target = artifact_path(started)
+        analysis_target.parent.mkdir(parents=True, exist_ok=True)
+        analysis_target.write_text(
+            "contrast,estimate,se\nsynthetic,1.0,0.2\n", encoding="utf-8"
+        )
+        applied = apply(
+            started,
+            analysis_route,
+            {
+                "council_chamber": {
+                    "analysis_execution": {
+                        "single_time_observational": chamber(
+                            "done",
+                            "The exact probe analysis is complete.",
+                            support=None,
+                        )
+                    }
+                }
+            },
+            scope_transition="preserve",
+            artifact={
+                "summary": "Deterministic contract-probe analysis output.",
+                "artifact_role": "completion",
+                "execution_receipt": receipt_for(started),
+            },
+        )
+        analysis_done_raw, _ = snapshot_from(applied, "completed analysis")
+        artifact_record = applied.get("artifact_record")
+        analysis_artifact_id = (
+            artifact_record.get("artifact_id")
+            if isinstance(artifact_record, dict)
+            else None
+        )
+        require(
+            isinstance(analysis_artifact_id, str) and bool(analysis_artifact_id),
+            "did not return the completed analysis artifact ID",
+        )
+        current = finish(applied)
+
+        started = begin(current, "report_writer")
+        applied = apply(
+            started,
+            "report_writer",
+            {
+                "report_assembly": {
+                    "analysis_artifact_ids": [analysis_artifact_id]
+                },
+                "council_chamber": {
+                    "report_writer": chamber(
+                        "ready", "The evidence-bound probe report scope is ready."
+                    )
+                },
+            },
+            scope_transition="new",
+        )
+        report_scope = scope_from(applied, "report")
+        report_ready_raw, _ = snapshot_from(applied, "ready report")
+        current = finish(
+            applied,
+            {
+                "route": "report_writer",
+                "support": None,
+                "intent_summary": "Execute the exact ready report scope.",
+                "scope_ref": report_scope,
+            },
+        )
+
+        started = begin(
+            current,
+            "report_writer",
+            scope_ref=report_scope,
+            artifact_reservation={
+                "kind": "file",
+                "slug": "contract-probe-report",
+                "extension": "html",
+            },
+        )
+        packet = started.get("operation_packet")
+        report_requirements = (
+            packet.get("requirements") if isinstance(packet, dict) else None
+        )
+        binding_requirements = [
+            requirement
+            for requirement in (
+                report_requirements if isinstance(report_requirements, list) else []
+            )
+            if isinstance(requirement, dict)
+            and requirement.get("kind") == "analysis_artifact_id"
+            and requirement.get("description") == analysis_artifact_id
+        ]
+        require(
+            isinstance(report_requirements, list)
+            and len(binding_requirements) == 1,
+            "did not freeze exactly one matching analysis artifact ID into the "
+            "report contract",
+        )
+
+        template_path = skill_root / "assets" / "report_html_layout_template.html"
+        try:
+            report_html = template_path.read_text(encoding="utf-8")
+        except (OSError, UnicodeError) as exc:
+            raise RunError(
+                "controller contract probe could not complete while reading the real "
+                f"report template: {exc}"
+            ) from exc
+        replacements = {
+            "REPORT_TITLE": "Controller Contract Probe",
+            "REPORT_SUBTITLE": "Synthetic analysis-to-report compatibility check",
+            "GENERATED_AT": "Deterministic preflight",
+            "EVIDENCE_STATUS": "Bound to one generated analysis artifact",
+            "CLAIM_BOUNDARY": "Protocol compatibility evidence only",
+            "TABLE_OF_CONTENTS_HTML": (
+                '<ul><li><a href="#summary">Summary</a></li></ul>'
+            ),
+            "REPORT_BODY_HTML": (
+                '<h2 id="summary">Summary</h2>'
+                '<p>The evidence-bound report contract completed.</p>'
+            ),
+            "EVIDENCE_SOURCES_HTML": (
+                f"<p>Analysis artifact: {analysis_artifact_id}</p>"
+            ),
+            "LIMITATIONS_HTML": (
+                "<p>This artifact verifies protocol compatibility, not a causal result.</p>"
+            ),
+        }
+        for name, value in replacements.items():
+            report_html = re.sub(
+                rf"\{{\{{\s*{re.escape(name)}\s*\}}\}}", value, report_html
+            )
+        report_target = artifact_path(started)
+        report_target.parent.mkdir(parents=True, exist_ok=True)
+        report_target.write_text(report_html, encoding="utf-8")
+        applied = apply(
+            started,
+            "report_writer",
+            {
+                "report_assembly": {"current_format": "html"},
+                "council_chamber": {
+                    "report_writer": chamber(
+                        "done", "The exact evidence-bound probe report is complete."
+                    )
+                },
+            },
+            scope_transition="preserve",
+            artifact={
+                "summary": "Deterministic evidence-bound contract-probe report.",
+                "artifact_role": "completion",
+                "execution_receipt": receipt_for(started),
+            },
+        )
+        report_done_raw, _ = snapshot_from(applied, "completed report")
+        current = finish(applied)
+
+        try:
+            validator, state_errors, state_blockers = validate_state(
+                statectl,
+                node_bin,
+                project_root,
+                None,
+                None,
+                2,
+                2,
+                env=environment,
+                timeout=remaining_timeout(),
+            )
+        except RunError as exc:
+            raise RunError(
+                f"controller contract probe could not complete at final validation: {exc}"
+            ) from exc
+        if validator.get("code") in operational_codes:
+            raise RunError(
+                "controller contract probe could not complete at final validation: "
+                + (validator.get("message") or validator["code"])
+            )
+        require(
+            not state_errors and not state_blockers,
+            "final controller state was rejected ("
+            + "; ".join((state_errors or state_blockers)[:3])
+            + ")",
+        )
+        require(
+            validator.get("project_id") == current.get("project_id")
+            and validator.get("revision") == current.get("revision"),
+            "final controller identity or revision changed",
+        )
+
+        artifacts = inspect_artifacts(
+            project_root,
+            {
+                "new": 2,
+                "total": 2,
+                "analysis_execution": 1,
+                "report_writer": 1,
+            },
+        )
+        require(
+            artifacts.get("ok") and artifacts.get("scope_refs_trustworthy"),
+            "artifact validator rejected real controller output ("
+            + "; ".join(artifacts.get("errors", [])[:3])
+            + ")",
+        )
+        analysis_identity = (analysis_scope["id"], analysis_scope["revision"])
+        report_identity = (report_scope["id"], report_scope["revision"])
+        require(
+            artifacts.get("usable_scope_refs", {}).get("analysis_execution")
+            == [analysis_identity]
+            and artifacts.get("usable_scope_refs", {}).get("report_writer")
+            == [report_identity],
+            "artifact validator did not retain the exact completed scope references",
+        )
+
+        new_manifests = artifacts.get("new_manifests", [])
+        for route, before, after in (
+            ("analysis_execution", analysis_ready_raw, analysis_done_raw),
+            ("report_writer", report_ready_raw, report_done_raw),
+        ):
+            binding_errors = check_new_manifest_scope_bindings(
+                after,
+                before,
+                {
+                    "new_manifests": [
+                        manifest
+                        for manifest in new_manifests
+                        if manifest.get("route") == route
+                    ]
+                },
+            )
+            require(
+                not binding_errors,
+                f"{route} scope binding was rejected "
+                f"({'; '.join(binding_errors[:3])})",
+            )
+
+        report_manifests = [
+            manifest
+            for manifest in new_manifests
+            if manifest.get("route") == "report_writer"
+        ]
+        require(
+            len(report_manifests) == 1
+            and report_manifests[0].get("schema_version") == 3
+            and report_manifests[0].get("requirements") == report_requirements,
+            "did not expose one matching schema-3 report manifest",
+        )
+
+        try:
+            capture = capture_review_contracts(
+                statectl,
+                node_bin,
+                project_root,
+                validator["project_id"],
+                validator["revision"],
+                {"turn_context": 1},
+                [report_scope],
+                0,
+                env=environment,
+                timeout=remaining_timeout(),
+                raise_errors=True,
+            )
+        except RunError as exc:
+            raise RunError(
+                "controller contract probe could not complete at review-contract "
+                f"capture: {exc}"
+            ) from exc
+        contracts = capture.get("scope_contracts") if isinstance(capture, dict) else None
+        require(
+            isinstance(contracts, list)
+            and len(contracts) == 1
+            and contracts[0].get("analysis_artifact_ids")
+            == [analysis_artifact_id]
+            and not capture.get("missing_scope_refs")
+            and not capture.get("unavailable"),
+            "review-contract capture lost the frozen analysis artifact ID",
+        )
+        return {
+            "analysis_scope_ref": analysis_scope,
+            "report_scope_ref": report_scope,
+            "analysis_artifact_id": analysis_artifact_id,
+            "report_requirements": report_requirements,
+            "manifest_count": artifacts["manifest_count"],
+            "report_contract": contracts[0],
+        }
+
+
+def require_controller_contract_probe(test_id, statectl, node_bin):
+    if test_id not in REPORT_EVIDENCE_BINDING_TESTS:
+        return None
+    return probe_controller_contract(statectl, node_bin)
 
 
 def preflight(test_id, case, workdir, results_dir, statectl, node_bin):
@@ -538,6 +1344,8 @@ def preflight(test_id, case, workdir, results_dir, statectl, node_bin):
     if code != 0 or not payload.get("ok") or payload.get("code") != "VALID_TEMPLATE":
         raise RunError(f"state controller template validation failed: {payload}")
     require_controller_capabilities(test_id, payload)
+    require_controller_capability_baseline(payload)
+    require_controller_contract_probe(test_id, statectl, node_bin)
     test_suite_version = load_test_suite_version()
     package_path = active_skill / "package.json"
     try:
@@ -765,9 +1573,14 @@ def validate_state(
     previous_revision,
     previous_manifest_count,
     manifest_count,
+    *,
+    env=None,
+    timeout=60,
 ):
     code, payload, stderr = run_json(
-        [node_bin, str(statectl), "validate", "--project-root", str(workdir)]
+        [node_bin, str(statectl), "validate", "--project-root", str(workdir)],
+        env=env,
+        timeout=timeout,
     )
     errors = []
     blockers = []
@@ -2013,7 +2826,9 @@ def validate_manifest_requirements(requirements, contract_hash, label):
                 requirement_ids.append(requirement_value)
         kind = canonical.get("kind")
         if kind is not None and kind not in REQUIREMENT_KINDS:
-            errors.append(f"{item_label}.kind is not a supported requirement kind")
+            errors.append(
+                f"{item_label}.kind is not a supported requirement kind: {kind!r}"
+            )
         if (
             isinstance(contract_hash, str)
             and SHA256_PATTERN.fullmatch(contract_hash)
@@ -2404,6 +3219,85 @@ def inspect_html_links(path, workdir):
     return errors
 
 
+def inspect_report_html_shell(path):
+    parser, parse_error = parse_html(path)
+    if parse_error:
+        return [parse_error]
+
+    errors = []
+    if (
+        len(parser.html_langs) != 1
+        or not isinstance(parser.html_langs[0], str)
+        or not parser.html_langs[0].strip()
+    ):
+        errors.append("primary report HTML must contain exactly one html element with a nonempty lang attribute")
+    if parser.title_count != 1 or not "".join(parser.title_text).strip():
+        errors.append("primary report HTML must contain exactly one nonempty title")
+
+    for label, (tag, class_name) in REPORT_SHELL_ELEMENTS.items():
+        count = sum(
+            element_tag == tag and class_name in classes
+            for element_tag, classes in parser.elements
+        )
+        if count != 1:
+            errors.append(
+                f"primary report HTML must contain exactly one {tag}.{class_name} ({label})"
+            )
+
+    unresolved = sorted(set(REPORT_PLACEHOLDER_PATTERN.findall(parser.source_text)))
+    if unresolved:
+        errors.append(
+            "primary report HTML contains unresolved shell placeholder(s): "
+            + ", ".join(unresolved)
+        )
+    for index, image in enumerate(parser.images, 1):
+        if not image["has_alt"]:
+            source = f" ({image['src']})" if image["src"] else ""
+            errors.append(
+                f"primary report HTML image {index}{source} is missing an alt attribute"
+            )
+    return errors
+
+
+def select_primary_report_html(html_targets, reserved, directory_manifest):
+    if not html_targets:
+        return None, []
+    if not directory_manifest:
+        return html_targets[0], []
+    if len(html_targets) == 1:
+        return html_targets[0], []
+
+    marked = []
+    for entry in html_targets:
+        parser, parse_error = parse_html(entry[1])
+        if parse_error:
+            continue
+        if all(
+            sum(
+                tag == required_tag and required_class in classes
+                for tag, classes in parser.elements
+            )
+            == 1
+            for required_tag, required_class in REPORT_SHELL_ELEMENTS.values()
+        ):
+            marked.append(entry)
+    if len(marked) == 1:
+        return marked[0], []
+
+    for filename in ("index.html", "index.htm"):
+        matches = [
+            entry
+            for entry in html_targets
+            if entry[1].parent == reserved and entry[1].name.lower() == filename
+        ]
+        if len(matches) == 1:
+            return matches[0], []
+    return None, [
+        "report manifest has ambiguous primary HTML; use a root index.html or "
+        "exactly one HTML file containing div.report-shell"
+    ]
+
+
 def inspect_artifacts(workdir, expected, previous=None):
     root = workdir.resolve()
     output_dir = workdir / "output"
@@ -2721,7 +3615,7 @@ def inspect_artifacts(workdir, expected, previous=None):
         html_targets = [
             (item, target)
             for item, target in resolved_targets
-            if target.suffix.lower() == ".html"
+            if target.suffix.lower() in {".html", ".htm"}
         ]
         if (
             route == "report_writer"
@@ -2736,7 +3630,7 @@ def inspect_artifacts(workdir, expected, previous=None):
                 hashes[relative_target] = sha256_file(target)
             except OSError as exc:
                 errors.append(f"{relative}: cannot hash listed file {item} ({exc})")
-            if target.suffix.lower() == ".html":
+            if target.suffix.lower() in {".html", ".htm"}:
                 try:
                     if target.stat().st_size == 0:
                         if route == "report_writer" and artifact_role == "completion":
@@ -2747,6 +3641,17 @@ def inspect_artifacts(workdir, expected, previous=None):
                     errors.append(f"{relative}: cannot inspect report HTML file {item} ({exc})")
                 for error in inspect_html_links(target, workdir):
                     errors.append(f"{relative}: {item}: {error}")
+        if route == "report_writer" and artifact_role == "completion" and html_targets:
+            primary, primary_errors = select_primary_report_html(
+                html_targets,
+                reserved,
+                directory_manifest,
+            )
+            errors.extend(f"{relative}: {error}" for error in primary_errors)
+            if primary is not None:
+                primary_item, primary_target = primary
+                for error in inspect_report_html_shell(primary_target):
+                    errors.append(f"{relative}: {primary_item}: {error}")
         report_html_ready = (
             route != "report_writer"
             or artifact_role != "completion"
@@ -3580,21 +4485,33 @@ def capture_review_contracts(
     capabilities,
     scope_refs,
     turn_number,
+    *,
+    env=None,
+    timeout=60,
+    raise_errors=False,
 ):
     """Read one v6 router projection and retain newly observed scope contracts."""
     if not isinstance(capabilities, dict) or capabilities.get("turn_context") != 1:
         return None
     try:
         code, payload, stderr = run_json(
-            [node_bin, str(statectl), "open", "--project-root", str(workdir)]
+            [node_bin, str(statectl), "open", "--project-root", str(workdir)],
+            env=env,
+            timeout=timeout,
         )
     except RunError as exc:
+        if raise_errors:
+            raise
         return {
             "captured_after_turn": turn_number,
             "requested_scope_refs": scope_refs,
             "unavailable": str(exc),
         }
     if code != 0 or not payload.get("ok"):
+        if raise_errors:
+            raise RunError(
+                payload.get("message") or stderr or "controller open failed"
+            )
         return {
             "captured_after_turn": turn_number,
             "requested_scope_refs": scope_refs,
@@ -3673,6 +4590,7 @@ def capture_review_contracts(
                             "planned_structure",
                             "key_points",
                             "wording_constraints",
+                            "analysis_artifact_ids",
                         )
                     },
                     **(

@@ -5,7 +5,13 @@ description: Run reproducible multi-turn regression tests for the causal-consult
 
 # Interactive causal-consultant tests
 
-Version: `6.1.1`
+Version: `6.2.1`
+
+Compatibility target: `causal-consultant` `6.2.1`. Preflight requires its
+complete advertised capability map so protocol drift stops before a live model
+turn. For report-bearing cases, preflight also drives the real controller
+through one private, model-free analysis-to-evidence-bound-report lifecycle and
+runs the harness validators against its real schema-3 artifacts.
 
 Choose one explicit case. The runner uses its registered prompts and saves the
 case reference plus the shared [`evaluation guide`](references/evaluation-guide.md)
@@ -42,17 +48,21 @@ python3 <skill-root>/scripts/run_all_turns.py \
 
 The runner owns exact outer-session resumption, response-shell checks, strict idle-state
 validation, scope transitions, manifest and receipt integrity, immutable artifact
-snapshots, HTML links, and input and runtime provenance. It accepts legacy
+snapshots, HTML links, the required primary report shell, a basic image-alt
+accessibility floor, and input and runtime provenance. Supplementary HTML may
+remain shell-free when the primary page is unambiguous. It accepts legacy
 schema-1 completion manifests, historical schema-2 receipt manifests, and current
 schema-3 completion or infeasibility manifests. Current receipts validate
 requirement-level evidence locators and disclosed deviations. Current manifests
-also persist the exact ordered requirement IDs, kinds, and descriptions. The
-runner verifies their contract-bound IDs and full receipt accounting while
-preserving schema-1 and schema-2 result compatibility. Current bound operations
-use completion protocol 2; an in-flight migrated protocol-1 operation may still
-close with its historical schema-2 receipt. A schema-3 completion may use a
-null receipt only for protocol-0 work, including migrated scoped recovery, and
-then its ordered `requirements` must be `[]`.
+also persist the exact ordered requirement IDs, kinds, and descriptions,
+including `analysis_artifact_id` requirements that freeze a report's selected
+analysis completion records. The runner verifies their contract-bound IDs and
+full receipt accounting while preserving schema-1 and schema-2 result
+compatibility. Current bound operations use completion protocol 2; an in-flight
+migrated protocol-1 operation may still close with its historical schema-2
+receipt. A schema-3 completion may use a null receipt only for protocol-0 work,
+including migrated scoped recovery, and then its ordered `requirements` must be
+`[]`.
 
 A diagnostic alone does not stop the replay. Continue from a trustworthy idle
 boundary whenever the next prompt still has its required scope or evidence.
@@ -72,11 +82,11 @@ All four cases require one qualitative review. Start with `summary.md` and
 `evaluation-dossier.md`. The dossier contains the case rules, shared guide,
 complete user-facing conversation, deterministic transition results, each new
 manifest and receipt once, frozen scope contracts and causal strategy portfolios
-when exposed by the controller, direct or numbered approval bindings, and readable
-artifact evidence. Schema-3 manifest entries retain their requirement
-descriptions even if the live scope is later revised. The runner has already
-checked outer-session and
-project continuity, controller state, scope identity, artifact binding, hashes,
+when exposed by the controller, report `analysis_artifact_ids`, direct or
+numbered approval bindings, and readable artifact evidence. Schema-3 manifest
+entries retain their requirement descriptions even if the live scope is later
+revised. The runner has already checked outer-session and project continuity,
+controller state, scope identity, artifact binding, hashes,
 and HTML references. Do not repeat those mechanical checks when they pass. Open a
 raw saved file only when the dossier flags a problem or leaves a semantic
 checkpoint unresolved.

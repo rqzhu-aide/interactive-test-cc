@@ -3,8 +3,10 @@ import hashlib
 import json
 from contextlib import ExitStack
 from copy import deepcopy
+import os
 from pathlib import Path
-from tempfile import TemporaryDirectory
+import shutil
+from tempfile import gettempdir, TemporaryDirectory
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
@@ -673,6 +675,7 @@ class RunnerTests(unittest.TestCase):
             "analysis_options": 1,
             "requirement_evidence": 1,
             "direct_assignment": 1,
+            "report_evidence_binding": 1,
         }
         for capability in required:
             capabilities = dict(required)
@@ -709,6 +712,147 @@ class RunnerTests(unittest.TestCase):
             "college-discovery-handoff",
             {"capabilities": {**base, "discovery_contract": 1}},
         )
+
+    def test_controller_capability_baseline_rejects_protocol_drift(self):
+        current = dict(RUNNER.EXPECTED_CONTROLLER_CAPABILITIES)
+        RUNNER.require_controller_capability_baseline(
+            {"capabilities": current}
+        )
+        cases = (
+            (
+                "missing",
+                {key: value for key, value in current.items() if key != "turn_context"},
+                "missing: turn_context",
+            ),
+            (
+                "unexpected",
+                {**current, "future_protocol": 1},
+                "unexpected: future_protocol",
+            ),
+            (
+                "changed",
+                {**current, "report_evidence_binding": 0},
+                "changed: report_evidence_binding=0",
+            ),
+            (
+                "non-integer",
+                {**current, "turn_context": True},
+                "changed: turn_context=True",
+            ),
+        )
+        for label, capabilities, message in cases:
+            with self.subTest(label=label), self.assertRaisesRegex(
+                RUNNER.RunError, message
+            ):
+                RUNNER.require_controller_capability_baseline(
+                    {"capabilities": capabilities}
+                )
+
+    def real_controller(self):
+        node = shutil.which("node")
+        configured = os.environ.get("CAUSAL_CONSULTANT_STATECTL")
+        statectl = (
+            Path(configured)
+            if configured
+            else ROOT.parent / "causal-consultant" / "scripts" / "statectl.cjs"
+        )
+        if configured and not statectl.is_file():
+            self.fail(
+                "CAUSAL_CONSULTANT_STATECTL does not name a controller file: "
+                f"{statectl}"
+            )
+        if node is None or not statectl.is_file():
+            if os.environ.get("CI"):
+                self.fail(
+                    "paired real-controller tests require Node.js and "
+                    "CAUSAL_CONSULTANT_STATECTL in CI"
+                )
+            self.skipTest(
+                "set CAUSAL_CONSULTANT_STATECTL to run the paired real-controller tests"
+            )
+        return statectl, node
+
+    def test_real_controller_contract_probe_passes_current_runtime(self):
+        statectl, node = self.real_controller()
+        result = RUNNER.probe_controller_contract(statectl, node)
+        self.assertEqual(result["manifest_count"], 2)
+        self.assertIn(
+            "analysis_artifact_id",
+            [item["kind"] for item in result["report_requirements"]],
+        )
+        self.assertEqual(
+            result["report_contract"]["analysis_artifact_ids"],
+            [result["analysis_artifact_id"]],
+        )
+
+    def test_real_controller_contract_probe_catches_requirement_kind_drift(self):
+        statectl, node = self.real_controller()
+        historical_kinds = RUNNER.REQUIREMENT_KINDS - {"analysis_artifact_id"}
+        with patch.object(RUNNER, "REQUIREMENT_KINDS", historical_kinds):
+            with self.assertRaises(RUNNER.RunError) as raised:
+                RUNNER.probe_controller_contract(statectl, node)
+        message = str(raised.exception)
+        self.assertIn("suite outdated vs consultant", message)
+        self.assertIn("analysis_artifact_id", message)
+
+    def test_contract_probe_transport_failure_is_operational_and_cleans_temp(self):
+        prefix = "interactive-test-cc-contract-probe-"
+        temporary_root = Path(gettempdir())
+        before = set(temporary_root.glob(f"{prefix}*"))
+        with patch.object(
+            RUNNER,
+            "run_json",
+            side_effect=RUNNER.RunError("command failed to start or finish: timeout"),
+        ):
+            with self.assertRaises(RUNNER.RunError) as raised:
+                RUNNER.probe_controller_contract(Path(__file__), "node")
+        message = str(raised.exception)
+        self.assertIn("could not complete", message)
+        self.assertNotIn("suite outdated vs consultant", message)
+        self.assertEqual(set(temporary_root.glob(f"{prefix}*")), before)
+
+    def test_contract_probe_io_error_and_temp_failure_are_operational(self):
+        with patch.object(
+            RUNNER,
+            "run_json",
+            return_value=(
+                1,
+                {"ok": False, "code": "IO_ERROR", "message": "disk unavailable"},
+                "",
+            ),
+        ):
+            with self.assertRaises(RUNNER.RunError) as raised:
+                RUNNER.probe_controller_contract(Path(__file__), "node")
+        self.assertIn("could not complete", str(raised.exception))
+        self.assertNotIn("suite outdated vs consultant", str(raised.exception))
+
+        with patch.object(
+            RUNNER,
+            "TemporaryDirectory",
+            side_effect=OSError("temporary storage unavailable"),
+        ):
+            with self.assertRaises(RUNNER.RunError) as raised:
+                RUNNER.probe_controller_contract(Path(__file__), "node")
+        self.assertIn("temporary I/O", str(raised.exception))
+
+    def test_contract_probe_runs_only_for_report_bearing_cases(self):
+        with patch.object(
+            RUNNER,
+            "probe_controller_contract",
+            return_value={"manifest_count": 2},
+        ) as probe:
+            result = RUNNER.require_controller_contract_probe(
+                "college-observational-policy", Path("statectl.cjs"), "node"
+            )
+            self.assertEqual(result, {"manifest_count": 2})
+            probe.assert_called_once_with(Path("statectl.cjs"), "node")
+            probe.reset_mock()
+            self.assertIsNone(
+                RUNNER.require_controller_contract_probe(
+                    "college-discovery-handoff", Path("statectl.cjs"), "node"
+                )
+            )
+            probe.assert_not_called()
 
     def test_registry_rejects_unknown_artifact_expectation(self):
         registry = json.loads(RUNNER.CASES_PATH.read_text(encoding="utf-8"))
@@ -2132,6 +2276,38 @@ class RunnerTests(unittest.TestCase):
                 2,
             )
 
+    def test_report_html_shell_accepts_required_structure_and_explicit_empty_alt(self):
+        with TemporaryDirectory() as temporary:
+            report = Path(temporary) / "report.html"
+            report.write_text(
+                self.valid_report_html('<img src="figure.png" alt="">'),
+                encoding="utf-8",
+            )
+            self.assertEqual(RUNNER.inspect_report_html_shell(report), [])
+
+    def test_report_html_shell_rejects_missing_contract_placeholder_and_image_alt(self):
+        with TemporaryDirectory() as temporary:
+            report = Path(temporary) / "report.html"
+            html = self.valid_report_html(
+                '{{ REPORT_TITLE }}<img src="figure.png">'
+            ).replace('<header class="report-header">', "<header>")
+            report.write_text(html, encoding="utf-8")
+            errors = RUNNER.inspect_report_html_shell(report)
+            self.assertTrue(any("header.report-header" in error for error in errors))
+            self.assertTrue(any("REPORT_TITLE" in error for error in errors))
+            self.assertTrue(any("missing an alt attribute" in error for error in errors))
+
+    def test_report_html_shell_rejects_missing_language_and_title(self):
+        with TemporaryDirectory() as temporary:
+            report = Path(temporary) / "report.html"
+            html = self.valid_report_html().replace(
+                '<html lang="en">', "<html>"
+            ).replace("<title>Test report</title>", "<title></title>")
+            report.write_text(html, encoding="utf-8")
+            errors = RUNNER.inspect_report_html_shell(report)
+            self.assertTrue(any("nonempty lang" in error for error in errors))
+            self.assertTrue(any("nonempty title" in error for error in errors))
+
     def write_artifact_state(self, workdir, manifest, location):
         record = {
             "artifact_id": "11111111-1111-4111-8111-111111111111",
@@ -2255,10 +2431,23 @@ class RunnerTests(unittest.TestCase):
         manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
         return reference
 
+    @staticmethod
+    def valid_report_html(body="Report body"):
+        return (
+            '<!doctype html><html lang="en"><head><title>Test report</title></head><body>'
+            '<div class="report-shell"><header class="report-header">Header</header>'
+            '<main class="report-layout"><article class="report-body">'
+            + body
+            + '</article></main><section class="evidence-panel">Evidence</section>'
+            '<section class="limitations-panel">Limitations</section>'
+            '<footer class="report-footer">Footer</footer></div></body></html>'
+        )
+
     def write_report_artifact(self, workdir, html_content=""):
         artifact = workdir / "output" / "report"
         artifact.mkdir(parents=True)
-        (artifact / "index.html").write_text(html_content, encoding="utf-8")
+        rendered = self.valid_report_html(html_content) if html_content else ""
+        (artifact / "index.html").write_text(rendered, encoding="utf-8")
         (artifact / "notes.txt").write_text("report notes\n", encoding="utf-8")
         manifest = {
             "schema_version": 1,
@@ -2277,6 +2466,76 @@ class RunnerTests(unittest.TestCase):
             json.dumps(manifest), encoding="utf-8"
         )
         self.write_artifact_state(workdir, manifest, "output/report")
+
+    def write_schema3_report_artifact(self, workdir):
+        artifact = workdir / "output" / "report"
+        artifact.mkdir(parents=True)
+        evidence_path = "output/report/index.html"
+        (artifact / "index.html").write_text(
+            self.valid_report_html("Bound report"),
+            encoding="utf-8",
+        )
+        reference = {
+            "kind": "report",
+            "id": "44444444-4444-4444-8444-444444444444",
+            "revision": 1,
+        }
+        contract_hash = "1" * 64
+        requirements = [
+            {
+                "kind": "report_goal",
+                "description": "Report the approved findings",
+            },
+            {
+                "kind": "analysis_artifact_id",
+                "description": "77777777-7777-4777-8777-777777777777",
+            },
+        ]
+        bound_requirements = [
+            {
+                "id": RUNNER.requirement_id(
+                    contract_hash,
+                    index,
+                    item["kind"],
+                    item["description"],
+                ),
+                **item,
+            }
+            for index, item in enumerate(requirements)
+        ]
+        requirement_ids = [item["id"] for item in bound_requirements]
+        manifest = {
+            "schema_version": 3,
+            "operation_id": "33333333-3333-4333-8333-333333333333",
+            "route": "report_writer",
+            "scope_ref": reference,
+            "files": [evidence_path],
+            "completed_at": "2026-01-01T00:00:00Z",
+            "summary": "Evidence-bound report output.",
+            "artifact_role": "completion",
+            "execution_receipt": {
+                "contract_hash": contract_hash,
+                "completed_requirements": requirement_ids,
+                "unmet_requirements": [],
+                "supplemental_work": [],
+                "evidence_files": [evidence_path],
+                "requirement_evidence": [
+                    {
+                        "requirement_id": requirement_id,
+                        "file": evidence_path,
+                        "locator": "Visible report body",
+                    }
+                    for requirement_id in requirement_ids
+                ],
+                "deviations": [],
+            },
+            "requirements": bound_requirements,
+        }
+        (artifact / "artifact-manifest.json").write_text(
+            json.dumps(manifest), encoding="utf-8"
+        )
+        self.write_artifact_state(workdir, manifest, "output/report")
+        return reference
 
     def test_artifact_snapshot_rejects_changed_prior_file(self):
         with TemporaryDirectory() as temporary:
@@ -2498,6 +2757,23 @@ class RunnerTests(unittest.TestCase):
                     else result["infeasibility_scope_refs"]
                 )
                 self.assertEqual(refs["analysis_execution"], identity)
+
+    def test_schema3_report_accepts_analysis_artifact_id_requirement(self):
+        with TemporaryDirectory() as temporary:
+            workdir = Path(temporary)
+            reference = self.write_schema3_report_artifact(workdir)
+            result = RUNNER.inspect_artifacts(
+                workdir, {"report_writer": 1, "new": 1}
+            )
+            self.assertTrue(result["ok"], result["errors"])
+            self.assertEqual(
+                result["usable_scope_refs"]["report_writer"],
+                [(reference["id"], reference["revision"])],
+            )
+            self.assertEqual(
+                [item["kind"] for item in result["manifests"][0]["requirements"]],
+                ["report_goal", "analysis_artifact_id"],
+            )
 
     def test_requirement_id_matches_consultant_javascript_serialization(self):
         self.assertEqual(
@@ -2947,6 +3223,92 @@ class RunnerTests(unittest.TestCase):
             self.assertEqual(
                 result["usable_scope_refs"]["report_writer"],
                 [("44444444-4444-4444-8444-444444444444", 1)],
+            )
+
+    def test_report_root_index_allows_supplementary_html_without_shell(self):
+        with TemporaryDirectory() as temporary:
+            workdir = Path(temporary)
+            self.write_report_artifact(workdir, html_content="<p>Report</p>")
+            report_dir = workdir / "output" / "report"
+            (report_dir / "appendix.html").write_text(
+                "<!doctype html><html><body><p>Appendix</p></body></html>",
+                encoding="utf-8",
+            )
+            manifest_path = report_dir / "artifact-manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["files"].append("output/report/appendix.html")
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            result = RUNNER.inspect_artifacts(
+                workdir, {"report_writer": 1, "new": 1}
+            )
+            self.assertTrue(result["ok"], result["errors"])
+
+    def test_report_unique_shell_page_can_follow_root_landing_page(self):
+        with TemporaryDirectory() as temporary:
+            workdir = Path(temporary)
+            self.write_report_artifact(workdir, html_content="<p>Report</p>")
+            report_dir = workdir / "output" / "report"
+            report_html = (report_dir / "index.html").read_text(encoding="utf-8")
+            (report_dir / "report.html").write_text(report_html, encoding="utf-8")
+            (report_dir / "index.html").write_text(
+                '<!doctype html><html><body><div class="report-shell">'
+                "<p>Landing page</p></div></body></html>",
+                encoding="utf-8",
+            )
+            manifest_path = report_dir / "artifact-manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["files"].append("output/report/report.html")
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            result = RUNNER.inspect_artifacts(
+                workdir, {"report_writer": 1, "new": 1}
+            )
+            self.assertTrue(result["ok"], result["errors"])
+
+    def test_report_manifest_accepts_index_htm_as_primary(self):
+        with TemporaryDirectory() as temporary:
+            workdir = Path(temporary)
+            self.write_report_artifact(workdir, html_content="<p>Report</p>")
+            report_dir = workdir / "output" / "report"
+            (report_dir / "index.html").rename(report_dir / "index.htm")
+            manifest_path = report_dir / "artifact-manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["files"] = [
+                "output/report/index.htm"
+                if item == "output/report/index.html"
+                else item
+                for item in manifest["files"]
+            ]
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            result = RUNNER.inspect_artifacts(
+                workdir, {"report_writer": 1, "new": 1}
+            )
+            self.assertTrue(result["ok"], result["errors"])
+
+    def test_report_directory_rejects_ambiguous_primary_html(self):
+        with TemporaryDirectory() as temporary:
+            workdir = Path(temporary)
+            self.write_report_artifact(workdir, html_content="<p>Report</p>")
+            report_dir = workdir / "output" / "report"
+            (report_dir / "index.html").unlink()
+            for name in ("part-a.html", "part-b.html"):
+                (report_dir / name).write_text(
+                    f"<!doctype html><html><body><p>{name}</p></body></html>",
+                    encoding="utf-8",
+                )
+            manifest_path = report_dir / "artifact-manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["files"] = [
+                "output/report/part-a.html",
+                "output/report/part-b.html",
+                "output/report/notes.txt",
+            ]
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            result = RUNNER.inspect_artifacts(
+                workdir, {"report_writer": 1, "new": 1}
+            )
+            self.assertFalse(result["ok"])
+            self.assertTrue(
+                any("ambiguous primary HTML" in error for error in result["errors"])
             )
 
     def test_invalid_report_manifest_is_not_usable_evidence(self):
@@ -3645,6 +4007,9 @@ class RunnerTests(unittest.TestCase):
                             "planned_structure": ["Decision"],
                             "key_points": ["Evidence"],
                             "wording_constraints": ["Plain language"],
+                            "analysis_artifact_ids": [
+                                "77777777-7777-4777-8777-777777777777"
+                            ],
                             "draft_notes": ["post-execution note must be excluded"],
                         }
                     },
@@ -3718,6 +4083,15 @@ class RunnerTests(unittest.TestCase):
         self.assertIn("Residual confounding", serialized)
         self.assertIn("Weight for observed confounders", serialized)
         self.assertIn('"current_format": "html"', serialized)
+        report_contract = next(
+            item
+            for item in captured["scope_contracts"]
+            if item["kind"] == "report"
+        )
+        self.assertEqual(
+            report_contract["analysis_artifact_ids"],
+            ["77777777-7777-4777-8777-777777777777"],
+        )
 
         unbound_format = deepcopy(payload)
         unbound_format["turn_context"]["state"]["report"]["assembly"][
