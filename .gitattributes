@@ -1,0 +1,2 @@
+# Keep runtime hashes stable across platforms.
+* text=auto eol=lf

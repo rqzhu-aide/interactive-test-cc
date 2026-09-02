@@ -75,6 +75,26 @@ plan could not responsibly be completed, not as a completed analysis or report.
 It is not itself a workflow failure when it truthfully identifies the unmet
 requirement and the later response uses that status correctly.
 
+Judge two consulting behaviours alongside the contract checks.
+
+First, elicitation. A design-steering fact the user alone could supply, and that
+the consultant never asked for, is a defect when the answer would have changed
+the design, scope, or claim; rate it by that effect, not by the omission itself.
+A question the consultant asked and the user left unanswered is not a defect
+when the work then proceeded through an explicit construct, such as a sensitivity
+check, weaker wording both answers support, or a stated limitation. Silently
+assuming an answer, or reporting an unasked question as a limitation, is the
+defect.
+
+Second, register. Where a quantity or a design limitation carries the decision,
+check that the intuitive rendering describes the same quantity, population, and
+boundary as the precise one. An intuitive restatement that widens the claim,
+drops the assumption, or turns a bounded estimate into a general one is material
+even when the precise statement elsewhere is correct. Under-claiming is not
+material. Where the dossier records an audience profile, judge whether the
+explanation depth matches it and whether an assessed level is supported by its
+stated evidence; depth never justifies a weaker boundary or a dropped limitation.
+
 Do not grade whether a preferred estimator, package, graph, or numerical answer
 would have been better. Grade scientific content only when it conflicts with a
 fixed study fact, the approved contract, the evidence actually produced, or the

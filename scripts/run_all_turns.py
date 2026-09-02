@@ -56,6 +56,9 @@ EXPECTED_CONTROLLER_CAPABILITIES = {
     "begin_artifact_reservation": 1,
     "conditional_references": 1,
     "report_evidence_binding": 1,
+    "audience_profile": 1,
+    "carried_questions": 2,
+    "lead_directives": 1,
 }
 ARTIFACT_ROUTES = {
     "data_audit",
@@ -1079,7 +1082,12 @@ def probe_controller_contract(statectl, node_bin, *, timeout=30):
             "report_writer",
             {
                 "report_assembly": {
-                    "analysis_artifact_ids": [analysis_artifact_id]
+                    "analysis_artifact_ids": [analysis_artifact_id],
+                    "report_goal": "Report the probe estimate for the bound analysis.",
+                    "audience": "Contract probe reviewer.",
+                    "planned_structure": ["Estimate", "Boundary"],
+                    "wording_constraints": ["State the claim boundary explicitly."],
+                    "claim_boundary": "Descriptive probe evidence only.",
                 },
                 "council_chamber": {
                     "report_writer": chamber(
@@ -4641,10 +4649,15 @@ def capture_review_contracts(
         if isinstance(causal, dict)
         else None
     )
+    summary = state.get("project_summary")
+    audience_profile = (
+        summary.get("audience_profile") if isinstance(summary, dict) else None
+    )
     return {
         "captured_after_turn": turn_number,
         "scope_contracts": contracts,
         "causal_review": causal_review,
+        "audience_profile": audience_profile,
         "missing_scope_refs": missing,
     }
 
@@ -4722,6 +4735,14 @@ def merge_review_contract_capture(review_contracts, capture):
     ):
         review_contracts["causal_review_snapshots"].append(
             {"captured_after_turn": capture["captured_after_turn"], "facts": causal}
+        )
+    profile = capture.get("audience_profile")
+    if profile is not None and all(
+        item.get("profile") != profile
+        for item in review_contracts["audience_profiles"]
+    ):
+        review_contracts["audience_profiles"].append(
+            {"captured_after_turn": capture["captured_after_turn"], "profile": profile}
         )
 
 
@@ -4850,6 +4871,27 @@ def render_evaluation_dossier(results_dir, test_id, records, review_contracts=No
         scope_transitions += 1
     if scope_transitions == 0:
         lines.append("No valid scope snapshot was available.")
+
+    if isinstance(review_contracts, dict) and review_contracts.get("audience_profiles"):
+        lines.extend(
+            [
+                "",
+                "## Recorded audience profile",
+                "",
+                "The consultant's own record of how much statistical background the user "
+                "has shown. Judge whether the explanation depth actually matches it, and "
+                "whether any assessed level is supported by its stated evidence. The "
+                "profile sets depth only; it never licenses a weaker claim boundary, a "
+                "dropped limitation, or a skipped diagnostic.",
+                "",
+                markdown_fence(
+                    json.dumps(
+                        review_contracts["audience_profiles"], indent=2, ensure_ascii=False
+                    ),
+                    "json",
+                ),
+            ]
+        )
 
     lines.extend(["", "## Frozen contracts and causal-review baselines", ""])
     if isinstance(review_contracts, dict) and (
@@ -5234,6 +5276,7 @@ def run_test(args, case):
         {
             "scope_contracts": [],
             "causal_review_snapshots": [],
+            "audience_profiles": [],
             "unavailable": [],
         }
         if target.get("controller_capabilities", {}).get("turn_context") == 1

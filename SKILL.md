@@ -5,9 +5,9 @@ description: Run reproducible multi-turn regression tests for the causal-consult
 
 # Interactive causal-consultant tests
 
-Version: `6.2.1`
+Version: `6.3.0`
 
-Compatibility target: `causal-consultant` `6.2.1`. Preflight requires its
+Compatibility target: `causal-consultant` `6.3.0`. Preflight requires its
 complete advertised capability map so protocol drift stops before a live model
 turn. For report-bearing cases, preflight also drives the real controller
 through one private, model-free analysis-to-evidence-bound-report lifecycle and

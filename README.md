@@ -1,6 +1,6 @@
 # interactive-test-cc
 
-[![Version](https://img.shields.io/badge/version-6.2.1-blue.svg)]()
+[![Version](https://img.shields.io/badge/version-6.3.0-blue.svg)]()
 
 Four reproducible, multi-turn regression tests for `causal-consultant`:
 
@@ -24,7 +24,7 @@ selected analysis completion records as `analysis_artifact_id` entries. A
 schema-3 completion may use a null receipt only for completion protocol 0,
 including migrated scoped recovery, and then its ordered `requirements` must be
 `[]`. Completed reports must have one unambiguous primary HTML page with the
-required v6.2.1 shell, resolved shell placeholders, a language and title, and an
+required v6.3.0 shell, resolved shell placeholders, a language and title, and an
 `alt` attribute on every image. Supplementary HTML remains allowed. It continues
 past nonblocking findings when the next registered prompt
 still has trustworthy prerequisites.
@@ -65,7 +65,7 @@ repository.
 
 Before live replay, install or symlink the intended consultant at
 `${CLAUDE_CONFIG_DIR:-~/.claude}/skills/causal-consultant`. The evaluator records
-the consultant and evaluator versions independently. Version 6.2.1 preflight
+the consultant and evaluator versions independently. Version 6.3.0 preflight
 also requires the controller's complete advertised capability baseline and
 stops before a model turn when it drifts. For the three report-bearing cases, it
 also runs a private model-free analysis-to-bound-report lifecycle through the

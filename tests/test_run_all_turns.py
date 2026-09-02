@@ -4073,6 +4073,7 @@ class RunnerTests(unittest.TestCase):
                 "captured_after_turn",
                 "scope_contracts",
                 "causal_review",
+                "audience_profile",
                 "missing_scope_refs",
             },
         )
@@ -4124,6 +4125,82 @@ class RunnerTests(unittest.TestCase):
                 7,
             )
         self.assertIn("unavailable", mismatch)
+
+    def test_audience_profile_is_captured_deduplicated_and_shown_to_review(self):
+        profile = {
+            "level": "novice",
+            "evidence": "User said they know very little about causal inference.",
+            "preferences": ["Plain language first"],
+        }
+        payload = {
+            "ok": True,
+            "project_id": "project-1",
+            "revision": 9,
+            "turn_context": {
+                "audience": "router",
+                "state": {
+                    "analysis_execution": {},
+                    "report": {"assembly": {"scope_id": None}},
+                    "core_status": {},
+                    "project_summary": {"audience_profile": profile},
+                },
+            },
+        }
+        with patch.object(RUNNER, "run_json", return_value=(0, payload, "")):
+            captured = RUNNER.capture_review_contracts(
+                Path("statectl.cjs"), "node", Path("work"), "project-1", 9,
+                {"turn_context": 1}, [], 4,
+            )
+        self.assertEqual(captured["audience_profile"], profile)
+
+        review = {
+            "scope_contracts": [],
+            "causal_review_snapshots": [],
+            "audience_profiles": [],
+            "unavailable": [],
+        }
+        RUNNER.merge_review_contract_capture(review, captured)
+        # an unchanged profile on a later turn must not create a second entry
+        RUNNER.merge_review_contract_capture(review, {**captured, "captured_after_turn": 6})
+        self.assertEqual(len(review["audience_profiles"]), 1)
+        self.assertEqual(review["audience_profiles"][0]["captured_after_turn"], 4)
+
+        # a revised level is a distinct entry, so review can see the change
+        revised = {**profile, "level": "applied", "evidence": "User read the balance table unaided."}
+        RUNNER.merge_review_contract_capture(
+            review, {**captured, "captured_after_turn": 9, "audience_profile": revised}
+        )
+        self.assertEqual(
+            [item["profile"]["level"] for item in review["audience_profiles"]],
+            ["novice", "applied"],
+        )
+
+        with TemporaryDirectory() as directory:
+            results_dir = Path(directory)
+            (results_dir / "test-reference.md").write_text("Case rules.", encoding="utf-8")
+            (results_dir / "evaluation-guide.md").write_text("Guide.", encoding="utf-8")
+            (results_dir / "conversation.md").write_text("# Conversation", encoding="utf-8")
+            dossier = RUNNER.render_evaluation_dossier(
+                results_dir, "star-interference-saturation", [], review
+            )
+        self.assertIn("## Recorded audience profile", dossier)
+        self.assertIn("User read the balance table unaided.", dossier)
+        self.assertIn("never licenses a weaker claim boundary", dossier)
+
+    def test_capability_baseline_accepts_the_matched_consultant_and_flags_drift(self):
+        baseline = dict(RUNNER.EXPECTED_CONTROLLER_CAPABILITIES)
+        self.assertEqual(baseline.get("audience_profile"), 1)
+        RUNNER.require_controller_capability_baseline({"capabilities": baseline})
+        with self.assertRaises(RUNNER.RunError) as added:
+            RUNNER.require_controller_capability_baseline(
+                {"capabilities": {**baseline, "some_future_flag": 1}}
+            )
+        self.assertIn("unexpected: some_future_flag", str(added.exception))
+        with self.assertRaises(RUNNER.RunError) as removed:
+            RUNNER.require_controller_capability_baseline(
+                {"capabilities": {k: v for k, v in baseline.items() if k != "audience_profile"}}
+            )
+        self.assertIn("missing: audience_profile", str(removed.exception))
 
     def test_review_contract_capture_preserves_replaced_scopes_and_deduplicates_causal_facts(self):
         accumulated = {
