@@ -1,0 +1,39 @@
+{
+  "data_sha256": "973f0e267cf016118da64c77d7a8ce98732a649d18e93c38478fd5df5c7e5ead",
+  "rows": 777,
+  "columns": 19,
+  "unique_ids": 777,
+  "missing_cells": 0,
+  "suspect_outcomes": [
+    {
+      "institution": "Cazenovia College",
+      "Grad.Rate": 118
+    }
+  ],
+  "all": {
+    "n": 777,
+    "mean_expend": 9660.17117117118,
+    "mean_grad_rate": 65.46332046332046,
+    "ols_intercept": 53.05884129869003,
+    "ols_slope_pp_per_1000": 1.2840848205308284,
+    "ols_hc3_se_slope": 0.16029411334565824,
+    "pearson_r": 0.390342695859389,
+    "ols_hc3_normal_95_interval": [
+      0.969914131439557,
+      1.5982555096220998
+    ]
+  },
+  "valid_outcome": {
+    "n": 776,
+    "mean_expend": 9662.701030927843,
+    "mean_grad_rate": 65.39561855670104,
+    "ols_intercept": 52.93845803578202,
+    "ols_slope_pp_per_1000": 1.2892006573572774,
+    "ols_hc3_se_slope": 0.1606424657618701,
+    "pearson_r": 0.394248525735601,
+    "ols_hc3_normal_95_interval": [
+      0.9743472100763033,
+      1.6040541046382515
+    ]
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "case_id": "college-policy-v7",
+  "case_version": "1.1.0",
+  "suite_version": "7.0.1",
+  "edition": "brief-policy-researcher",
+  "author": "Codex fixture assembly, 2026-09-08 UTC; independent checks identified in provenance.json",
+  "base_case_id": "college-policy-adaptive-v7-local@1.0.0",
+  "adaptation": "Preserves College bytes and scientific uncertainty; adds explicit unspecified policy timetable. Ships Python self-check against the prior independent numerical reference. Historical diagnostic is not regraded.",
+  "requirements": "Shared Python 3.10+, Node 18.18+, consultant 7.0.0 or 7.0.1, and an independently verified Hermes/Claude host profile for blinded testing. Limits are frozen in the run configuration.",
+  "initial_message": "public/initial-message.txt",
+  "actor": "actor.json",
+  "reviewer": "reviewer.json",
+  "oracle_check": "check_oracle.py",
+  "sources": [
+    {
+      "id": "s-data",
+      "file": "public/data.csv",
+      "destination": "data.csv",
+      "availability": "initial"
+    },
+    {
+      "id": "s-dictionary",
+      "file": "public/dictionary.md",
+      "destination": "dictionary.md",
+      "availability": "initial"
+    }
+  ],
+  "files": {
+    "actor.json": "191e29ae98c3eb9cd97f97184f603f8c3fa1df651d0b379c53b33eea6674de56",
+    "check_oracle.py": "3810f416bd789166412d9352d6e75a996c0e7a8c787395e23911bdcf830d790e",
+    "oracle.json": "9f1bd50ee8677a793fcb76136b1f4dc06b5e9a328b419a9c7b28e542272901c7",
+    "provenance.json": "14ec4878e17c40c9cd03e62da32e1addf769d9e500840f835666c7c582630448",
+    "public/data.csv": "973f0e267cf016118da64c77d7a8ce98732a649d18e93c38478fd5df5c7e5ead",
+    "public/dictionary.md": "f4b2d64fe60c14a7aed29167d212eda96d6c9a86cca333448fb6de92adf09782",
+    "public/initial-message.txt": "5ed81335d4de43792b7cccbfbe1278d0b74f6dc19aeaef76e99bf427b042106a",
+    "reviewer.json": "d88da8778294f3d6baea5f21c1d266fe48faba4dc694fcbce3dc4e1367830fc1"
+  }
+}

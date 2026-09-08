@@ -1,79 +1,43 @@
-# interactive-test-cc
+# Interactive Test CC v7
 
-[![Version](https://img.shields.io/badge/version-6.3.0-blue.svg)]()
+Version: `7.0.1`. This repository contains the v7 testing skill and minimal
+adaptive runner under the canonical skill name `interactive-test-cc`.
 
-Four reproducible, multi-turn regression tests for `causal-consultant`:
+It specifies a Hermes simulated user interacting with causal-consultant through
+Claude Code. Frozen private study facts, brief factual replies and adaptive
+source disclosure test whether the consultant discovers what matters and helps
+the user reach a defensible outcome. Independent review checks actual evidence,
+prepared data and calculations rather than rewarding a prescribed conversation.
 
-- `college-observational-policy`: observational dose response, heterogeneity,
-  report generation, and derivative scope preparation
-- `college-discovery-handoff`: bounded discovery followed by independent causal
-  review and one approved analysis
-- `star-interference-saturation`: open STAR-data consultation, consultant-
-  selected analysis and report, and novice-facing decision synthesis
-- `schooling-iv-late`: IV diagnostics, weak-IV inference, LATE boundaries,
-  and a report
+Start with [SKILL.md](SKILL.md). The
+[runner guide](references/runner.md) gives executable commands and the Hermes
+handoff. The [implementation plan](references/implementation-plan.md) defines the
+remaining target-host and pilot work. The
+[four pilot blueprints](references/pilot-cases.md) cover operational meaning and
+preparation, ready analysis, useful limited advice and correction after resume.
 
-The runner resumes one exact outer Claude Code session and validates the response
-shell, idle controller state, scope identity, artifact roles, legacy schema-1,
-historical schema-2, and current schema-3 manifests, execution receipts,
-ordered requirement definitions, requirement evidence locators, immutable
-files, HTML references, and run provenance after every turn. Schema-3
-requirement IDs are contract- and order-bound, so changed or reordered
-definitions fail validation. Evidence-bound report requirements preserve the
-selected analysis completion records as `analysis_artifact_id` entries. A
-schema-3 completion may use a null receipt only for completion protocol 0,
-including migrated scoped recovery, and then its ordered `requirements` must be
-`[]`. Completed reports must have one unambiguous primary HTML page with the
-required v6.3.0 shell, resolved shell placeholders, a language and title, and an
-`alt` attribute on every image. Supplementary HTML remains allowed. It continues
-past nonblocking findings when the next registered prompt
-still has trustworthy prerequisites.
+## Readiness
 
-The outer session preserves the user conversation. Internal router, worker, and
-team-lead phases may use fresh contexts without changing that continuity.
-Temporary phase capsules are transport, not evaluation evidence.
+The standard-library runner provides preflight, start, step, inspect and finish.
+The complete College case includes verified CSV bytes, semantic user facts and
+an independently checked numerical oracle. Preflight detects incomplete consultant
+copies, including missing `package.json`, and mismatched case/data identities.
 
-After replay, the runner creates `evaluation-dossier.md`. This compact review
-input combines the case rules, user-facing transcript, scope transitions,
-manifests, receipts, frozen scope contracts, causal strategy portfolios, approval
-bindings, report `analysis_artifact_ids`, durable schema-3 requirement
-descriptions, and readable artifact evidence while preserving saved raw review
-evidence for targeted drill-down.
-Mechanical checks stay in code; one structured
-qualitative review handles contract fidelity, causal boundaries, usability, and
-defect severity. The summary also reports
-transport-reported agent turns, API time, cache use, and reported cost. These are
-descriptive efficiency metrics, not correctness criteria.
-Registered prompts, turn counts, and exact outer-session replay are unchanged.
+Local subprocess tests exercise session continuity, failures, disclosure, limits
+and review binding. The real Hermes/Claude smoke and four V7P pilots remain pending.
+An unverified or unblinded local diagnostic cannot become a passing blinded test.
+Do not execute the old v6 runner as a v7 test.
 
-```bash
-python3 scripts/run_all_turns.py \
-  --test college-observational-policy \
-  --workdir <fresh-work-directory> \
-  --results-dir <empty-results-directory> \
-  --statectl <Claude-visible-causal-consultant-root>/scripts/statectl.cjs
-```
+## Repository Layout and Legacy Work
 
-The work directory must contain only the case's canonical CSV renamed to
-`data.csv`. Dataset dimensions, required columns, and fingerprints are in
-[`references/test-cases.json`](references/test-cases.json). The College case
-uses the existing cleaned ISLR College export. STAR uses `Ecdat::Star` and the
-IV case uses `Ecdat::Schooling`. Each Rdatasets export is prepared without its
-row-name column.
-Dataset provisioning and private runtime infrastructure remain outside this
-repository.
+The former nested `interactive-test-cc-v7` folder has been promoted here.
+Pre-v7 skill files, scripts, cases and results are preserved in the sibling local
+`interactive-test-cc-v6` directory. That archive also holds older testing skills
+and historical test results. The active consultant is in the sibling
+`causal-consultant` repository; its pre-v7 files are in `causal-consultant-v6`.
 
-Before live replay, install or symlink the intended consultant at
-`${CLAUDE_CONFIG_DIR:-~/.claude}/skills/causal-consultant`. The evaluator records
-the consultant and evaluator versions independently. Version 6.3.0 preflight
-also requires the controller's complete advertised capability baseline and
-stops before a model turn when it drifts. For the three report-bearing cases, it
-also runs a private model-free analysis-to-bound-report lifecycle through the
-real controller and validates the resulting schema-3 artifacts. See
-[`SKILL.md`](SKILL.md) for the
-complete run and assessment procedure.
-
-The unit suite uses the sibling `causal-consultant` checkout for its paired
-real-controller regression tests. In an isolated CI checkout, set
-`CAUSAL_CONSULTANT_STATECTL` to the controller bundle under test; CI fails
-instead of silently skipping these checks when the pair is unavailable.
+Git history and the existing GitHub remote remain with this active repository.
+The archive is a filesystem snapshot, not a separate Git repository or remote
+backup. Its modified pre-v7 files will not be included in a v7 commit here.
+Do not commit from the outer workspace by mistake; review each active repository
+separately. No commit, push, installation or live test accompanies the move.

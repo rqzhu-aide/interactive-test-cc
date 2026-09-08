@@ -1,12 +1,11 @@
-# Python
+# Shared installations only; no project-local environments.
 __pycache__/
 *.py[cod]
 *.egg-info/
+node_modules/
 
-# OS
+# Local editor and OS files.
 .DS_Store
 Thumbs.db
-
-# IDE
 .vscode/
 .idea/

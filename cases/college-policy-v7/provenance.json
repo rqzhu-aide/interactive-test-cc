@@ -1,0 +1,10 @@
+{
+  "checked_at_utc": "2026-09-08",
+  "source_url": "https://raw.githubusercontent.com/vincentarelbundock/Rdatasets/master/csv/ISLR/College.csv",
+  "source_sha256": "8b99c8015da8c3db26844d904b080e8807cad6c1b5c6e9d10187b312b35b89a6",
+  "shipped_sha256": "973f0e267cf016118da64c77d7a8ce98732a649d18e93c38478fd5df5c7e5ead",
+  "comparison": "Byte-identical after CRLF-to-LF normalization; no cell or row changes. Runtime checks require exact shipped bytes.",
+  "historical_oracle_sha256": "96086b64e88f19eeef9101e8521396dae9169a95423303bea8181fa83dfd2aa7",
+  "historical_reference": "audits/v7-manual-college-2026-09-08/oracle.json (pre-consultation); independent-review/check-b.R and check-c.cjs (separate verification).",
+  "scope": "Real observational teaching data; scenario user preferences are fictional. No causal-effect truth is supplied."
+}
