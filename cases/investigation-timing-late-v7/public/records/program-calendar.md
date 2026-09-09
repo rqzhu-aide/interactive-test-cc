@@ -1,0 +1,3 @@
+# Program calendar and extract reconciliation
+
+For the site IDs in data.csv, offers were drawn on 2025-02-01. The funded service period is 2025-09-01 through 2029-05-31, serving the 2025 entering cohort. The recorded grant flag refers to this program only. There was no earlier version of this grant, and its allocation was not announced before the stated draw. The outcome column in the extract refers to the distinct measurement made on 2024-09-01 for 2020 entrants. The export is a join on site ID, not proof that every column refers to the same cohort. No outcome for the funded 2025 cohort exists yet; no data on another earlier grant are available.

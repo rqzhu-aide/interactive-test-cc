@@ -1,0 +1,49 @@
+{
+  "world": {
+    "n": 12,
+    "realized_offered_ids": [
+      "S01",
+      "S02",
+      "S04",
+      "S05",
+      "S10",
+      "S12"
+    ],
+    "assignment_effect": 3,
+    "baseline_anomaly": false,
+    "assignment_date": "2020-02-01",
+    "outcome_date": "2020-12-01",
+    "timing": "before_outcome"
+  },
+  "expected": {
+    "data_sha256": "c00c522504acfe6ed8e76eeb16829ee0366839395f0e1ef60d1ebcddf3c1ae07",
+    "columns": [
+      "site_id",
+      "grant_offer",
+      "score"
+    ],
+    "unique_ids": 12,
+    "missing_cells": 0,
+    "suspect_baseline_ids": [],
+    "statistics": {
+      "n": 12,
+      "arm_counts": [
+        6,
+        6
+      ],
+      "control_mean": 14.666666666666666,
+      "offered_mean": 14.333333333333334,
+      "difference_offered_minus_control": -0.3333333333333333,
+      "sample_variances": [
+        29.866666666666667,
+        77.86666666666666
+      ],
+      "neyman_variance": 17.955555555555556,
+      "sharp_null_two_sided": {
+        "allocations": 924,
+        "extreme": 892,
+        "p_value": 0.9653679653679653
+      }
+    }
+  }
+}

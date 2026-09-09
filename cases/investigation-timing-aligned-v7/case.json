@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "case_id": "investigation-timing-aligned-v7",
+  "case_version": "1.0.1",
+  "suite_version": "7.0.2",
+  "edition": "synthetic-policy-analyst",
+  "author": "Codex synthetic fixture assembly, 2026-09-09 UTC",
+  "base_case_id": null,
+  "adaptation": "New synthetic investigation-depth contrast: timing-aligned. Does not modify College data or reinterpret its historical test.",
+  "requirements": "Shared Python 3.10+ stdlib, shared Node 18.18+, supported consultant candidate, and separately verified actor/consultant/reviewer host isolation for blinded tests. No project-local packages or environments.",
+  "run_limits": {
+    "consultant_turns": 12,
+    "active_seconds": 7200,
+    "elapsed_seconds": 10800
+  },
+  "initial_message": "public/initial-message.txt",
+  "actor": "actor.json",
+  "reviewer": "reviewer.json",
+  "oracle_check": "check_oracle.py",
+  "sources": [
+    {
+      "id": "s-data",
+      "file": "public/data.csv",
+      "destination": "data.csv",
+      "availability": "initial"
+    },
+    {
+      "id": "s-dictionary",
+      "file": "public/dictionary.md",
+      "destination": "dictionary.md",
+      "availability": "initial"
+    },
+    {
+      "id": "s-study",
+      "file": "public/study-notes.md",
+      "destination": "study-notes.md",
+      "availability": "initial"
+    },
+    {
+      "id": "s-calendar",
+      "file": "public/records/program-calendar.md",
+      "destination": "program-calendar.md",
+      "availability": "on_request"
+    },
+    {
+      "id": "s-inventory",
+      "file": "public/available-records.md",
+      "destination": "available-records.md",
+      "availability": "initial"
+    }
+  ],
+  "files": {
+    "actor.json": "fe490ec5ada3c2f6e8cd3a170bfef299fe86c1dbbb712f5f1e3e7ea0f535e66a",
+    "check_oracle.py": "8a982358ee0ba5a43f01c2c66b779b4befb902bbdb18df2a1856323577428398",
+    "oracle.json": "49992adb30db88544a9b36d70a5673043b49084086d99eda0b07a6e7c000179a",
+    "provenance.json": "4b63f94764cb2e599763ef88cb0c701cf0ea2e713de8c320bf6ce6121f775055",
+    "public/available-records.md": "d2f1d712129feaee89fe218d80e8a61b822047718a74e69e868ec7979a2615f0",
+    "public/data.csv": "8d2305ccf0a6f38f540780e3c67f9ff641edada2378a3b7afea96c9936336b85",
+    "public/dictionary.md": "d79803a6d45e4c3ad7a6adec024b7e95f69f46cf54b65bf805bd92d0e09544ea",
+    "public/initial-message.txt": "30c01c0840d50d38b0ebbf624fef28758681ad1af57c7b821edf214dab65bb84",
+    "public/records/program-calendar.md": "84cf6422e2b2b5910d1d8cded8349cdc5aa486ca41365347ad812fb01eb3b422",
+    "public/study-notes.md": "e271307d1ace467a6bd4872b491a369d3d37d1c76b556f10a41832dbc181dfdb",
+    "reviewer.json": "2cb53fa48958c0b80681665269caf0aac2fe47f840bbabf0ec503d16b013afd6"
+  }
+}

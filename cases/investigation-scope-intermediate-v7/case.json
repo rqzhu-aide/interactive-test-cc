@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "case_id": "investigation-scope-intermediate-v7",
+  "case_version": "1.0.1",
+  "suite_version": "7.0.2",
+  "edition": "synthetic-policy-analyst",
+  "author": "Codex synthetic fixture assembly, 2026-09-09 UTC",
+  "base_case_id": null,
+  "adaptation": "New synthetic investigation-depth contrast: scope-intermediate. Does not modify College data or reinterpret its historical test.",
+  "requirements": "Shared Python 3.10+ stdlib, shared Node 18.18+, supported consultant candidate, and separately verified actor/consultant/reviewer host isolation for blinded tests. No project-local packages or environments.",
+  "run_limits": {
+    "consultant_turns": 12,
+    "active_seconds": 7200,
+    "elapsed_seconds": 10800
+  },
+  "initial_message": "public/initial-message.txt",
+  "actor": "actor.json",
+  "reviewer": "reviewer.json",
+  "oracle_check": "check_oracle.py",
+  "sources": [
+    {
+      "id": "s-data",
+      "file": "public/data.csv",
+      "destination": "data.csv",
+      "availability": "initial"
+    },
+    {
+      "id": "s-dictionary",
+      "file": "public/dictionary.md",
+      "destination": "dictionary.md",
+      "availability": "initial"
+    },
+    {
+      "id": "s-allocation",
+      "file": "public/records/allocation-record.md",
+      "destination": "allocation-record.md",
+      "availability": "on_request"
+    },
+    {
+      "id": "s-inventory",
+      "file": "public/available-records.md",
+      "destination": "available-records.md",
+      "availability": "initial"
+    }
+  ],
+  "files": {
+    "actor.json": "df7b1a5d7a060e624ac7add0122fee28a461a95abef80092d6f6689421fe5389",
+    "check_oracle.py": "8a982358ee0ba5a43f01c2c66b779b4befb902bbdb18df2a1856323577428398",
+    "oracle.json": "5911a8262a533740aadcb4c6cc39a80bdf845eed759bdc5c5b184bb991ad7dfd",
+    "provenance.json": "2ce886f97866cd508b4b39f1fdf6ef0cf05fb8fd603f7d3c19a9591ca793aeae",
+    "public/available-records.md": "6b1f8fd8e12932b02f86200d9f9487a237be4cf95affdf3d56d4b4c9fd97f079",
+    "public/data.csv": "faf7904c6da529abdbf31de12410b42f7ab5f042295ff8d3fd3d706d2f1d754b",
+    "public/dictionary.md": "1d22768f860ef4d6d12ef22b32e9ac8e29a1c72e07ca1b92f3ac40d2522f3663",
+    "public/initial-message.txt": "a45d8e08a0e4b8ec8e0ed9c1620bafed67d1346580ab851ea9ce5bf23a78287c",
+    "public/records/allocation-record.md": "4d4fc06fc380642d877c2e694cf0be784159cb8994563208fc488200fe838b2d",
+    "reviewer.json": "b1c438a75c89ed3f2b100b4263489c90b4a51bd09aaf627f2833f172c10b50c5"
+  }
+}

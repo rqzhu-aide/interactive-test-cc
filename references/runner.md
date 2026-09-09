@@ -2,13 +2,18 @@
 
 Hermes supplies adaptive user replies; this standard-library adapter transports
 them and captures evidence for a separate reviewer. Use shared Python 3.10+,
-Node 18.18+, an existing Claude Code installation, and consultant 7.0.0 or 7.0.1.
+Node 18.18+, an existing Claude Code installation, and consultant 7.0.0, 7.0.1 or
+7.0.2. The explicit observation allowlist retains the same package inventory,
+validator, helper and evidence checks for each supported version; it does not
+admit later versions automatically.
 No installation or paid consultation occurs in `preflight`.
 
 The complete case at `cases/college-policy-v7` (case 1.1.0) contains unchanged
 College data, semantic actor rules, an explicit unknown policy timetable and an
 independent descriptive oracle/self-check. It supplies no causal-effect truth.
 It is an adaptation of the recorded local diagnostic, not one of V7P01-V7P04.
+Keep that fixture unchanged. The versioned synthetic investigation-depth cases
+and first comparison stage are listed in [pilot-cases.md](pilot-cases.md).
 
 ## Configuration and startup
 
@@ -129,6 +134,9 @@ remain in `startup-error.json`.
 ## Independent review
 
 Give a separate reviewer the frozen reviewer packet, oracle and actual evidence.
+Credit learned facts only from actual disclosures or inspected sources, and
+apply the frozen scope/stopping conditions when a descriptive result is offered.
+Private actor facts and saved review counts cannot fill missing evidence.
 Do numerical reruns in a separate output directory. Put new evidence to be cited
 inside the private attempt before the final inspect, then obtain its hash index:
 
@@ -170,4 +178,8 @@ do not infer cadence from final prose or add overlapping usage totals.
 
 The flags follow the official [CLI reference](https://code.claude.com/docs/en/cli-reference)
 and [headless guide](https://code.claude.com/docs/en/headless). Confirm support and
-behavior in the installed host version. The four V7P pilots remain pending.
+behavior in the installed host version. The four V7P pilots and investigation-depth
+campaign remain pending. For the latter, compare frozen 7.0.1 and 7.0.2 snapshots
+under matched host/model/tools and prospectively frozen limits, starting with
+the 12-consultation stage in the pilot guide. Local tests do not qualify these
+consulting behaviors.

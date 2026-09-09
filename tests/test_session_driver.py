@@ -18,7 +18,7 @@ class SessionTests(unittest.TestCase):
         cls.candidate = ROOT.parent / "causal-consultant"
         cls.node = shutil.which("node")
         if not cls.node or not cls.candidate.is_dir():
-            raise RuntimeError("Integration tests require a shared Node and the sibling consultant 7.0.0 or 7.0.1 package")
+            raise RuntimeError("Integration tests require a shared Node and the sibling consultant 7.0.0, 7.0.1 or 7.0.2 package")
 
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
@@ -76,6 +76,22 @@ class SessionTests(unittest.TestCase):
             driver.start(self.case, broken, self.config, self.attempt, self.work)
         self.assertTrue((self.attempt / "startup-error.json").exists())
         self.assertFalse(self.work.exists())
+
+    def test_candidate_inventory_accepts_only_explicit_compatible_versions(self):
+        candidate = self.root / "version-probe"
+        candidate.mkdir()
+        (candidate / "SKILL.md").write_text("Test-only runtime file.", encoding="utf-8")
+        for version in ("7.0.0", "7.0.1", "7.0.2"):
+            with self.subTest(version=version):
+                driver.write(candidate / "package.json", {"version": version, "files": ["SKILL.md"]})
+                self.assertEqual(driver.candidate_inventory(candidate), {
+                    "SKILL.md": driver.digest(candidate / "SKILL.md"),
+                    "package.json": driver.digest(candidate / "package.json")})
+        for version in ("6.9.9", "7.0.3", "7.1.0", "7.0.2-preview"):
+            with self.subTest(version=version):
+                driver.write(candidate / "package.json", {"version": version, "files": ["SKILL.md"]})
+                with self.assertRaisesRegex(ValueError, "observation profile"):
+                    driver.candidate_inventory(candidate)
 
     def test_corrupt_or_unexpected_fixture_inputs_fail(self):
         for name in ("public/data.csv", "actor.json"):

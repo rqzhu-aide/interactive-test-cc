@@ -2,7 +2,7 @@
 name: interactive-test-cc
 description: Define, prepare and evaluate adaptive multi-turn tests of causal-consultant v7, with a Hermes simulated user and a consultant accessed through Claude Code. Use to test proactive elicitation, data preparation, analysis, useful stopping and conversation continuity against private study facts.
 metadata:
-  version: "7.0.1"
+  version: "7.0.2"
 ---
 
 # Adaptive Causal Consultation Testing
@@ -11,12 +11,15 @@ Test whether the consultant helps a briefly responding user achieve a useful,
 scientifically defensible outcome. Do not supply a sequence of expert analysis
 instructions and call compliance proactive consulting.
 
-Status: a minimal executable adapter and a complete College case are available.
+Status: a minimal executable adapter and a complete College case are available;
+the investigation-depth contrasts are described in the [pilot guide](references/pilot-cases.md).
 Use the [runner guide](references/runner.md) for startup, adaptive steps and review.
 Local subprocess tests do not establish Hermes/Claude compatibility. The actual
 host smoke and four V7P pilot runs remain pending.
 
-Target: `causal-consultant` `7.0.1` (also compatible with `7.0.0`), pinned to the actual tested snapshot.
+Target: `causal-consultant` `7.0.2` (also compatible with `7.0.0` and `7.0.1`),
+pinned to the actual tested snapshot. The investigation-depth comparison uses
+the frozen `7.0.1` baseline and revised `7.0.2` candidate.
 Later candidates require an explicitly checked compatibility profile. Preserve
 the pre-v7 testing skill, runner, fixtures and results in the sibling local
 `interactive-test-cc-v6` archive. This repository root now contains the v7
@@ -62,7 +65,7 @@ replace an installed consultant or launch a campaign merely by loading this skil
 4. Record the reply, disclosure/source IDs and any attachments privately; send
    only the natural-language message and released files. Resume the exact same
    consultant session. Never select the next message from a fixed turn number.
-5. Continue until the objective or a useful stopping condition is reached, or a
+5. Continue until the frozen objective or a useful stopping condition is reached, or a
    declared limit/failure ends the attempt. Review the actual conversation,
    committed evidence, code and outputs, not only the final prose.
 
@@ -81,6 +84,9 @@ a predetermined method order.
 
 Judge consequential discovery, correct use of the information, scientific and
 computational validity, understandable advice and proportionate user effort.
+Credit facts only when actually disclosed or established from inspected sources.
+Acceptance of an intermediate descriptive result does not itself close the
+original causal inquiry; follow the actor's frozen scope and stopping choices.
 Do not reward question count, a preferred estimator or refusal alone. A fully
 specified attainable analysis must be tested alongside cases needing questions
 or weaker claims. Use independent row/numerical checks where the case requires
@@ -90,5 +96,5 @@ Keep outcome, findings, test validity, coverage and resources separate. Missing
 evidence is not a pass; a cap-limited run is not a successful useful stop. Save
 failed attempts as well as successes. Report current cost descriptively under
 prospectively frozen limits; do not retrospectively relabel earlier cap failures.
-The four initial pilots diagnose specific behaviors, not population reliability
-or full consultant release qualification.
+The four initial pilots and investigation-depth contrasts diagnose specific
+behaviors, not population reliability or full consultant release qualification.

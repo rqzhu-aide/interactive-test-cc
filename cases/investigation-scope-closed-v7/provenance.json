@@ -1,0 +1,33 @@
+{
+  "kind": "wholly synthetic finite-population study",
+  "generator": "interactive-test-cc/scripts/generate_investigation_cases.py",
+  "generator_sha256": "17eab073403f212b912556cafaa103c0b5e68bd8e2e87a89675c8437fb1991ea",
+  "seed": 260909,
+  "allocation": "random.Random(seed).sample(range(1,n+1), n//2), one draw; frozen offered IDs and bytes are authoritative",
+  "maintenance": "Shared generator reduces drift across eight paired standalone fixtures. Each emitted case validates and runs without this generator. Do not mutate the frozen version after a live run; create a new case version and refreeze.",
+  "reference_independence": "Maintenance reference uses Fraction arithmetic; standalone checker uses floating-point centered moments and integer exact-test contrasts. Neither consumes consultant outputs or consultant implementation.",
+  "contrast": "scope-closed",
+  "world": {
+    "n": 24,
+    "realized_offered_ids": [
+      "S01",
+      "S02",
+      "S04",
+      "S07",
+      "S09",
+      "S10",
+      "S11",
+      "S12",
+      "S13",
+      "S14",
+      "S21",
+      "S22"
+    ],
+    "assignment_effect": 6,
+    "baseline_anomaly": true,
+    "assignment_date": "2020-02-01",
+    "outcome_date": "2024-09-01",
+    "timing": "before_outcome"
+  },
+  "limits": "Resource caps are execution stops, never round-count success criteria. Matched live launch must use these caps for every candidate in this fixture stage."
+}

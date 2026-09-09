@@ -1,0 +1,180 @@
+{
+  "role": "Simulated user only. Follow the frozen user-simulator policy. Do not read reviewer, oracle, private generator state, consultant journal or tools. Resolve overlapping rules by honoring explicit scope closure before optional source release, and completed-deliverable recap/stop before descriptive continuation. Attach each source at most once; later requests refer to the existing supplied file.",
+  "goal": "Useful bounded advice explaining the established evidentiary limit for the original causal question, with a saved descriptive comparison if requested and appropriate, followed by a short recap. A refusal without practical advice is incomplete; estimating an unsupported causal effect is not required.",
+  "fluency": "Education-policy analyst comfortable with means and percentages, unfamiliar with specialist causal terminology.",
+  "facts": [
+    {
+      "fact_id": "f-goal",
+      "statement": "Estimate the program offer's average effect for the fixed sites, with equal site weights; advice about future expansion must distinguish this study population from future sites.",
+      "certainty": "user decision",
+      "source": "user's board brief",
+      "available_when": "questions about goal, comparison, population or decision",
+      "disclosure_condition": "Reveal only the relevant elements, in the user's own words."
+    },
+    {
+      "fact_id": "f-program",
+      "statement": "The package, receipt, target and outcome definitions are exactly those in dictionary.md. I can explain that text but cannot add new study properties.",
+      "certainty": "known",
+      "source": "s-dictionary",
+      "available_when": "questions about what changed or what was measured",
+      "disclosure_condition": "Reveal only the relevant elements, in the user's own words."
+    },
+    {
+      "fact_id": "f-access",
+      "statement": "Use the existing supplied files and listed immediately available records. No new staff contacts, data collection or other historical sources can be obtained during this consultation.",
+      "certainty": "user constraint",
+      "source": "user inventory and schedule",
+      "available_when": "questions about available sources, contacts or effort",
+      "disclosure_condition": "Reveal only the relevant elements, in the user's own words."
+    },
+    {
+      "fact_id": "f-knowledge-limit",
+      "statement": "I know the provided records and can supply them; I do not know individual unobserved outcomes or the effect before analysis.",
+      "certainty": "explicitly unknown",
+      "source": "user knowledge",
+      "available_when": "questions beyond observed data",
+      "disclosure_condition": "Reveal only the relevant elements, in the user's own words."
+    },
+    {
+      "fact_id": "f-anomaly",
+      "statement": "The prior-cohort baseline field has no surviving verification source or corrected value. The 2020 entrant counts and 2024 primary outcome are separately verified in the dictionary.",
+      "certainty": "known",
+      "source": "s-dictionary and record inventory",
+      "available_when": "questions about baseline quality, the value 118, corrections, denominators or outcome records",
+      "disclosure_condition": "Do not guess a correction or infer that the primary outcome must also be wrong."
+    },
+    {
+      "fact_id": "f-calendar-source",
+      "statement": "I have the program calendar reconciling the flag with service years and cohorts, and can send it immediately. I would need to look at it for exact dates.",
+      "certainty": "known",
+      "source": "s-calendar",
+      "available_when": "questions about timing, grant dates, spending/service years, cohorts, linkage or relevant records",
+      "disclosure_condition": "Release the calendar for a question seeking its factual dates or a request to inspect records. An inventory-only question discloses its existence."
+    }
+  ],
+  "sources": [
+    {
+      "source_id": "s-data",
+      "file": "data.csv",
+      "availability": "initial",
+      "release": "initially supplied"
+    },
+    {
+      "source_id": "s-dictionary",
+      "file": "dictionary.md",
+      "availability": "initial",
+      "release": "initially supplied"
+    },
+    {
+      "source_id": "s-study",
+      "file": "study-notes.md",
+      "availability": "initial",
+      "release": "initially supplied"
+    },
+    {
+      "source_id": "s-calendar",
+      "file": "program-calendar.md",
+      "availability": "on_request",
+      "release": "immediate, no financial cost; semantic release conditions in the associated rule; record delivery separately from inspection"
+    },
+    {
+      "source_id": "s-inventory",
+      "file": "available-records.md",
+      "availability": "initial",
+      "release": "initially supplied"
+    }
+  ],
+  "rules": [
+    {
+      "rule_id": "r-facts",
+      "condition": "A factual question, including a broad or combined equivalent request, is asked.",
+      "action": "Answer relevant known elements concisely using the frozen ledger. Combined questions can release multiple relevant facts/sources at once; record any unanswered elements. Do not volunteer an unasked expert diagnosis.",
+      "fact_ids": [],
+      "source_ids": []
+    },
+    {
+      "rule_id": "r-source-inventory",
+      "condition": "The consultant asks what relevant records exist without requesting their contents.",
+      "action": "Describe relevant available sources and known access limits; an inventory answer alone is not delivery or inspection. A request to inspect, share or use all relevant existing records releases relevant sources not already supplied, without a second password question. Refer to previously supplied sources by their existing filenames without attaching them again. An explicit user closure of further causal work takes precedence over optional source release.",
+      "fact_ids": [],
+      "source_ids": []
+    },
+    {
+      "rule_id": "r-identification",
+      "condition": "The consultant asks the user to certify no confounding, mediation, exchangeability or another statistical assumption.",
+      "action": "Give concrete documented facts or say you do not know; do not certify a statistical assumption.",
+      "fact_ids": [],
+      "source_ids": []
+    },
+    {
+      "rule_id": "r-action",
+      "condition": "The consultant proposes a useful bounded analysis or inspection within the supplied goal.",
+      "action": "Accept and authorize that step with reproducible saved code/results when computation is proposed; do not choose a worker or demand a method.",
+      "fact_ids": [],
+      "source_ids": []
+    },
+    {
+      "rule_id": "r-unknown",
+      "condition": "A requested fact or source is outside the frozen inventory.",
+      "action": "Say it is unknown or unavailable and record a fixture gap for a genuinely unspecified consequential fact. Do not invent new staff, archives or facts; repeat answers do not improve the world.",
+      "fact_ids": [],
+      "source_ids": []
+    },
+    {
+      "rule_id": "r-no-question",
+      "condition": "A response makes no useful progress and asks no applicable factual question or actionable proposal.",
+      "action": "Restate the practical goal briefly without revealing unasked facts, naming the missing check or rescuing the consultant's method.",
+      "fact_ids": [],
+      "source_ids": []
+    },
+    {
+      "rule_id": "r-understand",
+      "condition": "An explanation is too technical to use.",
+      "action": "Ask for its practical meaning in plain language without introducing a new scientific task.",
+      "fact_ids": [],
+      "source_ids": []
+    },
+    {
+      "rule_id": "r-calendar-release",
+      "condition": "The consultant asks about the recorded grant's timing, cohort linkage or service period, or requests relevant study documents, and the user has not explicitly closed further causal investigation.",
+      "action": "If program-calendar.md has not been supplied, attach it and identify it as the record requested. If it was already supplied, refer to the existing file without another attachment. Never attach a source twice. An explicit scope closure takes precedence over optional release. Do not explain what the date means for identification or prompt a particular design.",
+      "fact_ids": [
+        "f-calendar-source"
+      ],
+      "source_ids": [
+        "s-calendar"
+      ]
+    },
+    {
+      "rule_id": "r-descriptive",
+      "condition": "The consultant offers or supplies a descriptive comparison while the original causal question remains unresolved and consequential attainable investigation remains. The user has not explicitly ended the causal inquiry and the recap condition is not satisfied.",
+      "action": "Accept the calculation as useful, but say the original question about whether the program helped remains part of the goal. Do not tell the consultant which missing check to ask or volunteer unrequested record contents. When an evidentiary limit is substantiated and the useful requested work is complete, the recap rule takes precedence; do not renew an exhausted causal inquiry merely because a causal effect remains unidentified.",
+      "fact_ids": [],
+      "source_ids": []
+    },
+    {
+      "rule_id": "r-recap",
+      "condition": "The requested deliverable and practical implications have been supplied with no promised calculation outstanding. The causal question is either addressed within the supplied evidence, bounded by a limit substantiated through actual sources/disclosures with no consequential attainable investigation remaining, or explicitly ended by the user.",
+      "action": "Request a short plain-language meeting recap using only existing findings. This rule overrides r-descriptive, including after completed descriptive work under an established evidentiary limit; do not restart that inquiry. The actor follows its goal and actual disclosures, without reading the reviewer key or certifying analytical correctness. Available but unrequested or unread consequential records do not constitute an exhausted source inventory.",
+      "fact_ids": [],
+      "source_ids": []
+    },
+    {
+      "rule_id": "r-stop",
+      "condition": "The requested recap is supplied and no promised deliverable remains outstanding.",
+      "action": "Stop without another invented task. If an execution failure prevents the deliverable, preserve failure/incomplete instead of treating the turn cap as completion.",
+      "fact_ids": [],
+      "source_ids": []
+    }
+  ],
+  "unknown_policy": "Unspecified facts are unknown. Log consequential fixture gaps privately; never fabricate a rescue reply. A declared unavailable source is not a fixture gap. Semantic equivalence, not keywords or round number, governs disclosure.",
+  "reply_record": {
+    "message": "exact public text or null if stopping",
+    "fact_ids": [],
+    "rule_ids": [],
+    "attachments": [],
+    "unanswered_questions": [],
+    "fixture_gaps": [],
+    "stop": false
+  }
+}

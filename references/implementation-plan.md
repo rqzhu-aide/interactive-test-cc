@@ -1,10 +1,10 @@
 # Implementation Plan for the V7 Testing Skill
 
 - Class: planning
-- Status: minimal adapter and College fixture implemented; live host validation and four pilots pending
-- Date: 2026-09-07
-- Package: `interactive-test-cc`, `7.0.1`
-- Current consultant target: identified `7.0.1` snapshot, with `7.0.0` compatibility; not any directory
+- Status: minimal adapter, College fixture and investigation-depth contrasts implemented; live host validation and consultations pending
+- Date: 2026-09-09
+- Package: `interactive-test-cc`, `7.0.2`
+- Current consultant target: identified `7.0.2` snapshot, with `7.0.0` and `7.0.1` compatibility; not any directory
   merely labelled v7
 
 ## Scope and Current Deliverables
@@ -15,6 +15,13 @@ blueprints. The [runner](runner.md) now implements the minimal adaptive transpor
 and ships a College adaptation with exact hashes and an independent numerical
 self-check. Local subprocess checks do not establish a real-host consultation.
 No live campaign, installation or Git publication accompanies these changes.
+
+The 7.0.2 investigation-depth revision adds four paired synthetic contrasts and
+evidence-based review of investigation and scope closure. Its staged comparison
+of frozen 7.0.1 and 7.0.2 candidates is defined in [pilot-cases.md](pilot-cases.md),
+beginning with 12 consultations. That later addition preserves the original
+College fixture and V7P01-V7P04 blueprints; the remaining sections record the
+broader V7P implementation plan rather than completed live results.
 
 The September 7 reorganization makes this definition the testing repository's
 root skill. Pre-v7 files and results are preserved in the sibling local

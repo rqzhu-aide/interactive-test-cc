@@ -102,7 +102,8 @@ def validate_case(case):
 
 def candidate_inventory(candidate):
     package = read(candidate / "package.json")  # Required even though absent from npm's explicit files list.
-    require(package["version"] in ("7.0.0", "7.0.1"), "this observation profile requires consultant 7.0.0 or 7.0.1")
+    require(package["version"] in ("7.0.0", "7.0.1", "7.0.2"),
+            "this observation profile requires consultant 7.0.0, 7.0.1 or 7.0.2")
     result = {"package.json": digest(candidate / "package.json")}
     for entry in package["files"]:
         path = member(candidate, entry)

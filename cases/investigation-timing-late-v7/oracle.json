@@ -1,0 +1,52 @@
+{
+  "world": {
+    "n": 24,
+    "realized_offered_ids": [
+      "S01",
+      "S02",
+      "S04",
+      "S07",
+      "S09",
+      "S10",
+      "S11",
+      "S12",
+      "S13",
+      "S14",
+      "S21",
+      "S22"
+    ],
+    "assignment_effect": 0,
+    "baseline_anomaly": false,
+    "assignment_date": "2025-02-01",
+    "outcome_date": "2024-09-01",
+    "timing": "after_outcome"
+  },
+  "expected": {
+    "data_sha256": "738e4a698ab08f4372c6a2e31d58ca42df6c8b44d23bfa4697d92879103c7d39",
+    "columns": [
+      "site_id",
+      "grant_offer",
+      "entrants",
+      "baseline_completion_pct",
+      "completion_2024_pct"
+    ],
+    "unique_ids": 24,
+    "missing_cells": 0,
+    "suspect_baseline_ids": [],
+    "statistics": {
+      "n": 24,
+      "arm_counts": [
+        12,
+        12
+      ],
+      "control_mean": 58.666666666666664,
+      "offered_mean": 61.666666666666664,
+      "difference_offered_minus_control": 3.0,
+      "sample_variances": [
+        62.60606060606061,
+        98.96969696969697
+      ],
+      "neyman_variance": 13.464646464646465
+    }
+  }
+}

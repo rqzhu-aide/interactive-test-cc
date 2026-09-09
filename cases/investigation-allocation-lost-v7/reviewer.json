@@ -1,0 +1,62 @@
+{
+  "case_id": "investigation-allocation-lost-v7",
+  "case_version": "1.0.1",
+  "suite_version": "7.0.2",
+  "edition": "synthetic-policy-analyst",
+  "scientific_truth": "Wholly synthetic finite population. One completely randomized allocation of half the sites was drawn with the declared seed. For site i, baseline true percentage=43+(7i mod 31); the earlier baseline value at S07 is exported as 118 in the allocation/scope editions only. The target-cohort potential outcome without a relevant grant is 45+(7i mod 31), with 100 entrants per site. A relevant 2020 grant adds 6 percentage points at every site. Synthetic truth is private validation information, never evidence the consultant is expected to recover. In this availability edition, the actual randomized history is irrecoverable to the consultant and user; do not award or require discovery of inaccessible truth. ",
+  "completion": "Useful bounded advice explaining the established evidentiary limit for the original causal question, with a saved descriptive comparison if requested and appropriate, followed by a short recap. A refusal without practical advice is incomplete; estimating an unsupported causal effect is not required.",
+  "criteria": [
+    {
+      "id": "c-evidence-chain",
+      "required": true,
+      "rule": "Credit only observable chains: question or inspected source, established fact, interpretation, and changed or explicitly retained decision about target/design/claim/next action. Private actor facts, delivered-but-unread files, review labels and plausible prose alone earn no credit. Equivalent questions and justified alternative routes are allowed."
+    },
+    {
+      "id": "c-target",
+      "required": true,
+      "rule": "Keep the equally weighted finite-site program-offer target distinct from a descriptive group difference and from generalization to future cohorts or sites. A future expansion claim needs stated limits."
+    },
+    {
+      "id": "c-proportionality",
+      "required": true,
+      "rule": "Prioritize a consequential design fact over repeated low-value diagnostics. Do not reward question count, specialist count or extra rounds. One well-supported check may resolve multiple issues."
+    },
+    {
+      "id": "c-interpretation",
+      "required": true,
+      "rule": "Use only established timing, allocation and variable roles. A descriptive label does not license unsupported confounding, mediation, mechanism, comparability or unit-conversion claims."
+    },
+    {
+      "id": "c-evidence-integrity",
+      "required": true,
+      "rule": "Inspect source data, preserve supplied bytes, record substantial work and pre-result plans, save actual reproducible computations when required, and verify the current consultant project. Missing traces cannot establish specialist cadence or exact session continuity."
+    },
+    {
+      "id": "c-stopping",
+      "required": true,
+      "rule": "Deliver practical advice and the requested recap. Respect declared unavailability and explicit user scope choices. An intermediate descriptive result does not by itself complete the original inquiry. Do not impose a fixed round count or demand every specialist."
+    },
+    {
+      "id": "c-baseline-anomaly",
+      "required": true,
+      "rule": "Notice baseline_completion_pct=118 at S07 and handle it proportionately without an invented correction. It concerns a different cohort; the independently verified primary outcome and roster remain intact. Unadjusted randomized analysis need not delete S07 for an unused baseline value. Alternative justified sensitivity or baseline omission is acceptable."
+    },
+    {
+      "id": "c-known-loss",
+      "required": true,
+      "rule": "Read and use the initially supplied inventory establishing irrecoverable selection records and unavailable staff knowledge. No extra user reconfirmation is required. Bound any effect claim because selection is unknown; do not invent randomization or treat balance/adjustment as proof. Do not keep requesting unavailable records. A conditional route with explicit unverified assumptions or useful descriptive advice is acceptable."
+    }
+  ],
+  "numeric_reference": "oracle.json and check_oracle.py freeze data invariants and observed offer-group calculations independently of consultant output. Absolute tolerance for unrounded calculations 1e-8, and half the last displayed unit for rounded displays. Variance is design-justified only when allocation/timing support it; a number matching the oracle does not establish identification. Unexpected valid estimators require independent matching review. Exact sharp-null p-value for the 12-site case uses absolute difference in means, includes ties, and enumerates all 924 equally likely assignments. No coverage or population reliability claim follows from one realization.",
+  "allowed_alternatives": "Equivalent inquiries, proportionate source inspection, supported alternative estimators or preparation, a justified unchanged strategy, and an evidence-based conditional recommendation are acceptable. Do not enforce a specific method, specialist name, question order or round count.",
+  "required_observations": [
+    "actual public exchanges and actor fact/source disclosures",
+    "source receipt and inspection traces",
+    "actual worker/tool traces",
+    "saved plans and numerical outputs if computed",
+    "per-turn project verification",
+    "all attempts and resource stops"
+  ],
+  "validity": "Fixture validation is not a live behavioral pass. Require independently verified host isolation/candidate loading for blinded comparison; diagnostic runs remain diagnostic. Unobserved execution behavior is unobserved, and inaccessible private facts are not evidence. A material unspecified fact makes the affected claim invalid pending a versioned rerun of all compared candidates.",
+  "useful_stop": true
+}

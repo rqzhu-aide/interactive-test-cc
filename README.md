@@ -1,6 +1,6 @@
 # Interactive Test CC v7
 
-Version: `7.0.1`. This repository contains the v7 testing skill and minimal
+Version: `7.0.2`. This repository contains the v7 testing skill and minimal
 adaptive runner under the canonical skill name `interactive-test-cc`.
 
 It specifies a Hermes simulated user interacting with causal-consultant through
@@ -15,6 +15,8 @@ handoff. The [implementation plan](references/implementation-plan.md) defines th
 remaining target-host and pilot work. The
 [four pilot blueprints](references/pilot-cases.md) cover operational meaning and
 preparation, ready analysis, useful limited advice and correction after resume.
+The same guide specifies four synthetic investigation-depth contrasts for a
+matched comparison of frozen consultant `7.0.1` and revised `7.0.2` snapshots.
 
 ## Readiness
 
@@ -22,9 +24,18 @@ The standard-library runner provides preflight, start, step, inspect and finish.
 The complete College case includes verified CSV bytes, semantic user facts and
 an independently checked numerical oracle. Preflight detects incomplete consultant
 copies, including missing `package.json`, and mismatched case/data identities.
+The observation profile explicitly accepts consultant `7.0.0`, `7.0.1` and
+`7.0.2`; later versions still require a checked compatibility update.
+
+Eight investigation-depth fixtures cover allocation-record availability, exposure
+timing, intermediate versus closed descriptive scope, and complete versus missing
+design documentation. Each has frozen public/actor/reviewer materials and an
+independent self-check. The original College fixture remains unchanged; its
+descriptive completion does not establish investigation depth.
 
 Local subprocess tests exercise session continuity, failures, disclosure, limits
-and review binding. The real Hermes/Claude smoke and four V7P pilots remain pending.
+and review binding. The real Hermes/Claude smoke, four V7P pilots and matched
+investigation-depth consultations remain pending.
 An unverified or unblinded local diagnostic cannot become a passing blinded test.
 Do not execute the old v6 runner as a v7 test.
 

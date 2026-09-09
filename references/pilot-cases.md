@@ -1,8 +1,10 @@
 # Adaptive Pilot Blueprints
 
-Status: specification only, 2026-09-07. These four portable blueprints are not
+V7P01-V7P04 status: specification only, 2026-09-07. These four portable blueprints are not
 datasets, executable fixtures, captured conversations, results or qualification.
 Construct, independently check and freeze each fixture before live execution.
+The separately versioned investigation-depth cases below implement focused
+contrasts; their availability does not qualify the original four blueprints.
 
 ## Scope and common contract
 
@@ -200,3 +202,46 @@ can complete the objective, and one justified follow-up review is allowed in a
 later turn. An event saying "corrected" is insufficient if current advice still
 relies on the superseded premise. Rewriting history, asking the user to reconstruct
 available prior reasoning or presenting attendance as randomized offer fails.
+
+## Investigation-depth contrasts: testing 7.0.2
+
+These synthetic fixtures retain the case contract and brief adaptive actor policy.
+They compare the frozen consultant 7.0.1 baseline with candidate 7.0.2; the testing
+package supports both explicitly. Each directory has its own case identity,
+version 1.0.1, hashes, public inputs, actor/reviewer packets and independent
+self-check. Version 1.0.1 repairs actor stopping and repeat-source rules after
+forward review, with public study materials and scientific oracles unchanged;
+the original 1.0.0 freeze remains in the revision audit. No live comparison had
+started before this repair. Keep scenario IDs and reviewer criteria out of consultant messages.
+The existing `college-policy-v7` data, actor and stopping rule remain unchanged.
+Use College for descriptive delivery and recap regression, without attributing
+these new cases' hidden histories to the real College data.
+
+| Contrast and case directories | Consequential behavior |
+|---|---|
+| [Allocation recoverable](../cases/investigation-allocation-recoverable-v7) / [allocation lost](../cases/investigation-allocation-lost-v7) | With the same distracting anomaly, discover and assess accessible allocation evidence before final fallback; establish actual record loss and stop repeating unavailable requests in the paired condition. A found allocation rule requires assessment, not automatic causal identification. |
+| [Timing aligned](../cases/investigation-timing-aligned-v7) / [timing late](../cases/investigation-timing-late-v7) | Resolve the accessible period/cohort distinction and use it to change or retain the proposed exposure and claim. |
+| [Scope intermediate](../cases/investigation-scope-intermediate-v7) / [scope closed](../cases/investigation-scope-closed-v7) | Preserve the original inquiry when a descriptive result is accepted as intermediate; honor an explicit decision to end that inquiry while retaining its unresolved limits. |
+| [Design complete](../cases/investigation-design-complete-v7) / [design missing](../cases/investigation-design-missing-v7) | Execute with complete source-supported evidence; investigate the consequential missing design fact specifically, without a general questionnaire. The complete condition adapts the ready-analysis blueprint above. |
+
+Review the actual chain of question or source, discovered fact, interpretation,
+and changed or justified unchanged recommendation. Equivalent questions and valid
+alternative designs count. A fact held only in the actor packet earns no credit;
+neither a review label nor a larger round count establishes depth. The actor
+follows its frozen goal and disclosure rules without expert reminders about the
+missing check. Intermediate and explicit-stop choices must remain distinct.
+
+Before live comparison, independently review the fixtures and candidate, run
+fixture self-checks, and verify the actual host's isolation, candidate loading,
+exact resume and trace coverage under [hermes-claude.md](hermes-claude.md).
+Freeze model, host, tools and numeric consultation limits before each stage.
+
+Start with allocation recoverable, allocation lost and design complete: two
+fresh repetitions per condition per candidate give 12 consultations. Alternate
+candidate order, preserve failed attempts, and inspect scientific behavior,
+repair work and actual effort before expanding to the remaining contrasts and
+College regression. Freeze any later-stage limits before that stage. Correct
+and retest attributable material failures or leave the affected behavior
+unqualified. Fixture checks and forward review do not substitute for these live
+observations; the small campaign does not establish population reliability or
+all-method release qualification.

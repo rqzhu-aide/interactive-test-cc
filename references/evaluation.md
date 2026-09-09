@@ -19,12 +19,35 @@ changed or explicitly preserved preparation, strategy or advice. Do not require
 every link on every turn. Direct supported work, evidence-only synthesis and
 useful stopping are positive controls, not elicitation failures.
 
+For each material credited fact, locate the actual disclosure or inspected
+source and the consultant's use of it. Private actor knowledge, an attachment
+release without evidence of inspection, or a reviewer packet alone cannot prove
+that the consultant learned a fact. In particular, distinguish an unasked
+question, a disclosed unknown, an established unavailable source and an adopted
+assumption. Do not turn private unavailability into credit for a justified stop.
+
 Materiality depends on the consequence, not whether an expected sentence
 appeared. Comparable valid investigation choices and estimators are allowed.
 If the consultant resolves an issue from a reliable accessible source, it need
 not ask the user the same question. If an issue cannot be resolved, conditional
 advice can be correct. Calling an unasked resolvable issue a limitation does not
 excuse a resulting wrong or unnecessarily unhelpful conclusion.
+
+For investigation-depth cases, examine whether plausible answers to the selected
+check could change the target, design, interpretation or next action, and whether
+the question or source could distinguish them. An easy anomaly check may be
+useful, but cannot substitute for a consequential attainable assignment or timing
+check. Credit a supported unchanged recommendation as well as a changed one.
+Question counts, review labels and stated intentions alone establish no depth.
+
+Evaluate completion against the original objective and actual scope choices.
+Descriptive work can be a useful intermediate deliverable while the causal
+inquiry remains open. Accepting that calculation does not by itself establish
+that accessible causal evidence was exhausted. An explicit user decision to
+narrow or end the inquiry should be honored, with unresolved questions retained
+as limitations. Apply each fixture's frozen stopping rule: the unchanged College
+case tests descriptive delivery and recap, and gains no retrospective
+investigation-depth coverage under these new contrasts.
 
 ## Independent Checks
 
@@ -47,14 +70,22 @@ identify the comparison, finding or limitation, and next action? Actor agreement
 or satisfaction alone is not evidence. Any optional blind-reader comprehension
 check receives only the public exchange and audience profile, not the answer key.
 
+Inspect substantive explanations even when the output is labelled descriptive
+or non-causal. Claims that adjustment removes a mechanism, resolves confounding
+or makes groups causally comparable need an established basis for the variable
+roles and timing. A cautious headline cannot repair an unsupported explanation.
+Check material unit conversions and quantitative explanations as well as fitted
+coefficients, using the source and tolerance required for that claim.
+
 ## V7 Behavioral and Evidence Checks
 
 Count at most one substantive specialist review per assistant turn, whether
 local or delegated. Related diagnostics or several guides can serve one bounded
 review. Two independent reviews inside one worker are still two. Clarification,
 correction and synthesis may use zero. Do not infer compliance from agent names,
-final prose or provider-reported agent-turn counts alone. Missing trace coverage
-remains unobserved.
+final prose, saved review counts or provider-reported agent-turn counts alone.
+Missing trace coverage remains unobserved. Saved reviews also cannot establish
+exact session continuity; that requires captured invocation/session evidence.
 
 Use the candidate's read-only v7 verification and captured journal/run records
 for project continuity, pre-result plans, immutable completed work, input lineage
@@ -122,7 +153,7 @@ output, provider time and cost only with their collection scope and semantics.
 Unavailable telemetry is `null`/unknown, not zero. Avoid double-counting worker
 usage already included in provider totals. Count failed attempts too.
 
-For the initial pilot use two fresh repetitions per case/candidate after a host
+For the V7P pilots use two fresh repetitions per case/candidate after a host
 smoke test; compare under frozen matched limits. Current token cost is accepted
 for exploration, not a reason to optimize before testing utility. Set any new
 token/cost envelope before these runs, without changing historical failures.
@@ -130,3 +161,10 @@ Report protocol and scientific results separately for any v6/v7 comparison.
 Cross-host/model results do not isolate a skill effect. Small pilots are
 diagnostic evidence, not release qualification, population reliability or proof
 that simulated users match real people. Follow up with real-user trials later.
+
+For the investigation-depth revision, start with the allocation-availability pair
+and fully documented control under the [pilot guide](pilot-cases.md). Two fresh
+repetitions for each of three conditions and two candidates yield 12 consultations.
+Inspect scientific behavior, repairs and effort before expanding; freeze later
+stage limits prospectively. Correct and retest material attributable failures
+or leave the affected behavior explicitly unqualified.
