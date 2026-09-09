@@ -33,8 +33,8 @@ not ask the user the same question. If an issue cannot be resolved, conditional
 advice can be correct. Calling an unasked resolvable issue a limitation does not
 excuse a resulting wrong or unnecessarily unhelpful conclusion.
 
-For investigation-depth cases, examine whether plausible answers to the selected
-check could change the target, design, interpretation or next action, and whether
+Examine whether plausible answers to the selected check could change the target,
+design, interpretation or next action, and whether
 the question or source could distinguish them. An easy anomaly check may be
 useful, but cannot substitute for a consequential attainable assignment or timing
 check. Credit a supported unchanged recommendation as well as a changed one.
@@ -49,7 +49,48 @@ as limitations. Apply each fixture's frozen stopping rule: the unchanged College
 case tests descriptive delivery and recap, and gains no retrospective
 investigation-depth coverage under these new contrasts.
 
+## Actor Fidelity
+
+Review the actor against its frozen persona and its own visible learning history,
+separately from consultant quality. Check realistic knowledge and reasoning,
+cooperation, semantically warranted source release, and persistence of supported
+belief or decision changes. Novices need not use technical labels; experts may
+propose methods or question arguments within their knowledge. Neither gains
+access to `world.json` or the reviewer key. Private world truth is not proof that
+the actor or consultant knew it.
+
+Use the actual reply records, received sources and update citations to assess
+learning. Structural validation of `knowledge_updates`, `belief_updates` and
+`decision_updates` does not verify their truth. Count a reset of a resolved
+misunderstanding, fabricated access, secret-password release rule, or pressure
+beyond the persona's finite rule as an actor/fixture issue when consequential.
+Do not punish an honest limited report because the adversarial persona initially
+wanted a stronger conclusion.
+
+Represent these judgments with the existing coverage criteria and findings,
+not an extra actor-fidelity score. A material or fundamental finding owned by
+`simulator`, `fixture`, `harness` or `environment` makes execution invalid for a
+whole-case comparison. Keep separately supported consultant defects visible;
+invalid actor behavior is not evidence that the consultant failed the same task
+under a faithful user.
+
 ## Independent Checks
+
+For `completion_contract: "full_report"`, locate the delivered consultant
+report and its completed report run in the retained dossier. Verify that it
+answers the requested decision, explains the study and method, reports supported
+results with uncertainty and relevant diagnostics, and preserves causal limits,
+alternatives and practical implications. Assess needed content rather than a
+word count, prescribed headings or a visit to every specialist.
+
+Check its selected source runs/inputs, numerical claims, reproducible companion
+code/results, readback and applicable rendering evidence. A file named report,
+a short chat recap or a report promise is insufficient. The adapter's
+`completion_check` establishes artifact evidence only; scientific adequacy and
+whether the report incorporates all requested work remain reviewer judgments.
+Missing or unverifiable reporting makes a claimed successful full-report outcome
+incomplete. Useful bounded advice may support a limited report, but cannot waive
+that deliverable. Preserve environment/cap failures and attributable defects.
 
 Open actual saved code and outputs for material numerical claims. Apply the
 case's independent row-level or estimator/uncertainty references and declared
@@ -152,8 +193,18 @@ active wall time and user-wait time separately. Report input, cached input,
 output, provider time and cost only with their collection scope and semantics.
 Unavailable telemetry is `null`/unknown, not zero. Avoid double-counting worker
 usage already included in provider totals. Count failed attempts too.
+Do not count an actor stop record as a consultant round. Report observed rounds
+through verified report delivery separately from provisional maximum limits.
+A typical round count needs repeated completed full-report consultations with
+identified cases/model/host; focused recap runs do not establish it.
 
-For the V7P pilots use two fresh repetitions per case/candidate after a host
+For default full-report testing, cover all four [persona cases](persona-cases.md)
+unless an individual case was selected. Report fixture validation, simulated
+actor rehearsal and live consultation results separately. Fake/local tests do
+not establish a live blinded pass. These four cases differ in both study and
+persona, so their outcome differences do not isolate a causal persona effect.
+
+For the preserved V7P pilot plan use two fresh repetitions per case/candidate after a host
 smoke test; compare under frozen matched limits. Current token cost is accepted
 for exploration, not a reason to optimize before testing utility. Set any new
 token/cost envelope before these runs, without changing historical failures.

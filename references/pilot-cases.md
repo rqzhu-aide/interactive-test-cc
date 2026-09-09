@@ -1,5 +1,9 @@
 # Adaptive Pilot Blueprints
 
+Default broad full-report testing now uses the four [persona cases](persona-cases.md).
+This guide preserves the earlier pilot plans, focused contrasts and full-report
+adaptations as regression coverage, with their original identities and endpoints.
+
 V7P01-V7P04 status: specification only, 2026-09-07. These four portable blueprints are not
 datasets, executable fixtures, captured conversations, results or qualification.
 Construct, independently check and freeze each fixture before live execution.
@@ -24,8 +28,9 @@ independent oracles and tolerances. Separate study truth from what the user know
 believes or can obtain at each stage. Keep private facts and reviewer keys outside
 consultant-readable storage; an instruction not to read them is not a boundary.
 
-Default replies are one short factual sentence, following the
-[reply policy](user-simulator.md). Answer semantically equivalent or combined
+The original pilot packets retain their brief factual style under the
+[reply policy](user-simulator.md); this is not a sentence limit for newer personas.
+Answer semantically equivalent or combined
 questions without naming the expected specialist, method or scoring issue.
 Prioritize the consequential question and closely related facts; record other
 unanswered questions and disclosed fact IDs privately. An unlisted fact is unknown
@@ -34,7 +39,9 @@ because the consultant has stalled.
 
 Distinguish an ambiguous reply from an explicit unknown, unavailable source or
 declined action. Clarifying the former may help; repeatedly probing the latter
-does not create evidence. User expertise changes vocabulary, not scientific facts.
+does not create evidence. These preserved communication editions do not change
+their frozen scientific facts. New persona cases separately specify differences
+in user knowledge, reasoning and cooperation; register variants alone do not.
 Optional register variants need their own IDs and frozen fact-equivalence checks.
 
 Observe actual sequential turns and at most one substantive specialist review per
@@ -202,6 +209,34 @@ can complete the objective, and one justified follow-up review is allowed in a
 later turn. An event saying "corrected" is insufficient if current advice still
 relies on the superseded premise. Rewriting history, asking the user to reconstruct
 available prior reasoning or presenting attendance as randomized offer fails.
+
+## Earlier Full-Report Regression Cases
+
+These two earlier full-report adaptations remain regression cases for consultant 7.0.2.
+They require investigation, supported reproducible analysis and a saved report
+that addresses the user's decision. Their testing-suite version is 7.0.3 and
+case version is 1.0.0. The new default persona suite is documented separately.
+The [runner](runner.md) explains the report completion
+check and prospective 24-exchange capacity. There is no required round count
+or mandatory specialist sequence.
+
+| Case | Evidence and endpoint |
+|---|---|
+| [College full report](../cases/college-policy-report-v7) | Preserves the real College data, unknowns and numerical reference. Continue through a complete report with supported descriptive results, causal limitations and meeting advice. |
+| [Allocation full report](../cases/investigation-allocation-report-v7) | Preserves the synthetic recoverable-allocation study and its reference. Investigate accessible consequential records, carry out supported analysis and deliver the requested report. |
+
+Their public requests and actor goals include reporting from the outset. A chat
+recap or analysis file does not complete either case. The actor asks for the
+promised deliverable without naming specialists or consulting the reviewer key.
+The reviewer inspects the actual report, selected evidence, numerical claims,
+validation and completeness. A completed report may responsibly retain causal
+uncertainty; unsupported estimation is not required to make it look complete.
+
+These are new endpoint adaptations, not replacements for the frozen College or
+eight investigation contrasts. Those focused cases retain their original limits
+and stopping behavior, and cannot establish full-report completion. Likewise,
+the earlier 12-consultation comparison below remains a focused investigation
+stage. No historical attempt is retrospectively regraded as a full test.
 
 ## Investigation-depth contrasts: testing 7.0.2
 

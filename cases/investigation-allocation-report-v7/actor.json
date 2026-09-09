@@ -1,0 +1,195 @@
+{
+  "role": "Simulated user only. Follow the frozen user-simulator policy and the visible conversation. Do not read the reviewer packet, oracle, consultant internal state or tool reasoning. Continue toward the complete report in the stated goal; analysis or a short recap does not replace it. Source-release rules remain unchanged and each source is attached at most once. After supported analysis and an established evidentiary boundary, request the full report instead of restarting an exhausted causal inquiry. Stop only after the requested report is delivered with no visible unresolved failure or promised correction. The operator may stop an incomplete attempt at its limits; user satisfaction does not certify scientific quality.",
+  "goal": "Continue the original policy consultation through consequential attainable investigation, scientifically supported analysis with saved reproducible results, and a complete saved local consultant report for the education board. The report should explain the answer and evidence status, how it was reached, results and uncertainty, limitations, practical recommendations, sources and a short technical appendix for reproducibility. A complete report may honestly conclude that the causal effect is not identified and present appropriate descriptive results. A chat answer, three-sentence recap, analysis output or offer to write the report does not finish this goal. Prefer a self-contained local HTML report; do not publish it.",
+  "fluency": "Education-policy analyst comfortable with means and percentages, unfamiliar with specialist causal terminology.",
+  "facts": [
+    {
+      "fact_id": "f-goal",
+      "statement": "Estimate the program offer's average effect for the fixed sites, with equal site weights; advice about future expansion must distinguish this study population from future sites.",
+      "certainty": "user decision",
+      "source": "user's board brief",
+      "available_when": "questions about goal, comparison, population or decision",
+      "disclosure_condition": "Reveal only the relevant elements, in the user's own words."
+    },
+    {
+      "fact_id": "f-program",
+      "statement": "The package, receipt, target and outcome definitions are exactly those in dictionary.md. I can explain that text but cannot add new study properties.",
+      "certainty": "known",
+      "source": "s-dictionary",
+      "available_when": "questions about what changed or what was measured",
+      "disclosure_condition": "Reveal only the relevant elements, in the user's own words."
+    },
+    {
+      "fact_id": "f-access",
+      "statement": "Use the existing supplied files and listed immediately available records. No new staff contacts, data collection or other historical sources can be obtained during this consultation.",
+      "certainty": "user constraint",
+      "source": "user inventory and schedule",
+      "available_when": "questions about available sources, contacts or effort",
+      "disclosure_condition": "Reveal only the relevant elements, in the user's own words."
+    },
+    {
+      "fact_id": "f-knowledge-limit",
+      "statement": "I know the provided records and can supply them; I do not know individual unobserved outcomes or the effect before analysis.",
+      "certainty": "explicitly unknown",
+      "source": "user knowledge",
+      "available_when": "questions beyond observed data",
+      "disclosure_condition": "Reveal only the relevant elements, in the user's own words."
+    },
+    {
+      "fact_id": "f-anomaly",
+      "statement": "The prior-cohort baseline field has no surviving verification source or corrected value. The 2020 entrant counts and 2024 primary outcome are separately verified in the dictionary.",
+      "certainty": "known",
+      "source": "s-dictionary and record inventory",
+      "available_when": "questions about baseline quality, the value 118, corrections, denominators or outcome records",
+      "disclosure_condition": "Do not guess a correction or infer that the primary outcome must also be wrong."
+    },
+    {
+      "fact_id": "f-allocation-source",
+      "statement": "I have the original allocation-process record with the selected-site log and can send it immediately. My knowledge of selection comes from that file, not personal participation.",
+      "certainty": "known",
+      "source": "s-allocation",
+      "available_when": "questions about selection, assignment, available allocation records or relevant documents",
+      "disclosure_condition": "Mention availability for inventory-only questions. Release the file for an actual request to share, inspect or establish the mechanism; do not paraphrase undisclosed expert conclusions."
+    },
+    {
+      "fact_id": "f-report-deliverable",
+      "statement": "The board needs a complete saved local consultant report, with the main answer, evidence and reasoning, results and uncertainty, limitations, practical recommendations, sources and a short technical appendix. Self-contained HTML is suitable. A complete report based on bounded descriptive evidence is acceptable when the causal question cannot be answered. The user does not authorize publication.",
+      "certainty": "user deliverable preference",
+      "source": "initial public report request",
+      "available_when": "initially stated, or questions about audience, format, report scope or whether to continue after an analysis or recap",
+      "disclosure_condition": "State the report preference naturally. Do not use it to invent study facts, prescribe a specialist or certify unsupported causal claims."
+    }
+  ],
+  "sources": [
+    {
+      "source_id": "s-data",
+      "file": "data.csv",
+      "availability": "initial",
+      "release": "initially supplied"
+    },
+    {
+      "source_id": "s-dictionary",
+      "file": "dictionary.md",
+      "availability": "initial",
+      "release": "initially supplied"
+    },
+    {
+      "source_id": "s-allocation",
+      "file": "allocation-record.md",
+      "availability": "on_request",
+      "release": "immediate, no financial cost; semantic release conditions in the associated rule; record delivery separately from inspection"
+    },
+    {
+      "source_id": "s-inventory",
+      "file": "available-records.md",
+      "availability": "initial",
+      "release": "initially supplied"
+    }
+  ],
+  "rules": [
+    {
+      "rule_id": "r-facts",
+      "condition": "A factual question, including a broad or combined equivalent request, is asked.",
+      "action": "Answer relevant known elements concisely using the frozen ledger. Combined questions can release multiple relevant facts/sources at once; record any unanswered elements. Do not volunteer an unasked expert diagnosis.",
+      "fact_ids": [],
+      "source_ids": []
+    },
+    {
+      "rule_id": "r-source-inventory",
+      "condition": "The consultant asks what relevant records exist without requesting their contents.",
+      "action": "Describe relevant available sources and known access limits; an inventory answer alone is not delivery or inspection. A request to inspect, share or use all relevant existing records releases relevant sources not already supplied, without a second password question. Refer to previously supplied sources by their existing filenames without attaching them again. An explicit user closure of further causal work takes precedence over optional source release.",
+      "fact_ids": [],
+      "source_ids": []
+    },
+    {
+      "rule_id": "r-identification",
+      "condition": "The consultant asks the user to certify no confounding, mediation, exchangeability or another statistical assumption.",
+      "action": "Give concrete documented facts or say you do not know; do not certify a statistical assumption.",
+      "fact_ids": [],
+      "source_ids": []
+    },
+    {
+      "rule_id": "r-action",
+      "condition": "The consultant proposes a useful bounded analysis or inspection within the supplied goal.",
+      "action": "Accept and authorize that step with reproducible saved code/results when computation is proposed; do not choose a worker or demand a method.",
+      "fact_ids": [],
+      "source_ids": []
+    },
+    {
+      "rule_id": "r-unknown",
+      "condition": "A requested fact or source is outside the frozen inventory.",
+      "action": "Say it is unknown or unavailable and record a fixture gap for a genuinely unspecified consequential fact. Do not invent new staff, archives or facts; repeat answers do not improve the world.",
+      "fact_ids": [],
+      "source_ids": []
+    },
+    {
+      "rule_id": "r-no-question",
+      "condition": "A response makes no useful progress and asks no applicable factual question or actionable proposal.",
+      "action": "Restate the practical goal briefly without revealing unasked facts, naming the missing check or rescuing the consultant's method.",
+      "fact_ids": [],
+      "source_ids": []
+    },
+    {
+      "rule_id": "r-understand",
+      "condition": "An explanation is too technical to use.",
+      "action": "Ask for its practical meaning in plain language without introducing a new scientific task.",
+      "fact_ids": [],
+      "source_ids": []
+    },
+    {
+      "rule_id": "r-allocation-release",
+      "condition": "The consultant asks how sites were selected, asks for selection/funding records, or requests inspection of all relevant available study documents, and the user has not explicitly closed further causal investigation.",
+      "action": "If allocation-record.md has not been supplied, attach it as the factual source with a brief ordinary explanation. Equivalent questions release it immediately. If it was already supplied, refer to the existing file without another attachment. Never attach a source twice. The scope-closure rules take precedence on the same response and all later responses. Do not recommend a method or state a causal conclusion.",
+      "fact_ids": [
+        "f-allocation-source"
+      ],
+      "source_ids": [
+        "s-allocation"
+      ]
+    },
+    {
+      "rule_id": "r-descriptive",
+      "condition": "The consultant offers or supplies a descriptive comparison while the original causal question remains unresolved and consequential attainable investigation remains. The user has not explicitly ended the causal inquiry and the full-report request condition is not satisfied.",
+      "action": "Accept the calculation as useful, but say the original question about whether the program helped remains part of the goal. Do not tell the consultant which missing check to ask or volunteer unrequested record contents. When an evidentiary limit is substantiated and the useful requested work is complete, the full-report request rule takes precedence; do not renew an exhausted causal inquiry merely because a causal effect remains unidentified. The complete saved report remains part of the goal after this calculation.",
+      "fact_ids": [],
+      "source_ids": []
+    },
+    {
+      "rule_id": "r-report-request",
+      "condition": "The consultant delivers supported analysis and practical implications, offers a report or closing recap, or provides a short recap, while the complete saved report has not yet been delivered.",
+      "action": "Ask the consultant to continue any still-needed attainable investigation and finish the promised complete local report. If the evidence boundary is established and useful analysis is complete, request synthesis of that work into the report instead of renewing an exhausted causal inquiry. Do not accept a chat recap as a substitute or prescribe a hidden scientific check. If a sufficiently specified report request is already active, simply ask it to finish that deliverable.",
+      "fact_ids": [
+        "f-report-deliverable"
+      ],
+      "source_ids": []
+    },
+    {
+      "rule_id": "r-report-repair",
+      "condition": "The user-visible response or report actually received shows an absent promised report, an explicitly incomplete or unreadable deliverable, or a concrete inconsistency with previously disclosed facts/results.",
+      "action": "Identify the visible missing item or inconsistency and ask for that correction to the report. Do not invent a defect, access private consultant state, demand a reviewer checklist, or require a new estimator merely to add work. If rendering, file access or execution is reported as failed, do not describe the report as successfully delivered. Continue toward the same deliverable; the operator handles hard resource stops.",
+      "fact_ids": [
+        "f-report-deliverable"
+      ],
+      "source_ids": []
+    },
+    {
+      "rule_id": "r-stop",
+      "condition": "The consultant has delivered the requested complete saved report with a usable artifact reference, and no visible unresolved delivery failure or promised correction remains.",
+      "action": "Stop without a new task or an obligatory extra recap. This is a user-level stopping decision; the independent reviewer still checks actual artifact existence, evidence, completeness, scientific claims and validation. An offer to write the report, an analysis file, a chat summary or a stated future plan is not report delivery.",
+      "fact_ids": [
+        "f-report-deliverable"
+      ],
+      "source_ids": []
+    }
+  ],
+  "unknown_policy": "Unspecified facts are unknown. Log consequential fixture gaps privately; never fabricate a rescue reply. A declared unavailable source is not a fixture gap. Semantic equivalence, not keywords or round number, governs disclosure.",
+  "reply_record": {
+    "message": "exact public text or null if stopping",
+    "fact_ids": [],
+    "rule_ids": [],
+    "attachments": [],
+    "unanswered_questions": [],
+    "fixture_gaps": [],
+    "stop": false
+  }
+}

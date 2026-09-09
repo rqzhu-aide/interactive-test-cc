@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "case_id": "investigation-allocation-report-v7",
+  "case_version": "1.0.0",
+  "suite_version": "7.0.3",
+  "edition": "complete-local-board-report",
+  "author": "Codex versioned full-report fixture assembly, 2026-09-09 UTC",
+  "base_case_id": "investigation-allocation-recoverable-v7@1.0.1",
+  "adaptation": "Full-report continuation edition of investigation-allocation-recoverable-v7@1.0.1. Original study facts, data, source availability and numerical oracles are retained. The public request, actor deliverable/stop policy and report review obligations change prospectively; no original result is regraded.",
+  "requirements": "Shared Python 3.10+ stdlib, shared Node 18.18+, causal-consultant 7.0.2, and a callable local rendering/inspection surface for the default HTML deliverable. Verified host isolation and separate actor/reviewer contexts are required for a blinded comparison. No project-local packages or environments.",
+  "run_limits": {
+    "consultant_turns": 24,
+    "active_seconds": 14400,
+    "elapsed_seconds": 21600
+  },
+  "initial_message": "public/initial-message.txt",
+  "actor": "actor.json",
+  "reviewer": "reviewer.json",
+  "oracle_check": "check_oracle.py",
+  "sources": [
+    {
+      "id": "s-data",
+      "file": "public/data.csv",
+      "destination": "data.csv",
+      "availability": "initial"
+    },
+    {
+      "id": "s-dictionary",
+      "file": "public/dictionary.md",
+      "destination": "dictionary.md",
+      "availability": "initial"
+    },
+    {
+      "id": "s-allocation",
+      "file": "public/records/allocation-record.md",
+      "destination": "allocation-record.md",
+      "availability": "on_request"
+    },
+    {
+      "id": "s-inventory",
+      "file": "public/available-records.md",
+      "destination": "available-records.md",
+      "availability": "initial"
+    }
+  ],
+  "files": {
+    "actor.json": "891e1fe7746fb7a79d70f6141460cc9f043cfea2e5045cd88ad24aa553bcfbd0",
+    "check_oracle.py": "8a982358ee0ba5a43f01c2c66b779b4befb902bbdb18df2a1856323577428398",
+    "oracle.json": "5911a8262a533740aadcb4c6cc39a80bdf845eed759bdc5c5b184bb991ad7dfd",
+    "provenance.json": "3a187469f74d0009d9f2b4fb7b11bd367857d8d4ee6841744208d21c721ed02f",
+    "public/available-records.md": "6b1f8fd8e12932b02f86200d9f9487a237be4cf95affdf3d56d4b4c9fd97f079",
+    "public/data.csv": "faf7904c6da529abdbf31de12410b42f7ab5f042295ff8d3fd3d706d2f1d754b",
+    "public/dictionary.md": "1d22768f860ef4d6d12ef22b32e9ac8e29a1c72e07ca1b92f3ac40d2522f3663",
+    "public/initial-message.txt": "20c8bae89ca8f5c2aa7973c7f17064940919422e5ec72fc2542460ff5605533e",
+    "public/records/allocation-record.md": "4d4fc06fc380642d877c2e694cf0be784159cb8994563208fc488200fe838b2d",
+    "reviewer.json": "91bac1dc4d8a4f780e93c08ec23785ff92bed3d9505bd9fbc6b51aeef91df118"
+  },
+  "completion_contract": "full_report"
+}

@@ -1,0 +1,103 @@
+{
+  "dataset": "schooling",
+  "data_sha256": "45b47f693b9f5f60f6b4c101aef86f71643bbe50d25bfa726f871642842a488e",
+  "columns": [
+    "smsa66",
+    "smsa76",
+    "nearc2",
+    "nearc4",
+    "nearc4a",
+    "nearc4b",
+    "ed76",
+    "ed66",
+    "age76",
+    "daded",
+    "nodaded",
+    "momed",
+    "nomomed",
+    "momdad14",
+    "sinmom14",
+    "step14",
+    "south66",
+    "south76",
+    "lwage76",
+    "famed",
+    "black",
+    "wage76",
+    "enroll76",
+    "kww",
+    "iqscore",
+    "mar76",
+    "libcrd14",
+    "exp76"
+  ],
+  "missing_cells": {
+    "smsa66": 0,
+    "smsa76": 0,
+    "nearc2": 0,
+    "nearc4": 0,
+    "nearc4a": 0,
+    "nearc4b": 0,
+    "ed76": 0,
+    "ed66": 0,
+    "age76": 0,
+    "daded": 0,
+    "nodaded": 0,
+    "momed": 0,
+    "nomomed": 0,
+    "momdad14": 0,
+    "sinmom14": 0,
+    "step14": 0,
+    "south66": 0,
+    "south76": 0,
+    "lwage76": 0,
+    "famed": 0,
+    "black": 0,
+    "wage76": 0,
+    "enroll76": 0,
+    "kww": 47,
+    "iqscore": 949,
+    "mar76": 7,
+    "libcrd14": 13,
+    "exp76": 0
+  },
+  "reference": {
+    "n": 3010,
+    "nearc4_yes": 2053,
+    "OLS_unadjusted": {
+      "slope": 0.05209422921436709,
+      "HC1_se": 0.002906877012318703
+    },
+    "first_stage_unadjusted": {
+      "slope": 0.8290189803030563,
+      "HC1_se": 0.10669412737335611,
+      "robust_t_squared": 60.373717188432934
+    },
+    "reduced_form_unadjusted": {
+      "slope": 0.15590747265540517,
+      "HC1_se": 0.0170325634885455
+    },
+    "Wald_unadjusted": {
+      "slope": 0.18806260937284164,
+      "HC1_se": 0.026142564178330933
+    },
+    "AR_HC1_asymptotic_95": {
+      "quadratic_le_zero": [
+        0.6435426976444639,
+        -0.25394510750774163,
+        0.02319270125299579
+      ],
+      "set_type": "bounded_interval",
+      "bounds": [
+        0.14355158467296272,
+        0.25105332411902226
+      ]
+    },
+    "exp76_equals_age76_minus_ed76_minus_6": true,
+    "nomomed_equals_nodaded_rows": 3010
+  },
+  "reference_scope": "All 3,010 rows: unadjusted OLS lwage76~1+ed76, first stage ed76~1+nearc4, reduced form lwage76~1+nearc4, and their just-identified Wald ratio with HC1 (N/(N-2)) variance. The AR set inverts the heteroskedasticity-robust coefficient test of nearc4 in (lwage76-beta*ed76)~1+nearc4, using the asymptotic chi-square(1) 0.95 threshold. These are transparent numerical diagnostics conditional on the stated linear-IV moment assumptions, not an endorsed unadjusted causal specification, exact original-paper replication or known true return. Adjusted 2SLS, flexible IV and alternative valid inference are permitted but need independently matched review; this oracle does not qualify their numbers.",
+  "tolerance": "Absolute 1e-8 for these exact unrounded specifications; half a final displayed unit for rounding. New valid methods need independent verification.",
+  "causal_truth": null,
+  "qualification": "Independent numerical fixture validation only; no live actor or consultant behavior qualified."
+}

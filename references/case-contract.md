@@ -5,14 +5,26 @@ adaptation implement this contract as described in [runner.md](runner.md).
 
 ## Information Boundaries
 
-Prepare three separately accessible packets. The actor packet is private to
+Prepare separately accessible public, world, actor and reviewer materials. The actor packet is private to
 the user simulator, not a file to attach to the consultant.
 
 | Packet | Required content |
 |---|---|
 | Public | Natural initial request; initial files and dictionaries; audience information a real user would share; valid initial history only when the case calls for it |
+| World (`world.json`) | Immutable study facts or documented unknowns, real-source provenance or synthetic generation process, and available evidence; separate from actor access and reviewer judgments |
 | Actor | User goal and decision constraints; domain/statistical fluency; factual beliefs with certainty and source; facts the user can learn and how; accessible source inventory; disclosure/correction rules; unknown and declined-source replies; allowed action choices and stopping behavior |
-| Reviewer | Underlying study and generation process; provenance and private reference outputs; acceptable alternative paths and claim boundaries; observable success/failure criteria; required coverage; fixture validation and limitations |
+| Reviewer | Answer key and independent reference outputs grounded in the world; acceptable alternative paths and claim boundaries; observable success/failure criteria; actor fidelity criteria; required coverage; fixture validation and limitations |
+
+The actor and consultant never receive the world dossier or reviewer key. Freeze
+persona differences in initial knowledge, mistaken beliefs, learning conditions,
+reasoning and cooperation, rather than fluency alone. Actor-accessible facts are
+an explicit subset of the world and accessible source inventory; a true world
+fact is not automatically something the user knows or can obtain.
+
+For persona fixtures, `case.json` includes `world: "world.json"`, `world_id`,
+`world_version` and `persona_id`. Match the dossier's world identity and the
+actor's `persona_id`, and bind the private dossier in the fixture hashes. These
+fields are optional for preserved earlier cases, not an instruction to rewrite them.
 
 Facts are not necessarily identifying assumptions. The user may know how a list
 was assembled but cannot establish exchangeability just by agreeing to it.
@@ -27,6 +39,20 @@ The author also supplies a private manifest containing:
   dictionaries, staged documents and independent reference outputs;
 - required shared tools/packages, access conditions, source-release mapping,
   completion conditions, required observations and prospectively set limits.
+
+For an end-to-end report case, set `completion_contract: "full_report"` in
+`case.json`. Absence or `"focused"` retains the older case-specific endpoint.
+The full-report public request, actor goal/action/stopping rules and reviewer
+criteria must agree that a saved consultant report is required. Freeze the
+audience and necessary content, allowing equivalent structure and scientifically
+justified claims. A complete bounded descriptive report can satisfy the goal
+when causal identification is unsupported; a recap alone cannot.
+
+Full-report completion requires captured evidence of a completed, verified
+report run and its actual saved output. The reviewer separately checks report
+substance, source/result consistency and applicable readback/render validation.
+Keep the consultant report separate from the final testing assessment. Preserve
+historical focused fixtures; changing their endpoint creates a new case identity.
 
 Keep the manifest and descriptive case IDs away from the consultant. Use neutral
 filenames, working directories and session labels, not names such as
@@ -55,8 +81,12 @@ password-like question sequence. Record receipt separately from inspection.
 Action rules allow choosing among consultant options without knowing the scoring
 key: for example prefer work on existing records, decline new staff contact,
 or authorize a specified preparation once its meaning is understood. A bare
-unknown is not blanket authorization. Stable preferences may have a frozen
-change trigger, but must not drift to reward a particular consultant route.
+unknown is not blanket authorization. Freeze how learning, corrections and
+decisions may change with observable evidence. Preserve supported changes across
+turns using the [actor update record](user-simulator.md), without changing the
+world or automatically treating consultant assertions as facts. Bounded pressure
+needs finite semantic conditions and an attainable honest report endpoint; it
+must not force endless resistance or a predetermined estimator.
 
 If a question reaches an unspecified fact, the actor says it does not know and
 records a fixture gap privately. If that gap materially affects evaluation, mark
@@ -65,7 +95,8 @@ compared; do not invent facts or repair one candidate's run in place.
 
 ## Randomization and Reproducibility
 
-Start with the four [pilot blueprints](pilot-cases.md). Generate variants within
+Use the four [persona cases](persona-cases.md) for default broad full-report
+coverage and the [pilot blueprints](pilot-cases.md) for focused regressions. Generate variants within
 reviewed scientific constraints, not new unreviewed worlds during a conversation.
 Keep a fixed regression core; use a modest selection of declared variants rather
 than a Cartesian product of every user, source and mechanism.
@@ -101,4 +132,4 @@ causal truth merely because a reference analysis exists.
 
 Author-created examples and protocol rehearsals are not live observations. A
 reviewed blueprint becomes a runnable case only after actual materials, hashes,
-actor/reviewer packets, oracle checks and run limits have been frozen.
+world/actor/reviewer packets, oracle checks and run limits have been frozen.

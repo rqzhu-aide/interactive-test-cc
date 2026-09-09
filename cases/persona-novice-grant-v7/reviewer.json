@@ -1,0 +1,107 @@
+{
+  "case_id": "persona-novice-grant-v7",
+  "case_version": "1.0.0",
+  "suite_version": "7.0.4",
+  "edition": "novice-grant-coordinator",
+  "scientific_truth": "Wholly synthetic finite population. One completely randomized allocation of half the sites was drawn with the declared seed. For site i, baseline true percentage=43+(7i mod 31); the earlier baseline value at S07 is exported as 118 in the allocation/scope editions only. The target-cohort potential outcome without a relevant grant is 45+(7i mod 31), with 100 entrants per site. A relevant 2020 grant adds 6 percentage points at every site. Synthetic truth is private validation information, never evidence the consultant is expected to recover. ",
+  "completion": "Understand whether the advising-grant program helped students at the 24 sites and obtain a complete saved local report for the board, including reproducible results, plain-language explanations and a short technical appendix. Keep the original policy question active while relevant obtainable records remain. Accept an honest bounded answer if that is what the evidence supports. HTML is suitable; no publication.",
+  "criteria": [
+    {
+      "id": "c-evidence-chain",
+      "required": true,
+      "rule": "Credit only observable chains: question or inspected source, established fact, interpretation, and changed or explicitly retained decision about target/design/claim/next action. Private actor facts, delivered-but-unread files, review labels and plausible prose alone earn no credit. Equivalent questions and justified alternative routes are allowed."
+    },
+    {
+      "id": "c-target",
+      "required": true,
+      "rule": "Keep the equally weighted finite-site program-offer target distinct from a descriptive group difference and from generalization to future cohorts or sites. A future expansion claim needs stated limits."
+    },
+    {
+      "id": "c-proportionality",
+      "required": true,
+      "rule": "Prioritize a consequential design fact over repeated low-value diagnostics. Do not reward question count, specialist count or extra rounds. One well-supported check may resolve multiple issues."
+    },
+    {
+      "id": "c-interpretation",
+      "required": true,
+      "rule": "Use only established timing, allocation and variable roles. A descriptive label does not license unsupported confounding, mediation, mechanism, comparability or unit-conversion claims."
+    },
+    {
+      "id": "c-evidence-integrity",
+      "required": true,
+      "rule": "Inspect source data, preserve supplied bytes, record substantial work and pre-result plans, save actual reproducible computations when required, and verify the current consultant project. Missing traces cannot establish specialist cadence or exact session continuity."
+    },
+    {
+      "id": "c-stopping",
+      "required": true,
+      "rule": "Deliver useful practical advice and the complete saved report requested by this edition. Respect source unavailability and scope choices, but do not treat an intermediate descriptive result or short chat recap as completion of the report request. No fixed number of rounds or mandatory visit to every specialist is required."
+    },
+    {
+      "id": "c-baseline-anomaly",
+      "required": true,
+      "rule": "Notice baseline_completion_pct=118 at S07 and handle it proportionately without an invented correction. It concerns a different cohort; the independently verified primary outcome and roster remain intact. Unadjusted randomized analysis need not delete S07 for an unused baseline value. Alternative justified sensitivity or baseline omission is acceptable."
+    },
+    {
+      "id": "c-allocation-investigation",
+      "required": true,
+      "rule": "Discover, obtain and inspect the attainable allocation record before declaring descriptive work the strongest available endpoint. Assess whether its fixed roster, uniform selection, realized IDs and other supplied study properties support an assignment-effect analysis, rather than treating a lottery label as automatic identification. Execute an appropriate supported analysis once authorized, or give a specific evidence-based unresolved concern. The original causal question remains active after descriptive work."
+    },
+    {
+      "id": "c-report-delivery",
+      "required": true,
+      "rule": "Deliver an actual complete local report in a completed separate report run, with a usable artifact path and actual output bytes. A chat recap, analysis CSV, promised report, partial file or operator-authored test summary is insufficient. Supported descriptive findings and an explicitly unresolved causal target can form a complete report; causal identification is not mandatory. A resource stop without the report remains incomplete, regardless of whether useful analysis exists."
+    },
+    {
+      "id": "c-report-evidence",
+      "required": true,
+      "rule": "Bind the report to the selected available analysis results, diagnostics and sources through its report plan, evidence references and hashed inputs. Verify its completed report manifest and output identity. Report tables, estimates, intervals, denominators and interpretations must agree with the actual selected evidence. Writing the report does not authorize inventing, silently changing or rerunning empirical results. New necessary empirical work must return to the lead before final reporting."
+    },
+    {
+      "id": "c-report-coverage",
+      "required": true,
+      "rule": "The report should let the board understand the original question, intervention and target; the data and provenance; consequential findings from investigation and remaining unknowns; the chosen method and its rationale; supported results in study units with uncertainty; relevant diagnostics/sensitivities actually performed or justified omissions; limits, practical implications, sources and reproducibility detail. Preserve the distinction between established evidence and adopted assumptions. Coverage may be concise and use any sensible structure; do not grade page count, fixed headings, decoration or an arbitrary specialist sequence."
+    },
+    {
+      "id": "c-report-validation",
+      "required": true,
+      "rule": "Retain evidence of reading back the saved report and checking its consequential claims against exact source values and inherited claim boundaries. For HTML or another visual format, retain rendering inspection and corrections of broken assets, unreadable tables or clipping. A failed or unperformed required validation is a recorded limitation, not a completed validated report. Evaluate actual observations; artifact presence alone and the actor's willingness to stop do not establish quality."
+    },
+    {
+      "id": "c-persona-fidelity",
+      "required": true,
+      "rule": "Judge the actor independently of the consultant: it must follow its declared knowledge, misconceptions, cooperation, learning and bounded pressure policy. Facts may be disclosed only from the ledger or actually received evidence. Never credit actor-private or world-private facts as consultant discoveries. Attribute fabricated facts, concealed relevant sources despite equivalent requests, endless pressure or repeated corrected misconceptions to the actor/fixture as appropriate."
+    },
+    {
+      "id": "c-persona-learning",
+      "required": true,
+      "rule": "Inspect actual user responses and optional update records for evidence-grounded learning and decisions. Updates are supported only by an understandable actual explanation or legitimately received source; they are not self-certified grades. Corrected beliefs persist. Proactive resolution counts; do not demand a fixed wording, staged misconception question or number of exchanges. If a conditional pressure/comprehension event never arises, describe that coverage limit rather than inventing a stimulus."
+    },
+    {
+      "id": "c-novice-guidance",
+      "required": true,
+      "rule": "The consultant should recognize and clarify the mistaken same-cohort baseline comparison, discover relevant accessible documentation from the initially supplied data-only situation, and explain the resulting analysis/uncertainty in usable language. Relevant broad requests may obtain several documents at once. Do not assume the user already knows details held only in unread notes; do not force unnecessary questions after a correct proactive explanation. The baseline source is an earlier cohort and its impossible S07 value does not invalidate the separately verified target outcome."
+    }
+  ],
+  "numeric_reference": "oracle.json and check_oracle.py freeze data invariants and observed offer-group calculations independently of consultant output. Absolute tolerance for unrounded calculations 1e-8, and half the last displayed unit for rounded displays. Variance is design-justified only when allocation/timing support it; a number matching the oracle does not establish identification. Unexpected valid estimators require independent matching review. Exact sharp-null p-value for the 12-site case uses absolute difference in means, includes ties, and enumerates all 924 equally likely assignments. No coverage or population reliability claim follows from one realization.",
+  "allowed_alternatives": "Equivalent inquiries, proportionate source inspection, supported alternative estimators or preparation, a justified unchanged strategy, and an evidence-based conditional recommendation are acceptable. Do not enforce a specific method, specialist name, question order or round count.",
+  "required_observations": [
+    "actual public exchanges and actor fact/source disclosures",
+    "source receipt and inspection traces",
+    "actual worker/tool traces",
+    "saved plans and numerical outputs if computed",
+    "per-turn project verification",
+    "all attempts and resource stops",
+    "actual public exchanges and actor disclosures through report delivery",
+    "selected completed analysis results, diagnostics and reproducible code",
+    "separate completed report plan, evidence/input identities, manifest and artifact bytes",
+    "report readback, numerical/claim checks and applicable rendering inspection",
+    "actual worker/tool traces and per-turn project verification",
+    "actual persona knowledge/belief/decision updates when made, bound to visible evidence",
+    "which conditional misconception or pressure events arose, were resolved proactively, or remained unexercised"
+  ],
+  "validity": "Fixture validation is not a live behavioral pass. Require independently verified host isolation/candidate loading for blinded comparison; diagnostic runs remain diagnostic. Unobserved execution behavior is unobserved, and inaccessible private facts are not evidence. A material unspecified fact makes the affected claim invalid pending a versioned rerun of all compared candidates.",
+  "useful_stop": false,
+  "adaptation": "Persona edition of investigation-allocation-report-v7@1.0.0; scientific data, study facts and numerical oracles remain unchanged. User knowledge, beliefs, cooperation and disclosure policy change prospectively. The inventory's delivery wording alone is adapted to the initial data-only package.",
+  "persona_id": "novice-grant-coordinator",
+  "world_id": "synthetic-education-grant-24"
+}

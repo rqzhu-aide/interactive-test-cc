@@ -1,0 +1,99 @@
+{
+  "world_id": "synthetic-education-grant-24",
+  "world_version": "1.0.0",
+  "kind": "wholly synthetic finite-population grant experiment",
+  "base_case_id": "investigation-allocation-report-v7@1.0.0",
+  "base_case_sha256": "855c04348ab4d6b5437c686f39813e8dae2cb9a5eb00484baa56f42b1c17b2c3",
+  "scientific_truth": "Wholly synthetic finite population. One completely randomized allocation of half the sites was drawn with the declared seed. For site i, baseline true percentage=43+(7i mod 31); the earlier baseline value at S07 is exported as 118 in the allocation/scope editions only. The target-cohort potential outcome without a relevant grant is 45+(7i mod 31), with 100 entrants per site. A relevant 2020 grant adds 6 percentage points at every site. Synthetic truth is private validation information, never evidence the consultant is expected to recover. ",
+  "known_causal_truth": true,
+  "causal_truth_boundary": "The synthetic generating effect belongs only to the private world/oracle, not to user knowledge or information the consultant must discover.",
+  "source_inventory": [
+    {
+      "source_id": "s-data",
+      "file": "public/data.csv",
+      "sha256": "faf7904c6da529abdbf31de12410b42f7ab5f042295ff8d3fd3d706d2f1d754b",
+      "availability": "initial",
+      "delivery_note": "This edition's source bytes are immutable. Delivery status follows actual source releases."
+    },
+    {
+      "source_id": "s-dictionary",
+      "file": "public/dictionary.md",
+      "sha256": "1d22768f860ef4d6d12ef22b32e9ac8e29a1c72e07ca1b92f3ac40d2522f3663",
+      "availability": "on_request",
+      "delivery_note": "This edition's source bytes are immutable. Delivery status follows actual source releases."
+    },
+    {
+      "source_id": "s-allocation",
+      "file": "public/records/allocation-record.md",
+      "sha256": "4d4fc06fc380642d877c2e694cf0be784159cb8994563208fc488200fe838b2d",
+      "availability": "on_request",
+      "delivery_note": "This edition's source bytes are immutable. Delivery status follows actual source releases."
+    },
+    {
+      "source_id": "s-inventory",
+      "file": "public/available-records.md",
+      "sha256": "ff4b9e0b9f1a0cce56097e89e12f35aae7873926eff3729bd5644a2b1a8bfef4",
+      "availability": "on_request",
+      "delivery_note": "This edition's source bytes are immutable. Delivery status follows actual source releases."
+    }
+  ],
+  "communication_adaptations": [
+    {
+      "file": "public/available-records.md",
+      "before": "The initial files are data.csv and dictionary.md.",
+      "after": "The program office holds data.csv and dictionary.md, plus the allocation record described below.",
+      "reason": "Communication-only inventory wording matches the novice edition's initial data-only delivery. Study facts and source availability are unchanged; release policy is recorded separately."
+    }
+  ],
+  "reference_outputs": {
+    "oracle_file": "oracle.json",
+    "oracle_sha256": "5911a8262a533740aadcb4c6cc39a80bdf845eed759bdc5c5b184bb991ad7dfd",
+    "checker_file": "check_oracle.py",
+    "checker_sha256": "8a982358ee0ba5a43f01c2c66b779b4befb902bbdb18df2a1856323577428398",
+    "interpretation": "Independent reference calculations are unchanged; matching them does not by itself establish a causal claim or report quality."
+  },
+  "persona_boundary": "Study truth is invariant to persona and dialogue. Actor beliefs, learning and presentation requests are kept in actor.json; only that packet and legitimate public information may guide the actor. Do not provide this dossier to the actor or consultant.",
+  "provenance": {
+    "kind": "versioned communication and deliverable adaptation; scientific world unchanged",
+    "generator": "interactive-test-cc/scripts/generate_report_cases.py",
+    "generator_sha256": "da42b1a8ef06a5cffc4166f47b7b0b611b51b2852a36c7fabc7de7b6b4621884",
+    "base_case_id": "investigation-allocation-recoverable-v7",
+    "base_case_version": "1.0.1",
+    "base_case_manifest_sha256": "a7c328f835b05b073b023e897a90b2e4f2be853412d1780f990b14edca3cf4db",
+    "base_provenance": {
+      "kind": "wholly synthetic finite-population study",
+      "generator": "interactive-test-cc/scripts/generate_investigation_cases.py",
+      "generator_sha256": "17eab073403f212b912556cafaa103c0b5e68bd8e2e87a89675c8437fb1991ea",
+      "seed": 260909,
+      "allocation": "random.Random(seed).sample(range(1,n+1), n//2), one draw; frozen offered IDs and bytes are authoritative",
+      "maintenance": "Shared generator reduces drift across eight paired standalone fixtures. Each emitted case validates and runs without this generator. Do not mutate the frozen version after a live run; create a new case version and refreeze.",
+      "reference_independence": "Maintenance reference uses Fraction arithmetic; standalone checker uses floating-point centered moments and integer exact-test contrasts. Neither consumes consultant outputs or consultant implementation.",
+      "contrast": "allocation-recoverable",
+      "world": {
+        "n": 24,
+        "realized_offered_ids": [
+          "S01",
+          "S02",
+          "S04",
+          "S07",
+          "S09",
+          "S10",
+          "S11",
+          "S12",
+          "S13",
+          "S14",
+          "S21",
+          "S22"
+        ],
+        "assignment_effect": 6,
+        "baseline_anomaly": true,
+        "assignment_date": "2020-02-01",
+        "outcome_date": "2024-09-01",
+        "timing": "before_outcome"
+      },
+      "limits": "Resource caps are execution stops, never round-count success criteria. Matched live launch must use these caps for every candidate in this fixture stage."
+    },
+    "adaptation": "Extend the requested endpoint through a complete saved local report. Public study documents, CSV files, oracle.json and check_oracle.py retain their exact bytes. Existing user study facts and source availability retain their values. The initial request and actor report preferences are new communication scope, not new study facts.",
+    "validation": "The base independent numerical checker remains standalone and unchanged. New deterministic checks validate report-case contracts, source/science invariance and exact regeneration. These checks do not simulate or qualify consultant behavior."
+  }
+}

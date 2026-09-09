@@ -1,0 +1,55 @@
+{
+  "world_id": "college-islr-local-1995",
+  "world_version": "1.0.0",
+  "kind": "real observational College teaching data; no known causal effect",
+  "base_case_id": "college-policy-report-v7@1.0.0",
+  "base_case_sha256": "2b4c9cf2565835e669c7056b578b5af896558dd749e0b2ffad1610a47f6556e4",
+  "scientific_truth": "This real observational teaching data does not reveal a causal funding effect. No assignment mechanism or temporal ordering is stipulated by this adaptation. Do not inherit the v6 benchmark declaration that expenditure precedes the outcome. Invented user goals and access constraints are scenario assumptions, not new claims about the actual study.",
+  "known_causal_truth": false,
+  "causal_truth_boundary": "No true funding effect, assignment process, historical cohort ordering or valid adjustment set is supplied. Old benchmark stipulations are not real-study facts.",
+  "source_inventory": [
+    {
+      "source_id": "s-data",
+      "file": "public/data.csv",
+      "sha256": "973f0e267cf016118da64c77d7a8ce98732a649d18e93c38478fd5df5c7e5ead",
+      "availability": "initial",
+      "delivery_note": "This edition's source bytes are immutable. Delivery status follows actual source releases."
+    },
+    {
+      "source_id": "s-dictionary",
+      "file": "public/dictionary.md",
+      "sha256": "f4b2d64fe60c14a7aed29167d212eda96d6c9a86cca333448fb6de92adf09782",
+      "availability": "initial",
+      "delivery_note": "This edition's source bytes are immutable. Delivery status follows actual source releases."
+    }
+  ],
+  "communication_adaptations": [],
+  "reference_outputs": {
+    "oracle_file": "oracle.json",
+    "oracle_sha256": "9f1bd50ee8677a793fcb76136b1f4dc06b5e9a328b419a9c7b28e542272901c7",
+    "checker_file": "check_oracle.py",
+    "checker_sha256": "3810f416bd789166412d9352d6e75a996c0e7a8c787395e23911bdcf830d790e",
+    "interpretation": "Independent reference calculations are unchanged; matching them does not by itself establish a causal claim or report quality."
+  },
+  "persona_boundary": "Study truth is invariant to persona and dialogue. Actor beliefs, learning and presentation requests are kept in actor.json; only that packet and legitimate public information may guide the actor. Do not provide this dossier to the actor or consultant.",
+  "provenance": {
+    "kind": "versioned communication and deliverable adaptation; scientific world unchanged",
+    "generator": "interactive-test-cc/scripts/generate_report_cases.py",
+    "generator_sha256": "da42b1a8ef06a5cffc4166f47b7b0b611b51b2852a36c7fabc7de7b6b4621884",
+    "base_case_id": "college-policy-v7",
+    "base_case_version": "1.1.0",
+    "base_case_manifest_sha256": "e24226536d456d8baeee101ef7f687232d903b1ea18a327d5bcccd80af8bbece",
+    "base_provenance": {
+      "checked_at_utc": "2026-09-08",
+      "source_url": "https://raw.githubusercontent.com/vincentarelbundock/Rdatasets/master/csv/ISLR/College.csv",
+      "source_sha256": "8b99c8015da8c3db26844d904b080e8807cad6c1b5c6e9d10187b312b35b89a6",
+      "shipped_sha256": "973f0e267cf016118da64c77d7a8ce98732a649d18e93c38478fd5df5c7e5ead",
+      "comparison": "Byte-identical after CRLF-to-LF normalization; no cell or row changes. Runtime checks require exact shipped bytes.",
+      "historical_oracle_sha256": "96086b64e88f19eeef9101e8521396dae9169a95423303bea8181fa83dfd2aa7",
+      "historical_reference": "audits/v7-manual-college-2026-09-08/oracle.json (pre-consultation); independent-review/check-b.R and check-c.cjs (separate verification).",
+      "scope": "Real observational teaching data; scenario user preferences are fictional. No causal-effect truth is supplied."
+    },
+    "adaptation": "Extend the requested endpoint through a complete saved local report. Public study documents, CSV files, oracle.json and check_oracle.py retain their exact bytes. Existing user study facts and source availability retain their values. The initial request and actor report preferences are new communication scope, not new study facts.",
+    "validation": "The base independent numerical checker remains standalone and unchanged. New deterministic checks validate report-case contracts, source/science invariance and exact regeneration. These checks do not simulate or qualify consultant behavior."
+  }
+}

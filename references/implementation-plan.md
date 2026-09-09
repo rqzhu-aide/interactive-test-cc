@@ -1,17 +1,18 @@
 # Implementation Plan for the V7 Testing Skill
 
 - Class: planning
-- Status: minimal adapter, College fixture and investigation-depth contrasts implemented; live host validation and consultations pending
+- Status: persona redesign added to the adapter and fixture work; fixture validation and live qualification must be reported separately
 - Date: 2026-09-09
-- Package: `interactive-test-cc`, `7.0.2`
-- Current consultant target: identified `7.0.2` snapshot, with `7.0.0` and `7.0.1` compatibility; not any directory
+- Package: `interactive-test-cc`, `7.0.4`
+- Current consultant target: identified `7.0.4` snapshot, with `7.0.0`, `7.0.1` and `7.0.2` compatibility; not any directory
   merely labelled v7
 
 ## Scope and Current Deliverables
 
 The entrypoint and references define an adaptive Hermes-user/Claude-consultant
-procedure, private fact/reply contracts, independent evaluation and four pilot
-blueprints. The [runner](runner.md) now implements the minimal adaptive transport
+procedure, separate world/actor/reviewer contracts, independent evaluation and
+four default [persona full-report cases](persona-cases.md), with the earlier pilot
+blueprints and fixtures retained for regression. The [runner](runner.md) implements the minimal adaptive transport
 and ships a College adaptation with exact hashes and an independent numerical
 self-check. Local subprocess checks do not establish a real-host consultation.
 No live campaign, installation or Git publication accompanies these changes.
@@ -22,6 +23,30 @@ of frozen 7.0.1 and 7.0.2 candidates is defined in [pilot-cases.md](pilot-cases.
 beginning with 12 consultations. That later addition preserves the original
 College fixture and V7P01-V7P04 blueprints; the remaining sections record the
 broader V7P implementation plan rather than completed live results.
+
+The 7.0.3 endpoint revision added two full-report child cases as the then-default
+broad/end-to-end tests. A saved consultant report is distinct from
+the actor's conversational recap and the independent test assessment. The
+adapter checks actual completed report evidence before accepting a successful
+full-report outcome. Original cases and the staged 12-consultation comparison
+retain their focused endpoints. New full-report limits are prospective; the
+live-host evidence and measured round-count distribution remain pending.
+
+The 7.0.4 persona revision makes the novice grant, cooperative STAR domain expert,
+advanced Schooling statistician and bounded-pressure College user the default
+broad full-test set. Explicit individual selection remains allowed. Separate
+private world dossiers from actor knowledge, beliefs and access, and from reviewer
+answer keys. Preserve learning and corrections through evidence-cited optional
+actor update records, without numeric trust or another controller. Each case has
+provisional 24-exchange capacity, with no minimum or guessed round count. The
+earlier 7.0.3 and focused fixtures retain their identities and endpoints.
+
+Release alignment also names the current consultant 7.0.4. Its metadata change
+retains the 7.0.2 observation interface; the runner explicitly accepts 7.0.4 while
+continuing to reject unlisted versions, including 7.0.3. Frozen persona case 1.0.0
+targets and hashes stay unchanged. Each new attempt binds the actual candidate
+identity under the [persona release profile](persona-cases.md); prior validation,
+rehearsals and 7.0.1/7.0.2 comparisons are not relabeled as 7.0.4 consultations.
 
 The September 7 reorganization makes this definition the testing repository's
 root skill. Pre-v7 files and results are preserved in the sibling local
@@ -40,11 +65,12 @@ optimization; it does not change recorded cap failures.
 
 ## 1. Freeze a Small Pilot and Host Profile
 
-Use [case-contract.md](case-contract.md) and
-[pilot-cases.md](pilot-cases.md) to author actual materials for V7P01-V7P04.
-Provide public, actor and reviewer packets separately. Preserve seed/generated
+Use [case-contract.md](case-contract.md) and [persona-cases.md](persona-cases.md)
+for the default four-case full-report set. The preserved V7P01-V7P04 authoring
+plan remains in [pilot-cases.md](pilot-cases.md) for selected regressions.
+Provide public, world, actor and reviewer materials separately. Preserve seed/generated
 bytes, source hashes, scenario versions, user fluency and semantic triggers.
-Choose two fresh repetitions per case for the first complete diagnostic pilot.
+The earlier V7P diagnostic plan uses two fresh repetitions per case.
 Do not generate a large random campaign yet.
 
 Review the scientific worlds and independent checks before consultant execution.
@@ -113,7 +139,9 @@ the actual host resumes Claude correctly or exposes worker usage.
 Hermes uses one persistent actor context initialized with only the user packet
 and reply policy. Keep the author/reviewer context separate. Each actor reply
 has a private explanation through fact/rule IDs, but no chain-of-thought demand.
-Only public text and released materials are dispatched. If the host cannot
+Optional knowledge, belief and decision updates retain visible evidence and are
+carried in the actor's own history, without adding the hidden world or reviewer
+key to that context. Only public text and released materials are dispatched. If the host cannot
 support the intended information separation, record it and do not present the
 run as a blinded test.
 
@@ -121,6 +149,8 @@ Build a compact dossier from actual messages, disclosures, source releases,
 candidate/configuration identities, v7 evidence and trace coverage. Retain raw
 artifacts for focused inspection. A separate reviewer uses the frozen scientific
 criteria and independent references, never the actor's satisfaction as the score.
+Review actor fidelity as separate coverage/findings, including supported learning,
+semantic source release and finite pressure with an honest report route.
 Implement the outcome/validity/coverage/rating rules in
 [evaluation.md](evaluation.md) with explicit missing-evidence cases.
 
@@ -137,7 +167,12 @@ using harmless public materials. Verify candidate loading, session resume and
 captured telemetry semantics. Do not reveal real pilot answers in that test.
 Record its actual output; a unit test named live is not a substitute.
 
-Then run V7P01-V7P04 sequentially to each declared objective, two fresh repetitions
+For a default broad full test, run all four persona cases to their declared
+full-report objectives. Explicit individual-case selection is allowed. Record
+fixture self-checks, simulated actor rehearsals and actual live results separately;
+local/fake execution cannot establish a live pass.
+
+The preserved V7P diagnostic plan runs V7P01-V7P04 to each declared objective, two fresh repetitions
 per case/candidate. Stop at the objective, case-permitted useful stopping, a
 frozen cap or a continuity/environment failure. Preserve all attempts and do
 not patch the consultant during a run. Any correction produces a new candidate
@@ -163,9 +198,10 @@ questions and conversation lengths to differ. Keep failures, fixture gaps and
 resource-censored attempts in the report.
 
 The College policy adaptation is now at `cases/college-policy-v7`, version 1.1.0;
-the historical diagnostic remains unchanged. Port discovery, STAR and schooling by preserving
-documented scientific facts and data fingerprints while replacing expert turn
-scripts with user goals and semantic disclosure. Review their expected claims
+the historical diagnostic remains unchanged. The persona revision adapts STAR and
+Schooling with documented scientific facts and data fingerprints preserved while
+replacing expert turn scripts with user goals and semantic disclosure. Further
+discovery coverage remains a separate extension. Review expected claims
 and analysis checks independently. Keep old v6 approvals and workflow grades in
 the v6 baseline only. A shared scientific comparison must name the versions and
 profile differences rather than call the two procedural suites identical.

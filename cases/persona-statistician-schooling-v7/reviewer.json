@@ -1,0 +1,77 @@
+{
+  "case_id": "persona-statistician-schooling-v7",
+  "case_version": "1.0.0",
+  "suite_version": "7.0.4",
+  "scientific_truth": "Real data have no supplied true causal effect. Use world.json, source notes and oracle scope; do not infer hidden histories.",
+  "completion": "Deliver a complete saved local consultant report with reproducible supported calculations, the main answer, source and design reasoning, appropriate uncertainty, limitations, practical implications and a technical appendix. Prefer self-contained HTML; no publication. A bounded descriptive or explicitly conditional analysis can form a complete report. A chat recap or an analysis file does not finish the goal.",
+  "criteria": [
+    {
+      "id": "c-evidence",
+      "required": true,
+      "rule": "Credit only disclosed facts or actually inspected source evidence and their effect on interpretation/action. The private world, actor ledger, oracle and source receipt alone cannot supply consultant knowledge. Accept equivalent questions and justified alternative paths."
+    },
+    {
+      "id": "c-integrity",
+      "required": true,
+      "rule": "Preserve source bytes, save reproducible calculations and chosen analysis plans, identify sample/units/exclusions, and verify the current project. Do not substitute an easier dataset or silently add unstaged records."
+    },
+    {
+      "id": "c-proportionality",
+      "required": true,
+      "rule": "Investigate consequential attainable uncertainties and act on resolved ones. Avoid repeated unknown-source requests, a method checklist or a fixed-round stopping script. A dataset/persona pairing is one context and does not identify a general persona effect."
+    },
+    {
+      "id": "c-design",
+      "required": true,
+      "rule": "Separate first-stage relevance from exogeneity/exclusion and define the schooling/earnings target. No true effect is known. A causal statement is conditional on a defensible IV argument, not on balance, a first-stage statistic, a method label or the user's assent. Continuous schooling is not automatically a binary-treatment complier ATE."
+    },
+    {
+      "id": "c-data-and-timing",
+      "required": true,
+      "rule": "Inspect actual missingness and distinguish imputation from blank cells. Establish exp76's deterministic dependence on schooling; do not automatically treat 1976 covariates or even ed66 as unaffected pre-instrument variables. Investigate the accessible imputation discrepancy if using parental flags, preserve original bytes and do not invent a row-level correction."
+    },
+    {
+      "id": "c-advanced-reasoning",
+      "required": true,
+      "rule": "Engage substantively with the expert's proposal: justify a target and conditioning set, examine first stage/reduced form, and select appropriate weak-IV-robust inference, sensitivity, or a specific defensible alternative. Flexible nuisance methods require their own identification, cross-fitting and uncertainty argument. Rejecting sophistication categorically or running a menu of methods without purpose is insufficient; not every listed method is required."
+    },
+    {
+      "id": "c-inference",
+      "required": true,
+      "rule": "Use uncertainty appropriate to the selected sample/moment model and variance assumptions. Ordinary second-stage OLS standard errors are not 2SLS uncertainty. Weak-IV-robust inference does not establish exclusion. If an inverted set is unbounded/disconnected preserve that shape; do not report grid endpoints as confidence limits. No numeric reference is a known causal truth."
+    },
+    {
+      "id": "c-statistician-adaptation",
+      "required": true,
+      "rule": "Discuss methods at the user's actual level, address specific concerns, and permit reasoned changes in initial covariate/method preferences. Do not assume this expert knows inaccessible provenance or can certify causal assumptions. Judge observed explanatory progress, not compulsory teaching or a fixed number of challenges."
+    },
+    {
+      "id": "c-report",
+      "required": true,
+      "rule": "Deliver an actual complete report in a completed verified separate report run, bound to the selected calculations, diagnostics and sources. Include main answer, reasoning, results and appropriate uncertainty, limitations, implications and reproducibility detail. A recap/CSV/offer alone is incomplete; honest conditional or descriptive conclusions can support a complete report."
+    },
+    {
+      "id": "c-report-validation",
+      "required": true,
+      "rule": "Read back report claims against saved evidence and retain applicable rendering inspection/corrections. Artifact existence and actor satisfaction do not establish scientific quality. Record unperformed validation honestly."
+    },
+    {
+      "id": "c-actor-fidelity",
+      "required": true,
+      "rule": "Separately review whether disclosures, learning and cooperation follow actual accessible evidence and the frozen persona. A fabricated actor fact or ungrounded change can invalidate the affected claim; it is not automatically a consultant defect."
+    }
+  ],
+  "numeric_reference": "All 3,010 rows: unadjusted OLS lwage76~1+ed76, first stage ed76~1+nearc4, reduced form lwage76~1+nearc4, and their just-identified Wald ratio with HC1 (N/(N-2)) variance. The AR set inverts the heteroskedasticity-robust coefficient test of nearc4 in (lwage76-beta*ed76)~1+nearc4, using the asymptotic chi-square(1) 0.95 threshold. These are transparent numerical diagnostics conditional on the stated linear-IV moment assumptions, not an endorsed unadjusted causal specification, exact original-paper replication or known true return. Adjusted 2SLS, flexible IV and alternative valid inference are permitted but need independently matched review; this oracle does not qualify their numbers.",
+  "allowed_alternatives": "Scientifically justified estimators, conditioning sets, uncertainty methods and report structures are allowed. Independently check any non-reference method before crediting its numbers.",
+  "required_observations": [
+    "actual public conversation and disclosed sources",
+    "actor knowledge/belief/decision changes and their evidence",
+    "source inspection and actual tool traces",
+    "analysis plans, code and outputs",
+    "latest report manifest/artifact and project verification",
+    "readback/rendering evidence",
+    "all attempts, failures and resource stops"
+  ],
+  "validity": "Fixture self-checks are not live behavior. A verified host, isolated roles and independent scientific review remain necessary. This single persona/world pairing cannot isolate persona effects.",
+  "useful_stop": false
+}

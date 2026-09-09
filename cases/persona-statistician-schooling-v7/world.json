@@ -1,0 +1,27 @@
+{
+  "world_id": "ecdat-schooling-prepared-2026-09-09",
+  "world_version": "1.0.0",
+  "dataset": "schooling",
+  "kind": "real historical extract; no synthetic potential-outcome truth",
+  "data_sha256": "45b47f693b9f5f60f6b4c101aef86f71643bbe50d25bfa726f871642842a488e",
+  "known": [
+    "Exact shipped CSV, documented definitions and source notes",
+    "Observed missingness and independently checked basic reference calculations"
+  ],
+  "unknown": [
+    "True return to schooling and instrument validity",
+    "Latent ability and counterfactual wages",
+    "Unstaged test measurement dates, respondent links and row-level imputation repair"
+  ],
+  "attainable": [
+    "s-data",
+    "s-dictionary",
+    "s-inventory",
+    "s-study",
+    "s-methods"
+  ],
+  "unavailable": "The actor's access constraint is a fictional consultation constraint, not a claim that historical archives never existed. No additional source acquisition or data enrichment during this case.",
+  "belief_boundary": "The persona, audience and preferences are fictional; published study facts and data are not rewritten. Actor beliefs and learning are not scientific truth.",
+  "acquisition_rules": "Existing source notes can be supplied by semantically relevant requests; the domain expert can volunteer documented corrections. No new world facts emerge from round count, persuasion alone or an evaluator's preferred route.",
+  "completion_contract": "full_report"
+}

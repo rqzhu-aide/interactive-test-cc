@@ -1,0 +1,85 @@
+{
+  "dataset": "star",
+  "data_sha256": "242a74a923e70359ee66d8cf585f85b16137ee36c932f8f276149f7f319a3b73",
+  "columns": [
+    "tmathssk",
+    "treadssk",
+    "classk",
+    "totexpk",
+    "sex",
+    "freelunk",
+    "race",
+    "schidkn"
+  ],
+  "missing_cells": {
+    "tmathssk": 0,
+    "treadssk": 0,
+    "classk": 0,
+    "totexpk": 0,
+    "sex": 0,
+    "freelunk": 0,
+    "race": 0,
+    "schidkn": 0
+  },
+  "reference": {
+    "n": 5748,
+    "schools": 79,
+    "arm_counts": {
+      "regular": 2000,
+      "small.class": 1733,
+      "regular.with.aide": 2015
+    },
+    "outcomes": {
+      "tmathssk": {
+        "small_minus_regular": 9.518750947483987,
+        "aide_minus_regular": 0.8618134725405726,
+        "school_cluster_CR1_se": [
+          2.690059616225682,
+          2.523514877653529
+        ],
+        "asymptotic_normal_95_intervals": [
+          [
+            4.246330983416012,
+            14.791170911551962
+          ],
+          [
+            -4.084184802111344,
+            5.807811747192489
+          ]
+        ],
+        "group_means": {
+          "regular": 483.261,
+          "small.class": 491.4702827466821,
+          "regular.with.aide": 483.00992555831266
+        }
+      },
+      "treadssk": {
+        "small_minus_regular": 6.6282160374988734,
+        "aide_minus_regular": 1.1427029239412247,
+        "school_cluster_CR1_se": [
+          1.7150253480574564,
+          1.4611100537951633
+        ],
+        "asymptotic_normal_95_intervals": [
+          [
+            3.266828122732989,
+            9.989603952264758
+          ],
+          [
+            -1.7210201589466756,
+            4.006426006829125
+          ]
+        ],
+        "group_means": {
+          "regular": 434.681,
+          "small.class": 440.5804962492787,
+          "regular.with.aide": 435.4873449131514
+        }
+      }
+    }
+  },
+  "reference_scope": "OLS of each kindergarten score on small and aide indicators plus unrestricted school intercepts, with regular as reference. CR1 clusters on 79 schools; multiplier G/(G-1)*(N-1)/(N-G-2), asymptotic normal 95% intervals. These are reproducible enrollment comparisons, not an exact ITT or verified policy/spillover effect. Causal interpretation depends on stated experimental/compliance/selection assumptions. Alternative valid adjustment or uncertainty requires matching independent review.",
+  "tolerance": "Absolute 1e-8 for these exact unrounded specifications; half a final displayed unit for rounding. New valid methods need independent verification.",
+  "causal_truth": null,
+  "qualification": "Independent numerical fixture validation only; no live actor or consultant behavior qualified."
+}

@@ -13,6 +13,8 @@ import uuid
 
 from claude_transport import capture, invoke
 
+ACTOR_UPDATES = ("knowledge_updates", "belief_updates", "decision_updates")
+
 
 def read(path):
     return json.loads(Path(path).read_text(encoding="utf-8-sig"))
@@ -70,11 +72,24 @@ def inventory(root):
 def validate_case(case):
     manifest = read(case / "case.json")
     require(manifest["schema_version"] == 1, "unsupported case schema")
+    require(manifest.get("completion_contract", "focused") in ("focused", "full_report"),
+            "unsupported completion contract")
     actual = inventory(case)
     del actual["case.json"]
     require(actual == manifest["files"], "case file identity mismatch (including unexpected files)")
     actor = read(member(case, manifest["actor"]))
     reviewer = read(member(case, manifest["reviewer"]))
+    persona_fields = {"world", "world_id", "world_version", "persona_id"}
+    if persona_fields & manifest.keys():
+        require(persona_fields <= manifest.keys(), "incomplete persona/world identity")
+        require(all(isinstance(manifest[key], str) and manifest[key].strip() for key in persona_fields),
+                "persona/world identity must be nonempty strings")
+        require(manifest["world"] in actual and not manifest["world"].startswith("public/"),
+                "world dossier must be private and bound to manifest")
+        world = read(member(case, manifest["world"]))
+        require(all(world.get(key) == manifest[key] for key in ("world_id", "world_version")),
+                "world identity mismatch")
+        require(actor.get("persona_id") == manifest["persona_id"], "actor persona identity mismatch")
     source_ids, destinations = set(), set()
     for source in manifest["sources"]:
         require(source["id"] not in source_ids, "duplicate source ID")
@@ -102,8 +117,8 @@ def validate_case(case):
 
 def candidate_inventory(candidate):
     package = read(candidate / "package.json")  # Required even though absent from npm's explicit files list.
-    require(package["version"] in ("7.0.0", "7.0.1", "7.0.2"),
-            "this observation profile requires consultant 7.0.0, 7.0.1 or 7.0.2")
+    require(package["version"] in ("7.0.0", "7.0.1", "7.0.2", "7.0.4"),
+            "this observation profile requires consultant 7.0.0, 7.0.1, 7.0.2 or 7.0.4")
     result = {"package.json": digest(candidate / "package.json")}
     for entry in package["files"]:
         path = member(candidate, entry)
@@ -280,9 +295,16 @@ def step(attempt, reply):
         config, case = frozen["configuration"], frozen["case_manifest"]
         actor = read(attempt / "case" / case["actor"])
         required = {"message", "fact_ids", "rule_ids", "attachments", "unanswered_questions", "fixture_gaps", "stop"}
-        require(set(reply) == required, "reply record fields do not match actor contract")
+        require(required <= reply.keys() and not reply.keys() - required - set(ACTOR_UPDATES),
+                "reply record fields do not match actor contract")
         for field in required - {"message", "stop"}:
             require(isinstance(reply[field], list), field + " must be a list")
+        for field in ACTOR_UPDATES:
+            require(isinstance(reply.get(field, []), list), field + " must be a list")
+            for change in reply.get(field, []):
+                require(isinstance(change, dict) and set(change) == {"subject", "before", "after", "evidence"}
+                        and all(isinstance(value, str) and value.strip() for value in change.values()),
+                        "actor update needs subject, before, after and visible evidence")
         require(type(reply["stop"]) is bool, "stop must be boolean")
         for field, key, packet in (("fact_ids", "fact_id", "facts"), ("rule_ids", "rule_id", "rules")):
             require(set(reply[field]) <= {item[key] for item in actor[packet]}, "unknown " + field)
@@ -299,7 +321,10 @@ def step(attempt, reply):
         initial = (attempt / "case" / case["initial_message"]).read_text(encoding="utf-8")
         if not state["turns"]:
             require(message == initial and not reply["fact_ids"] and not reply["attachments"], "first step must use exact frozen public request")
+            require(not any(reply.get(field) for field in ACTOR_UPDATES), "initial dispatch cannot claim learned updates")
         private_markers = [str(attempt), str(attempt).replace("\\", "/"), case["actor"], case["reviewer"], "oracle.json"]
+        if case.get("world"):
+            private_markers.append(case["world"])
         require(not any(marker.casefold() in message.casefold() for marker in private_markers), "private path leaked into public text")
         limits = config["limits"]
         remaining_elapsed = limits["elapsed_seconds"] - (time.time() - state["started_at"] if state["started_at"] else 0)
@@ -375,14 +400,90 @@ def inspect(attempt, view):
         state = read(attempt / "state.json")
         conversation = [read(path) for path in sorted((attempt / "events").glob("*/public.json"))]
         if view == "actor":
-            return {"conversation": conversation, "public_files": list(state["public_files"])}
+            result = {"conversation": conversation, "public_files": list(state["public_files"])}
+            updates = []
+            for path in sorted((attempt / "events").glob("*/public.json")):
+                record = read(path.parent / "actor.json")
+                changes = {field: record[field] for field in ACTOR_UPDATES if record.get(field)}
+                if changes:
+                    updates.append({"event": path.parent.name, **changes})
+            if updates:
+                result["actor_updates"] = updates
+            return result
         require(state["status"] != "finished", "review already finalized")
         index = evidence(attempt, state)
         write(attempt / "review-index.json", index)
         return {"state": state, "evidence_sha256": index["sha256"], "index": str(attempt / "review-index.json")}
 
 
-def assess(review, state, frozen, index):
+def full_report_completion(attempt, state, index):
+    """Check retained v7 verification and report bytes, never a reviewer assertion."""
+    result = {"contract": "full_report", "satisfied": False, "reason": "", "evidence_refs": []}
+    latest = f"events/{state['turns']:03d}"
+
+    def retained(relative):
+        path = member(attempt, relative)
+        reference = "private/" + relative
+        require(reference in index["files"] and digest(path) == index["files"][reference],
+                "missing or changed completion evidence: " + relative)
+        result["evidence_refs"].append(reference)
+        return path
+
+    try:
+        observations = {}
+        for command in ("status", "verify"):
+            prefix = latest + "/project-" + command
+            process = read(retained(prefix + "/process.json"))
+            require(process["exit_code"] == 0 and not process["error"],
+                    "latest project " + command + " did not succeed")
+            observations[command] = read(retained(prefix + "/stdout.txt"))
+            require(observations[command]["ok"] is True, "latest project " + command + " is not valid")
+        project = observations["status"]["project"]
+        verified = observations["verify"]
+        require(verified["project_id"] == project["state_meta"]["project_id"] and
+                verified["last_event_id"] == project["state_meta"]["last_event_id"],
+                "project status and verification describe different journal states")
+        require(verified["source_check"] in ("originals", "snapshots"), "verification mode is missing")
+        result["source_check"] = verified["source_check"]
+
+        captured_files = read(retained(latest + "/work-files.json"))
+        snapshot = member(attempt, latest + "/work-snapshot")
+        require(isinstance(captured_files, dict) and captured_files and inventory(snapshot) == captured_files,
+                "latest work snapshot changed")
+        require(inventory(Path(state["work"])) == captured_files,
+                "current project differs from its latest captured verification")
+        retained(latest + "/work-snapshot/consultation/journal.jsonl")
+        retained(latest + "/work-snapshot/consultation/project.yaml")
+
+        reports = [run for run in project["runs"] if run["kind"] == "report"]
+        require(reports, "no report run was captured")
+        # Project run order is journal start order; a newer unfinished revision cannot be hidden.
+        report = reports[-1]
+        result["run_id"] = report["run_id"]
+        require(report["status"] == "completed", "latest report run is " + report["status"])
+        prefix = "runs/" + report["run_id"] + "/"
+        require(report["manifest_ref"] == prefix + "manifest.json", "report manifest path does not match its run")
+        manifest_path = retained(latest + "/work-snapshot/consultation/" + report["manifest_ref"])
+        require(digest(manifest_path) == report["manifest_sha256"], "report manifest does not match its committed hash")
+        manifest = read(manifest_path)
+        require(manifest["kind"] == "report" and manifest["run_id"] == report["run_id"],
+                "manifest is not the completed report")
+        retained(latest + "/work-snapshot/consultation/" + report["plan_ref"])
+        require(manifest["output_paths"], "report has no manifested output")
+        files = {item["path"]: item for item in manifest["files"]}
+        for relative in manifest["output_paths"]:
+            output = retained(latest + "/work-snapshot/consultation/" + prefix + relative)
+            require(relative in files and output.stat().st_size > 0 and digest(output) == files[relative]["sha256"],
+                    "report output is empty or does not match its manifest: " + relative)
+            result["evidence_refs"].append("work/consultation/" + prefix + relative)
+        require(all(ref in index["files"] for ref in result["evidence_refs"]), "report evidence is not bound")
+        result.update(satisfied=True, reason="Latest report run is completed, verified and retained with nonempty manifested outputs.")
+    except (ValueError, OSError, KeyError, TypeError) as exc:
+        result["reason"] = str(exc)
+    return result
+
+
+def assess(review, state, frozen, index, completion_check=None):
     require(review["evidence_sha256"] == index["sha256"], "review evidence changed; inspect and review again")
     require(review["test_validity"] in ("valid", "invalid", "unverified"), "invalid test validity")
     require(review["outcome"] in ("objective_met", "useful_stop", "incomplete", "execution_error"), "invalid outcome")
@@ -418,11 +519,21 @@ def assess(review, state, frozen, index):
             require(check.get("verified") is True and check.get("reason"), "missing reviewed host check: " + key)
             references(check)
             require(any(ref.startswith("private/host/") for ref in check["evidence_refs"]), "host checks require captured host evidence")
+    if any(f["owner"] in ("simulator", "fixture", "harness", "environment")
+           and f["severity"] in ("material", "fundamental") for f in review["findings"]):
+        validity = "invalid"
     outcome = review["outcome"]
     if state["status"] in ("pending", "execution_error"):
         outcome = "execution_error"
     elif state["status"] == "limit_reached":
         outcome = "incomplete"
+    if frozen["case_manifest"].get("completion_contract", "focused") == "full_report":
+        completion_check = completion_check or {"contract": "full_report", "satisfied": False,
+                                                 "reason": "Report completion evidence was not checked.", "evidence_refs": []}
+        if outcome in ("objective_met", "useful_stop") and not completion_check["satisfied"]:
+            outcome = "incomplete"
+    else:
+        completion_check = None
     if outcome == "useful_stop":
         require(packet.get("useful_stop") and review.get("useful_stop_basis"), "case does not permit this useful stop")
     defects = [f for f in review["findings"] if f["owner"] == "consultant"]
@@ -433,6 +544,7 @@ def assess(review, state, frozen, index):
     else:
         rating = "weak" if defects else "pass"
     return {**review, "test_validity": validity, "outcome": outcome, "quality_rating": rating,
+            "completion_check": completion_check,
             "resources": {"consultant_turns": state["turns"],
                           "active_seconds": None if state["status"] == "pending" else state["active_seconds"],
                           "recorded_active_seconds": state["active_seconds"],
@@ -451,7 +563,9 @@ def finish(attempt, review):
         require(state["status"] != "finished", "already finalized")
         index = evidence(attempt, state)
         frozen["reviewer_packet"] = read(attempt / "case" / frozen["case_manifest"]["reviewer"])
-        result = assess(review, state, frozen, index)
+        completion_check = (full_report_completion(attempt, state, index)
+                            if frozen["case_manifest"].get("completion_contract") == "full_report" else None)
+        result = assess(review, state, frozen, index, completion_check)
         write(attempt / "assessment.json", result)
         state["status"] = "finished"
         write(attempt / "state.json", state)

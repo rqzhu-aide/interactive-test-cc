@@ -1,19 +1,30 @@
 # Interactive Test CC v7
 
-Version: `7.0.2`. This repository contains the v7 testing skill and minimal
+Version: `7.0.4`. This repository contains the v7 testing skill and minimal
 adaptive runner under the canonical skill name `interactive-test-cc`.
 
 It specifies a Hermes simulated user interacting with causal-consultant through
-Claude Code. Frozen private study facts, brief factual replies and adaptive
+Claude Code. Separate world dossiers, realistic user knowledge and beliefs, and adaptive
 source disclosure test whether the consultant discovers what matters and helps
 the user reach a defensible outcome. Independent review checks actual evidence,
 prepared data and calculations rather than rewarding a prescribed conversation.
+
+Broad and end-to-end test requests cover all four [persona cases](references/persona-cases.md):
+a novice with the synthetic grant pilot, a cooperative STAR domain expert, an
+advanced Schooling statistician, and a College policy user applying bounded
+pressure. Individual case selection is allowed. Personas change knowledge,
+reasoning and cooperation, not just vocabulary. The simulated user
+continues past analysis and conversational summaries until the promised saved
+report is delivered. Finalization checks actual verified report artifacts, with
+scientific quality assessed separately. Both the testing package and current
+consultant target are 7.0.4. Frozen case identities and earlier evidence remain
+unchanged under the [persona release profile](references/persona-cases.md).
 
 Start with [SKILL.md](SKILL.md). The
 [runner guide](references/runner.md) gives executable commands and the Hermes
 handoff. The [implementation plan](references/implementation-plan.md) defines the
 remaining target-host and pilot work. The
-[four pilot blueprints](references/pilot-cases.md) cover operational meaning and
+[regression pilot blueprints](references/pilot-cases.md) cover operational meaning and
 preparation, ready analysis, useful limited advice and correction after resume.
 The same guide specifies four synthetic investigation-depth contrasts for a
 matched comparison of frozen consultant `7.0.1` and revised `7.0.2` snapshots.
@@ -24,14 +35,29 @@ The standard-library runner provides preflight, start, step, inspect and finish.
 The complete College case includes verified CSV bytes, semantic user facts and
 an independently checked numerical oracle. Preflight detects incomplete consultant
 copies, including missing `package.json`, and mismatched case/data identities.
-The observation profile explicitly accepts consultant `7.0.0`, `7.0.1` and
-`7.0.2`; later versions still require a checked compatibility update.
+The observation profile explicitly accepts consultant `7.0.0`, `7.0.1`,
+`7.0.2` and `7.0.4`; `7.0.3` and future versions remain unsupported until a
+checked compatibility update.
 
 Eight investigation-depth fixtures cover allocation-record availability, exposure
 timing, intermediate versus closed descriptive scope, and complete versus missing
 design documentation. Each has frozen public/actor/reviewer materials and an
 independent self-check. The original College fixture remains unchanged; its
 descriptive completion does not establish investigation depth.
+
+Two earlier full-report adaptations cover the College study and synthetic recoverable
+allocation study, preserving their original scientific materials and references.
+These and the focused cases remain regression tests with their own endpoints.
+No fixed four-round stop exists: some earlier short endpoints asked for a recap.
+Each new persona case has provisional capacity for 24 consultant exchanges and
+ends when the actual requested work is complete. There is no minimum or guessed
+round count. The runner guide distinguishes capacity from observed completion.
+
+The new persona specifications keep private world truth separate from actor
+beliefs, knowledge and access, and from the reviewer's answer key. Visible
+learning and corrections persist through private actor update records. Fixture
+validation and protocol rehearsal do not establish live performance; the persona
+guide records their status separately from real Hermes/Claude qualification.
 
 Local subprocess tests exercise session continuity, failures, disclosure, limits
 and review binding. The real Hermes/Claude smoke, four V7P pilots and matched

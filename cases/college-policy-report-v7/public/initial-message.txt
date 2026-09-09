@@ -1,0 +1,5 @@
+Use the causal-consultant skill. I am advising an education board about adding $1,000 per student to instructional budgets at colleges. Using the attached College data, can you work out whether that would improve graduation and give me something I can use at the meeting?
+
+The supplied files are data.csv and dictionary.md in the working directory. Save any consultation project in consultation/.
+
+Please continue through the investigation and supported analysis to a complete saved consultant report for the education board, with reproducible results. I need the main answer and its evidence, how you reached it, results and uncertainty, limitations, practical recommendations, sources and a short technical appendix. If these materials cannot support the causal answer, explain that clearly and report what they do support. A short chat recap is useful along the way, but I still need the complete report. A self-contained local HTML file is suitable; no publication is needed.

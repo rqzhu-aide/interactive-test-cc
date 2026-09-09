@@ -1,0 +1,30 @@
+{
+  "kind": "new standalone persona case using unchanged real prepared data",
+  "checked_on": "2026-09-09",
+  "generator": "interactive-test-cc/scripts/generate_persona_real_cases.py",
+  "generator_sha256": "1539afd93eb39a7afe2b7f9653d75c31119c507fc9b75884d8b429452f9d8f9c",
+  "prepared_source": "test-data/schooling-iv-late/data.csv",
+  "prepared_sha256": "45b47f693b9f5f60f6b4c101aef86f71643bbe50d25bfa726f871642842a488e",
+  "upstream_export": "https://raw.githubusercontent.com/vincentarelbundock/Rdatasets/master/csv/Ecdat/Schooling.csv",
+  "upstream_sha256": "d2027e2bd26092b8456dd55605d84422d52d5443d308836167e706dd66daaba6",
+  "reconciliation": "All cells/order match the 2026-09-09 public export after dropping its rownames column. Prepared bytes are preserved, not normalized or corrected.",
+  "primary_sources": [
+    "https://search.r-project.org/CRAN/refmans/Ecdat/html/Schooling.html",
+    "https://davidcard.berkeley.edu/data_sets/proximity.zip",
+    "https://davidcard.berkeley.edu/data_sets.html",
+    "https://lsun20.github.io/WIRev_092218-%20corrected.pdf"
+  ],
+  "historical_claim_limit": "No legacy actor history, invented saturation scheme, legacy prepared-data hash or presumed causal truth is inherited.",
+  "audit_location": "audits/v7-personas-2026-09-09/source-reconciliation/reconciliation.json; authoring audit only, not a runtime dependency",
+  "validation": "Separate generator/reference and standalone checker implementations; exact regeneration and mutated-data checks. Live behavior remains unqualified.",
+  "primary_reconciliation": {
+    "archive_sha256": "0e9b2ad4182ea631ca3dd8a5fff6c1b0ab86b56c6a3fa868870f716e8d82691f",
+    "original_rows": 3613,
+    "nonmissing_logwage_rows": 3010,
+    "match": "Same row order; mapped numeric fields within 1e-5, binary recoding and calculated experience. Sole discrepancy is nomomed, 537 rows.",
+    "local_duplicate_flags": 3010,
+    "primary_maternal_imputations": 353,
+    "local_maternal_flag_yes": 690,
+    "repair": "Source note is staged; original row-level archive/repair is not staged. Preserve CSV and treat the discrepancy explicitly."
+  }
+}
