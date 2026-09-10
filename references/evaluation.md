@@ -136,6 +136,25 @@ every turn. Ordinary no-output audits need no run; saved preparation and new
 target computation do. A returned user-facing answer need not make every open
 question disappear or close an honestly incomplete operation.
 
+For a candidate reporting `user-question-routing-v1`, compare the incoming
+message with its recorded interpretation and actual work. A prerequisite question
+or material ambiguity requires a lead response with zero specialist work.
+Questions that depend on analysis should be recorded before work and answered
+at closeout, or remain pending with a reason. An independent question may be
+answered alongside clear authorized work; complexity alone does not require
+clarification. Check that later context retains unresolved user questions and
+that an answer does not silently change the original report objective.
+
+With `lead-markdown-v3`, `[Your Questions]` is present when addressing the user's
+questions, before `[Status]`, `[I want to know]` and `[Decide Next Steps]`. The
+consultant's information requests belong in `[I want to know]`; quoted user
+questions are not new requests to the actor. Use captured interpretations,
+structured answers, pending references and actual sources to assess this
+distinction. A heading, saved answered status or matching response hash does not
+establish an adequate answer or scientific validity. Earlier v1/v2 exchanges
+retain their historical contract. Apply the existing continuity and usefulness
+criteria without changing frozen case criteria or requiring extra rounds.
+
 ## Outcomes Without False Passes
 
 Keep these fields separate in the assessment:

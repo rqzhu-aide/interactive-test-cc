@@ -14,6 +14,9 @@ import uuid
 from claude_transport import capture, invoke
 
 ACTOR_UPDATES = ("knowledge_updates", "belief_updates", "decision_updates")
+CONSULTANT_VERSIONS = ("7.0.0", "7.0.1", "7.0.2", "7.0.4", "7.0.5")
+EXCHANGE_CAPABILITY = "durable-exchanges-v1"
+USER_QUESTION_CAPABILITY = "user-question-routing-v1"
 
 
 def read(path):
@@ -117,8 +120,8 @@ def validate_case(case):
 
 def candidate_inventory(candidate):
     package = read(candidate / "package.json")  # Required even though absent from npm's explicit files list.
-    require(package["version"] in ("7.0.0", "7.0.1", "7.0.2", "7.0.4"),
-            "this observation profile requires consultant 7.0.0, 7.0.1, 7.0.2 or 7.0.4")
+    require(package["version"] in CONSULTANT_VERSIONS,
+            "this observation profile requires consultant " + ", ".join(CONSULTANT_VERSIONS))
     result = {"package.json": digest(candidate / "package.json")}
     for entry in package["files"]:
         path = member(candidate, entry)
@@ -131,7 +134,7 @@ def candidate_inventory(candidate):
 
 def validate_config(config):
     allowed = {"claude_command", "node_command", "model", "allowed_tools", "forward_subagent_text",
-               "max_agent_turns_per_call", "call_timeout_seconds", "limits", "mode", "host_evidence"}
+               "max_agent_turns_per_call", "call_timeout_seconds", "limits", "mode", "host_evidence", "project_root"}
     require(not set(config) - allowed, "unknown configuration keys")
     for key in ("claude_command", "node_command"):
         require(isinstance(config[key], list) and config[key] and
@@ -146,8 +149,34 @@ def validate_config(config):
     require(set(config["limits"]) == {"consultant_turns", "active_seconds", "elapsed_seconds"}, "wrong whole-run limits")
     require(type(config["limits"]["consultant_turns"]) is int and type(config["max_agent_turns_per_call"]) is int,
             "turn limits must be integers")
+    if "project_root" in config:
+        require(isinstance(config["project_root"], str) and config["project_root"],
+                "project_root must be a work-relative path, or . for the work root")
+        if config["project_root"] != ".":
+            root = config["project_root"]
+            require("\\" not in root and ":" not in root and not PurePosixPath(root).is_absolute()
+                    and all(part not in ("", ".", "..") for part in root.split("/")),
+                    "project_root must be a canonical contained relative path")
     if config["mode"] == "verified_host":
         require(config.get("host_evidence"), "verified_host requires existing host smoke/isolation evidence directory")
+
+
+def candidate_observation_profile(candidate, config):
+    profile = {"consultant_version": read(candidate / "package.json")["version"],
+               "enforcement": "observational_only", "capabilities": [], "user_question_routing": False}
+    if profile["consultant_version"] == "7.0.5":
+        probe = subprocess.run(config["node_command"] + [str(candidate / "scripts/project.cjs"), "capabilities"],
+                               cwd=candidate, capture_output=True, timeout=30)
+        require(probe.returncode == 0, "7.0.5 consultant capability probe failed")
+        capability = json.loads(probe.stdout)
+        require(isinstance(capability, dict) and isinstance(capability.get("capabilities"), list)
+                and all(isinstance(item, str) for item in capability["capabilities"])
+                and EXCHANGE_CAPABILITY in capability["capabilities"],
+                "7.0.5 consultant lacks " + EXCHANGE_CAPABILITY)
+        profile["capabilities"] = capability["capabilities"]
+        profile["capability_probe"] = capability
+        profile["user_question_routing"] = USER_QUESTION_CAPABILITY in capability["capabilities"]
+    return profile
 
 
 def preflight(case, candidate, config):
@@ -171,6 +200,7 @@ def preflight(case, candidate, config):
     require(help_result.returncode == 0, "consultant project helper cannot load")
     return {"case_manifest": manifest, "case_sha256": digest(case / "case.json"),
             "candidate_files": files, "candidate_validation": validation,
+            "observation_profile": candidate_observation_profile(candidate, config),
             "configuration": config, "python": sys.version, "node": node_version}
 
 
@@ -262,6 +292,53 @@ def integrity(attempt, state, frozen):
     require(all(digest(Path(__file__).parent / name) == sha for name, sha in frozen["adapter_files"].items()), "adapter changed during attempt")
 
 
+def project_binding(files, config):
+    """Bind observations to an explicit root or a unique captured journal, never a guessed folder."""
+    candidates = sorted({str(PurePosixPath(name).parent) for name in files
+                         if PurePosixPath(name).name == "journal.jsonl"
+                         and PurePosixPath(name).parts[0] != ".claude"})
+    explicit = config.get("project_root")
+    selected = explicit if explicit is not None else (candidates[0] if len(candidates) == 1 else None)
+    return {"status": "bound" if selected in candidates else ("ambiguous" if len(candidates) > 1 else "missing"),
+            "method": "explicit" if explicit is not None else "unique_journal",
+            "project_root": selected, "candidate_roots": candidates,
+            "scope": "Captured work tree excluding the staged .claude runtime; no project mutation."}
+
+
+def observe_exchange(event):
+    """Compare actual final bytes with a prepared exchange; do not write delivery or grade science."""
+    result = {"profile": EXCHANGE_CAPABILITY, "enforcement": "observational_only", "status": "unobserved",
+              "reason": "No successful durable-exchange observation is available.",
+              "scope": "Exact returned-final correspondence only; not delivery/read proof or scientific validation."}
+    try:
+        process = read(event / "project-status/process.json")
+        require(process["exit_code"] == 0 and not process["error"], "project status did not succeed")
+        status = read(event / "project-status/stdout.txt")
+        work = status.get("views", {}).get("work", {})
+        exchange = next((item for item in work.get("exchanges", [])
+                         if item["exchange_id"] == work.get("current_exchange_ref")), None)
+        require(exchange is not None, "No current durable exchange was captured.")
+        result.update(renderer=exchange.get("renderer"),
+                      user_questions=exchange.get("response", {}).get("user_questions"),
+                      pending_user_question_refs=work.get("pending_user_question_refs"))
+        message = read(event / "public.json")["assistant"]
+        require(isinstance(message, str), "No successful final response was returned.")
+        actual = hashlib.sha256(message.encode("utf-8")).hexdigest()
+        prior = event.parent / f"{int(event.name) - 1:03d}" / "project-status/stdout.txt"
+        new_exchange = None
+        if prior.is_file():
+            prior_work = read(prior).get("views", {}).get("work", {})
+            new_exchange = exchange["exchange_id"] != prior_work.get("current_exchange_ref")
+        result.update(exchange_id=exchange["exchange_id"], exchange_turn_id=exchange["turn_id"],
+                      exchange_event_ref=exchange["event_ref"], expected_response_sha256=exchange["response_sha256"],
+                      actual_response_sha256=actual, new_since_previous_observation=new_exchange,
+                      status="matched" if actual == exchange["response_sha256"] else "mismatch",
+                      reason="Compared exact UTF-8 final response with the current prepared exchange hash.")
+    except (ValueError, OSError, KeyError, TypeError) as exc:
+        result["reason"] = str(exc)
+    write(event / "exchange-observation.json", result)
+
+
 def observe_project(event, state, config):
     """Retain each turn's files and read-only v7 observations, including failed turns."""
     work = Path(state["work"])
@@ -269,14 +346,23 @@ def observe_project(event, state, config):
     shutil.copytree(work, event / "work-snapshot")
     require(inventory(event / "work-snapshot") == before == inventory(work), "work changed while capturing evidence")
     write(event / "work-files.json", before)
+    binding = project_binding(before, config)
+    write(event / "project-binding.json", binding)
+    if binding["status"] != "bound":
+        write(event / "observation-skipped.json", {"reason": "project root is " + binding["status"],
+                                                   "binding_ref": "project-binding.json"})
+        observe_exchange(event)
+        return
+    root = work if binding["project_root"] == "." else member(work, binding["project_root"])
     helper = work / ".claude/skills/causal-consultant/scripts/project.cjs"
-    for command in ("status", "history", "verify"):
+    for command in ("status", "context", "history", "verify"):
         remaining = config["limits"]["elapsed_seconds"] - (time.time() - state["started_at"])
         if remaining <= 0:
             write(event / "observation-skipped.json", {"reason": "elapsed limit reached", "next_command": command})
             break
-        capture(config["node_command"] + [str(helper), command, "--project-root", str(work / "consultation")],
+        capture(config["node_command"] + [str(helper), command, "--project-root", str(root)],
                 work, "", min(30, remaining), event / ("project-" + command))
+    observe_exchange(event)
 
 
 def record_time_limits(state, config, now):
@@ -430,6 +516,11 @@ def full_report_completion(attempt, state, index):
         return path
 
     try:
+        binding = read(retained(latest + "/project-binding.json"))
+        require(binding["status"] == "bound" and binding["project_root"] in binding["candidate_roots"],
+                "latest project observation has no unambiguous bound root")
+        project_prefix = "" if binding["project_root"] == "." else binding["project_root"] + "/"
+        result["project_root"] = binding["project_root"]
         observations = {}
         for command in ("status", "verify"):
             prefix = latest + "/project-" + command
@@ -452,8 +543,8 @@ def full_report_completion(attempt, state, index):
                 "latest work snapshot changed")
         require(inventory(Path(state["work"])) == captured_files,
                 "current project differs from its latest captured verification")
-        retained(latest + "/work-snapshot/consultation/journal.jsonl")
-        retained(latest + "/work-snapshot/consultation/project.yaml")
+        retained(latest + "/work-snapshot/" + project_prefix + "journal.jsonl")
+        retained(latest + "/work-snapshot/" + project_prefix + "project.yaml")
 
         reports = [run for run in project["runs"] if run["kind"] == "report"]
         require(reports, "no report run was captured")
@@ -463,19 +554,19 @@ def full_report_completion(attempt, state, index):
         require(report["status"] == "completed", "latest report run is " + report["status"])
         prefix = "runs/" + report["run_id"] + "/"
         require(report["manifest_ref"] == prefix + "manifest.json", "report manifest path does not match its run")
-        manifest_path = retained(latest + "/work-snapshot/consultation/" + report["manifest_ref"])
+        manifest_path = retained(latest + "/work-snapshot/" + project_prefix + report["manifest_ref"])
         require(digest(manifest_path) == report["manifest_sha256"], "report manifest does not match its committed hash")
         manifest = read(manifest_path)
         require(manifest["kind"] == "report" and manifest["run_id"] == report["run_id"],
                 "manifest is not the completed report")
-        retained(latest + "/work-snapshot/consultation/" + report["plan_ref"])
+        retained(latest + "/work-snapshot/" + project_prefix + report["plan_ref"])
         require(manifest["output_paths"], "report has no manifested output")
         files = {item["path"]: item for item in manifest["files"]}
         for relative in manifest["output_paths"]:
-            output = retained(latest + "/work-snapshot/consultation/" + prefix + relative)
+            output = retained(latest + "/work-snapshot/" + project_prefix + prefix + relative)
             require(relative in files and output.stat().st_size > 0 and digest(output) == files[relative]["sha256"],
                     "report output is empty or does not match its manifest: " + relative)
-            result["evidence_refs"].append("work/consultation/" + prefix + relative)
+            result["evidence_refs"].append("work/" + project_prefix + prefix + relative)
         require(all(ref in index["files"] for ref in result["evidence_refs"]), "report evidence is not bound")
         result.update(satisfied=True, reason="Latest report run is completed, verified and retained with nonempty manifested outputs.")
     except (ValueError, OSError, KeyError, TypeError) as exc:

@@ -1,6 +1,6 @@
 # Interactive Test CC v7
 
-Version: `7.0.4`. This repository contains the v7 testing skill and minimal
+Version: `7.0.5`. This repository contains the v7 testing skill and minimal
 adaptive runner under the canonical skill name `interactive-test-cc`.
 
 It specifies a Hermes simulated user interacting with causal-consultant through
@@ -17,7 +17,7 @@ reasoning and cooperation, not just vocabulary. The simulated user
 continues past analysis and conversational summaries until the promised saved
 report is delivered. Finalization checks actual verified report artifacts, with
 scientific quality assessed separately. Both the testing package and current
-consultant target are 7.0.4. Frozen case identities and earlier evidence remain
+consultant target are 7.0.5. Frozen case identities and earlier evidence remain
 unchanged under the [persona release profile](references/persona-cases.md).
 
 Start with [SKILL.md](SKILL.md). The
@@ -36,8 +36,20 @@ The complete College case includes verified CSV bytes, semantic user facts and
 an independently checked numerical oracle. Preflight detects incomplete consultant
 copies, including missing `package.json`, and mismatched case/data identities.
 The observation profile explicitly accepts consultant `7.0.0`, `7.0.1`,
-`7.0.2` and `7.0.4`; `7.0.3` and future versions remain unsupported until a
+`7.0.2`, `7.0.4` and `7.0.5`; `7.0.3` and future versions remain unsupported until a
 checked compatibility update.
+
+The 7.0.5 profile verifies `durable-exchanges-v1` before startup. Each turn binds
+its read-only observations to an explicitly configured project root or the
+unique captured journal, including a journal directly in the work directory.
+Missing or ambiguous roots remain explicit. Status and context retain turn,
+exchange and memory views; an observational check compares the actual final
+response with the prepared exchange hash. The profile records optional
+`user-question-routing-v1` support. For `lead-markdown-v3`, capture retains the
+user's question answers and pending question references separately from the
+consultant's information requests. Earlier v1/v2 renderers keep their original
+contract. This provides review evidence, not
+host enforcement, proof of reading or a scientific pass.
 
 Eight investigation-depth fixtures cover allocation-record availability, exposure
 timing, intermediate versus closed descriptive scope, and complete versus missing

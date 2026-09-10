@@ -2,16 +2,17 @@
 
 Hermes supplies adaptive user replies; this standard-library adapter transports
 them and captures evidence for a separate reviewer. Use shared Python 3.10+,
-Node 18.18+, an existing Claude Code installation, and consultant 7.0.4. The
-explicit observation allowlist also accepts 7.0.0, 7.0.1 and 7.0.2 and retains the same package inventory,
+Node 18.18+, an existing Claude Code installation, and consultant 7.0.5. The
+explicit observation allowlist also accepts 7.0.0, 7.0.1, 7.0.2 and 7.0.4 and retains the same package inventory,
 validator, helper and evidence checks for each supported version; it does not
 admit 7.0.3 or future versions automatically.
 No installation or paid consultation occurs in `preflight`.
 
-The consultant's 7.0.4 release aligns version metadata while retaining the 7.0.2
-observation interface. Frozen persona case 1.0.0 manifests still identify their
+The consultant's historical 7.0.4 release aligned version metadata while retaining
+the 7.0.2 observation interface. The 7.0.5 profile adds durable exchange evidence.
+Frozen persona case 1.0.0 manifests still identify their
 original 7.0.2 target. Use the [documented release profile](persona-cases.md)
-without rewriting those files. Startup binds the actual 7.0.4 candidate's version,
+without rewriting those files. Startup binds the actual candidate's version,
 package inventory and hashes separately from the frozen case identity; earlier
 rehearsals and comparisons retain their original evidence labels.
 
@@ -64,7 +65,11 @@ agent/tool work within a reply and is not the user-conversation length.
 
 Optional fields: `model` (explicit host-supported model), `allowed_tools` (Claude
 tool permission rules), `forward_subagent_text` (boolean, after checking installed
-CLI support), and `host_evidence` (absolute directory). There is no implicit
+CLI support), `host_evidence` (absolute directory), and `project_root` (relative
+to public work, or `.` for the work root). If omitted, observations bind to the
+unique captured journal outside the staged `.claude` runtime. Multiple journals
+require an explicit binding; missing or ambiguous roots stay visible. This
+observer setting does not send a new instruction to the consultant. There is no implicit
 permission bypass or token/cost cap. Raw per-call usage is retained; unverified
 aggregate usage stays null. Tool permissions do not establish file isolation.
 
@@ -105,6 +110,13 @@ stages only the runtime under `.claude/skills/causal-consultant` and initial
 public sources. It captures Claude version/help, without sending a user message.
 Confirm actual candidate selection in the host smoke, accounting for installed
 skills/settings. Keep scenario names out of public paths.
+For consultant 7.0.5, preflight also requires its reported
+`durable-exchanges-v1` capability and freezes that observation profile. This is
+helper compatibility evidence, not proof of correct consultant behavior.
+The optional `user-question-routing-v1` capability identifies the revised
+question-aware profile without rejecting earlier 7.0.5 snapshots. Use the
+frozen capability observation together with each exchange's recorded renderer;
+do not impose v3 wording on historical v1/v2 replies.
 
 Do not edit or normalize a fixture to make hashes pass. `.gitattributes` preserves
 the shipped fixture bytes across platforms. Changed facts/data require a new
@@ -161,11 +173,35 @@ available tool/worker events, returned identity, exit/timeout and raw usage.
 Missing/changed IDs, malformed results, provider errors and nonzero exits stop
 the attempt. There is no automatic resend or ambient continuation fallback.
 
-Each invocation also retains a full work snapshot and read-only v7 `status`,
-`history` and `verify` output for `consultation/`, including failed turns. A
-missing project is recorded, not automatically graded as a scientific defect.
+Each invocation also retains a full work snapshot, `project-binding.json`, and
+read-only v7 `status`, `context`, `history` and `verify` output for the bound
+project, including failed turns. A journal directly in work is supported. Missing
+or ambiguous projects are recorded, not automatically graded as scientific defects.
 The adapter never initializes or writes scientific journal records. Links are
 unsupported in staged fixture/runtime/evidence trees; retain ordinary files.
+
+For durable exchanges, status/context retain the available user, study and work
+views. `exchange-observation.json` compares the actual returned final response's
+UTF-8 hash with the current prepared exchange and reports whether that exchange
+changed since the previous observation when available. Missing evidence is
+unobserved; a reused older exchange is not a new turn's closeout. The actor never
+reads these private observations. The reviewer checks interpretation, preserved
+conditions and unfinished turns separately. No delivery record or host hook is
+created, and a matching response hash does not establish scientific validity.
+The observation also retains the renderer, structured `response.user_questions`
+and `views.work.pending_user_question_refs` when present. Missing fields remain
+null rather than being interpreted as no outstanding user questions.
+For `lead-markdown-v3`, check that the user's questions are answered or explicitly
+kept pending before `[Status]`, followed by consultant information requests in
+`[I want to know]` and choices in `[Decide Next Steps]`. Judge prerequisite
+questions, such as "explain this before you proceed", separately from questions
+the user asks the analysis to answer. The former require clarification or an
+answer before dependent work; the latter should be retained before work and
+answered from its results or left pending with a reason. A supplied action
+selection does not erase a question in the same message. Inspect the actual
+exchange and sources; neither a section label nor a saved question status proves
+the answer is adequate. Existing persona facts, actor rules and stopping
+conditions remain unchanged.
 
 Limits count attempted consultation turns and consultant subprocess active time,
 including failures. Active time excludes harness observations. Elapsed time begins

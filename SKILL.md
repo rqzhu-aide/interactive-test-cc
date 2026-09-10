@@ -2,7 +2,7 @@
 name: interactive-test-cc
 description: Define, prepare and evaluate adaptive multi-turn tests of causal-consultant v7, with a Hermes simulated user and a consultant accessed through Claude Code. Use for end-to-end investigation, reproducible analysis and saved reporting, or explicitly focused tests of elicitation, preparation, useful stopping and continuity.
 metadata:
-  version: "7.0.4"
+  version: "7.0.5"
 ---
 
 # Adaptive Causal Consultation Testing
@@ -20,11 +20,14 @@ Use the [runner guide](references/runner.md) for startup, adaptive steps and rev
 Local subprocess tests do not establish Hermes/Claude compatibility. The actual
 host smoke and four V7P pilot runs remain pending.
 
-Target: `causal-consultant` `7.0.4` (also compatible with `7.0.0`, `7.0.1` and `7.0.2`),
+Target: `causal-consultant` `7.0.5` (also compatible with `7.0.0`, `7.0.1`, `7.0.2` and `7.0.4`),
 pinned to the actual tested snapshot. The investigation-depth comparison uses
 the frozen `7.0.1` baseline and revised `7.0.2` candidate.
 The [persona release profile](references/persona-cases.md) preserves the frozen
-case identities while binding each new run to its actual candidate. Consultant
+case identities while binding each new run to its actual candidate. The 7.0.5
+profile also verifies the helper's `durable-exchanges-v1` capability and retains
+the observed turn/exchange views. It records `user-question-routing-v1` when
+present; earlier 7.0.5 snapshots retain their own response contract. Consultant
 `7.0.3` and later unlisted candidates require an explicitly checked compatibility profile. Preserve
 the pre-v7 testing skill, runner, fixtures and results in the sibling local
 `interactive-test-cc-v6` archive. This repository root now contains the v7
@@ -73,8 +76,10 @@ requested study; do not reinterpret an old focused result as an end-to-end test.
 2. Start a fresh consultant project and conversation with only the public
    request and initial materials. Explicitly invoke the selected consultant
    skill in the agreed host invocation, without method or rubric hints.
-3. Observe the actual user-facing reply. Answer the most consequential question
-   using currently known facts and the persona's reasoning and cooperation. Keep
+3. Observe the actual user-facing reply. Answer the consultant's most consequential
+   information request, distinguishing it from an answer that quotes the user's
+   own question. Use
+   currently known facts and the persona's reasoning and cooperation. Keep
    the answer concise enough for the question without a universal sentence limit.
    Supply available
    material when the corresponding request warrants it. When no question is
@@ -104,8 +109,16 @@ pressure, corrections and update provenance.
 Retain at most one substantive specialist review per consultant assistant turn.
 A role performed locally and a delegated role count by the same substantive
 standard. Lead clarification, synthesis and justified stopping can require zero
-reviews. Do not enforce v6 headings, approval phrases, per-turn state growth or
-a predetermined method order.
+reviews. Assess actual reply binding and preserved scientific conditions using
+the frozen helper capabilities and observed renderer. New `lead-markdown-v3`
+replies address the user's questions before `[Status]`, `[I want to know]` and
+`[Decide Next Steps]`. Distinguish the user's questions from the consultant's
+information requests, and check whether a question required an answer before
+work or was meant to be answered using its results. The adapter records exact
+final-response correspondence where available; it does
+not install a host hook or prove delivery from a save receipt. Earlier snapshots
+retain their own response contract. Do not enforce v6 approval phrases,
+artificial per-turn state growth or a predetermined method order.
 
 ## What Counts as Success
 

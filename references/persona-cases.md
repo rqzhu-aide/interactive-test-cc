@@ -1,7 +1,7 @@
 # Default Persona Full-Report Cases
 
 For fixture authors, operators and independent reviewers, not the user actor.
-Testing package `7.0.4` targets consultant `7.0.4`. A broad full test covers all
+Testing package `7.0.5` targets consultant `7.0.5`. A broad full test covers all
 four cases below; an explicitly selected individual case is a valid narrower
 test. Preserve earlier focused fixtures and full-report adaptations as regression
 coverage under [pilot-cases.md](pilot-cases.md).
@@ -23,10 +23,15 @@ scientific rescue instructions.
 ## Release Compatibility Profile
 
 The four case 1.0.0 manifests were frozen for consultant 7.0.2 and retain those
-target fields, exact bytes and hashes. Consultant 7.0.4 aligns release metadata
-with the testing package and retains the same observation interface. This profile
-permits those unchanged cases with the explicitly supported 7.0.4 candidate;
-it does not rewrite the scientific worlds, actor policies or frozen case targets.
+target fields, exact bytes and hashes. Consultant 7.0.4 aligned release metadata
+while retaining the 7.0.2 observation interface. This profile also permits those
+unchanged cases with consultant 7.0.5, whose `durable-exchanges-v1` capability is
+checked before startup. The optional `user-question-routing-v1` capability and
+observed renderer identify its question-aware response contract. Retain the
+actual interpretation, answer and pending-question evidence under the
+[runner guide](runner.md) and assess it under [evaluation.md](evaluation.md).
+Earlier snapshots keep their original contract. This profile does not rewrite
+the scientific worlds, actor policies or frozen case targets.
 The runner separately binds the actual candidate version, runtime inventory and
 hashes at startup. Preserve that distinction in each dossier and identify the
 candidate actually executed. A material future interface or case change needs
@@ -79,7 +84,7 @@ questions, reviews or methods. Internal agent/tool turns are a separate measure.
 
 ## Validation and Qualification Status
 
-All four `7.0.4` case bundles are materialized. The authoring validation passed
+All four case 1.0.0 bundles are materialized. The original authoring validation passed
 60 tests, including standalone numerical checks, exact regeneration, source
 preservation, private staging, learning-record transport and report completion.
 Separate numerical implementations reproduced the real-data references.

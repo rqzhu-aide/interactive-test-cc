@@ -2,9 +2,9 @@
 
 - Class: planning
 - Status: persona redesign added to the adapter and fixture work; fixture validation and live qualification must be reported separately
-- Date: 2026-09-09
-- Package: `interactive-test-cc`, `7.0.4`
-- Current consultant target: identified `7.0.4` snapshot, with `7.0.0`, `7.0.1` and `7.0.2` compatibility; not any directory
+- Date: 2026-09-10
+- Package: `interactive-test-cc`, `7.0.5`
+- Current consultant target: identified `7.0.5` snapshot, with `7.0.0`, `7.0.1`, `7.0.2` and `7.0.4` compatibility; not any directory
   merely labelled v7
 
 ## Scope and Current Deliverables
@@ -41,12 +41,21 @@ actor update records, without numeric trust or another controller. Each case has
 provisional 24-exchange capacity, with no minimum or guessed round count. The
 earlier 7.0.3 and focused fixtures retain their identities and endpoints.
 
-Release alignment also names the current consultant 7.0.4. Its metadata change
+The 7.0.4 release alignment named consultant 7.0.4. Its metadata change
 retains the 7.0.2 observation interface; the runner explicitly accepts 7.0.4 while
 continuing to reject unlisted versions, including 7.0.3. Frozen persona case 1.0.0
 targets and hashes stay unchanged. Each new attempt binds the actual candidate
 identity under the [persona release profile](persona-cases.md); prior validation,
 rehearsals and 7.0.1/7.0.2 comparisons are not relabeled as 7.0.4 consultations.
+
+The 7.0.5 compatibility revision binds observations to the actual project root
+and captures durable interpretations, exchanges and exact final-response
+correspondence. Its optional question-aware capability distinguishes user
+questions from consultant information requests, retaining answer timing and
+pending questions for independent review. Earlier snapshots retain their own
+renderers; no delivery record is created by the observer. Full-report completion
+still requires the completed, verified saved artifact. Frozen persona cases and
+earlier evidence remain unchanged; live qualification is still pending.
 
 The September 7 reorganization makes this definition the testing repository's
 root skill. Pre-v7 files and results are preserved in the sibling local

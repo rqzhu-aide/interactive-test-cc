@@ -20,7 +20,8 @@ class SessionTests(unittest.TestCase):
         cls.candidate = ROOT.parent / "causal-consultant"
         cls.node = shutil.which("node")
         if not cls.node or not cls.candidate.is_dir():
-            raise RuntimeError("Integration tests require a shared Node and the sibling consultant 7.0.0, 7.0.1, 7.0.2 or 7.0.4 package")
+            raise RuntimeError("Integration tests require a shared Node and the sibling consultant " +
+                               ", ".join(driver.CONSULTANT_VERSIONS) + " package")
 
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
@@ -64,7 +65,8 @@ class SessionTests(unittest.TestCase):
         driver.write(self.case / "reviewer.json", reviewer)
         self.manifest()
 
-    def saved_run(self, run_id="report-main", status="completed", content="<html><body>Test-only report.</body></html>", kind="report"):
+    def saved_run(self, run_id="report-main", status="completed", content="<html><body>Test-only report.</body></html>",
+                  kind="report", project_root="consultation"):
         """Produce actual v7 journal/manifest evidence with the staged helper, not fake status JSON."""
         script = r"""
 const fs = require('fs'), path = require('path'), crypto = require('crypto');
@@ -74,7 +76,7 @@ const store = require(path.join(scripts, 'lib/store.cjs'));
 const runs = require(path.join(scripts, 'lib/runs.cjs'));
 const current = () => store.status(root).project.state_meta;
 const ids = event_id => ({event_id, expected_project_id: current().project_id, expected_last_event_id: current().last_event_id});
-if (!fs.existsSync(root)) {
+if (!fs.existsSync(path.join(root, 'journal.jsonl'))) {
   store.init(root, {event_id:'event-init', project_id:'project-test', project_understanding:{objective:'Test-only report evidence'}});
   store.record(root, {...ids('event-source'), type:'memory_updated', payload:{changes:{evidence:[{
     evidence_id:'source-data', kind:'file', source_ref:'data.csv', summary:'Frozen public input for a structural test.',
@@ -98,7 +100,7 @@ if (spec.status === 'completed') {
 process.stdout.write(JSON.stringify(store.status(root)));
 """
         result = subprocess.run([self.node, "-e", script,
-                                 str(self.work / ".claude/skills/causal-consultant/scripts"), str(self.work / "consultation")],
+                                 str(self.work / ".claude/skills/causal-consultant/scripts"), str(self.work / project_root)],
                                 input=json.dumps({"run_id": run_id, "status": status, "content": content,
                                                   "kind": kind, "source": str(self.work / "data.csv")}),
                                 text=True, encoding="utf-8", capture_output=True, timeout=30)
@@ -184,17 +186,199 @@ process.stdout.write(JSON.stringify(store.status(root)));
         candidate = self.root / "version-probe"
         candidate.mkdir()
         (candidate / "SKILL.md").write_text("Test-only runtime file.", encoding="utf-8")
-        for version in ("7.0.0", "7.0.1", "7.0.2", "7.0.4"):
+        for version in ("7.0.0", "7.0.1", "7.0.2", "7.0.4", "7.0.5"):
             with self.subTest(version=version):
                 driver.write(candidate / "package.json", {"version": version, "files": ["SKILL.md"]})
                 self.assertEqual(driver.candidate_inventory(candidate), {
                     "SKILL.md": driver.digest(candidate / "SKILL.md"),
                     "package.json": driver.digest(candidate / "package.json")})
-        for version in ("6.9.9", "7.0.3", "7.0.5", "7.1.0", "7.0.2-preview", "7.0.4-preview"):
+        for version in ("6.9.9", "7.0.3", "7.0.6", "7.1.0", "7.0.2-preview", "7.0.4-preview", "7.0.5-preview"):
             with self.subTest(version=version):
                 driver.write(candidate / "package.json", {"version": version, "files": ["SKILL.md"]})
                 with self.assertRaisesRegex(ValueError, "observation profile"):
                     driver.candidate_inventory(candidate)
+
+    def test_new_profile_requires_capability_and_preserves_old_profile(self):
+        candidate = self.root / "profile-probe"
+        candidate.mkdir()
+        driver.write(candidate / "package.json", {"version": "7.0.5"})
+        for code, body in ((1, {}), (0, {"capabilities": []}), (0, []),
+                           (0, {"capabilities": driver.EXCHANGE_CAPABILITY})):
+            with self.subTest(code=code, body=body), patch.object(driver.subprocess, "run") as run:
+                run.return_value = subprocess.CompletedProcess([], code, json.dumps(body).encode(), b"")
+                with self.assertRaisesRegex(ValueError, "capability|lacks"):
+                    driver.candidate_observation_profile(candidate, self.config)
+        with patch.object(driver.subprocess, "run") as run:
+            run.return_value = subprocess.CompletedProcess([], 0, json.dumps({
+                "capabilities": [driver.EXCHANGE_CAPABILITY]}).encode(), b"")
+            profile = driver.candidate_observation_profile(candidate, self.config)
+            self.assertEqual(profile["capabilities"], [driver.EXCHANGE_CAPABILITY])
+            self.assertFalse(profile["user_question_routing"])
+            self.assertEqual(profile["enforcement"], "observational_only")
+            self.assertEqual(run.call_args.args[0][-1], "capabilities")
+            run.return_value = subprocess.CompletedProcess([], 0, json.dumps({
+                "capabilities": [driver.EXCHANGE_CAPABILITY, driver.USER_QUESTION_CAPABILITY]}).encode(), b"")
+            self.assertTrue(driver.candidate_observation_profile(candidate, self.config)["user_question_routing"])
+            driver.write(candidate / "package.json", {"version": "7.0.4"})
+            run.reset_mock()
+            self.assertEqual(driver.candidate_observation_profile(candidate, self.config)["capabilities"], [])
+            run.assert_not_called()
+
+    def test_project_root_binding_is_explicit_or_unique_and_contained(self):
+        files = {"journal.jsonl": "root", ".claude/skills/example/journal.jsonl": "runtime"}
+        self.assertEqual(driver.project_binding(files, {})["project_root"], ".")
+        files["nested/journal.jsonl"] = "second"
+        self.assertEqual(driver.project_binding(files, {})["status"], "ambiguous")
+        self.assertEqual(driver.project_binding(files, {"project_root": "nested"})["project_root"], "nested")
+        self.assertEqual(driver.project_binding({}, {})["status"], "missing")
+        for value in ("../outside", "C:/outside", "nested/../outside", "nested/", "", None):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                driver.validate_config({**self.config, "project_root": value})
+
+    def test_work_root_journal_is_observed_and_report_completion_uses_same_root(self):
+        self.full_report_case()
+        self.begin()
+        self.saved_run(project_root=".")
+        driver.step(self.attempt, self.reply(initial=True))
+        event = self.attempt / "events/001"
+        self.assertEqual(driver.read(event / "project-binding.json")["project_root"], ".")
+        for command in ("status", "context", "verify"):
+            self.assertEqual(driver.read(event / ("project-" + command) / "process.json")["exit_code"], 0)
+        completion = self.completion_check()
+        self.assertTrue(completion["satisfied"], completion["reason"])
+        self.assertIn("work/runs/report-main/report.html", completion["evidence_refs"])
+        self.assertFalse((self.work / "consultation").exists())
+
+    def test_ambiguous_projects_are_not_silently_observed_or_counted_as_report(self):
+        self.full_report_case()
+        self.begin()
+        self.saved_run(project_root="first")
+        self.saved_run(project_root="second")
+        driver.step(self.attempt, self.reply(initial=True))
+        event = self.attempt / "events/001"
+        self.assertEqual(driver.read(event / "project-binding.json")["status"], "ambiguous")
+        self.assertFalse((event / "project-status").exists())
+        self.assertFalse(self.completion_check()["satisfied"])
+
+    def test_explicit_project_binding_selects_recorded_report_among_projects(self):
+        self.full_report_case()
+        self.config["project_root"] = "second"
+        self.begin()
+        self.saved_run(project_root="first")
+        self.saved_run(project_root="second")
+        driver.step(self.attempt, self.reply(initial=True))
+        completion = self.completion_check()
+        self.assertTrue(completion["satisfied"], completion["reason"])
+        self.assertEqual(completion["project_root"], "second")
+        self.assertIn("work/second/runs/report-main/report.html", completion["evidence_refs"])
+
+    def test_durable_final_correspondence_is_observed_without_journal_mutation(self):
+        self.begin()
+        project = self.work / "consultation"
+        script = r"""
+const fs = require('fs'), path = require('path');
+const [scripts, root] = process.argv.slice(1);
+const store = require(path.join(scripts, 'lib/store.cjs'));
+store.init(root, {event_id:'event-init',project_id:'project-exchange',project_understanding:{objective:'Test exchange observation.'}});
+const state = store.status(root).project.state_meta;
+const receipt = store.record(root, {event_id:'event-close',expected_project_id:state.project_id,
+ expected_last_event_id:state.last_event_id,type:'exchange_prepared',payload:{
+ protocol:'durable-exchanges-v1',changes:{evidence:[{evidence_id:'user-message',kind:'user_statement',
+ source_ref:'chat:turn-1',summary:'Please explain the current state.'}]},
+ interpretation:{interpretation_id:'interpret-turn',turn_id:'turn-one',incoming_refs:['user-message'],basis_refs:[],
+ components:[{kind:'instruction',meaning:'Explain current state.',established:['Explanation requested.'],unresolved:[]}],
+ next_action:{kind:'lead_only',scope:'Explain current state.',reason:'No specialist review required.'}},
+ exchange:{exchange_id:'exchange-one',turn_id:'turn-one',interpretation_ref:'interpret-turn',basis_refs:[],completed_work_refs:[],
+ reconciliation:{changes:[],limitations:[],unresolved:[],next_direction:'Complete explanation.'},renderer:'lead-markdown-v1',
+ response:{status:'Résumé: test-only state.',questions:[],questions_none:'No questions.',next_steps:[],next_steps_none:'Complete.'}}}});
+process.stdout.write(JSON.stringify(receipt));
+"""
+        run = subprocess.run([self.node, "-e", script,
+                              str(self.work / ".claude/skills/causal-consultant/scripts"), str(project)],
+                             text=True, encoding="utf-8", capture_output=True, timeout=30)
+        self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+        receipt = json.loads(run.stdout)
+        before = (project / "journal.jsonl").read_bytes()
+        state = driver.read(self.attempt / "state.json")
+        state["started_at"] = time.time()
+        messages = (receipt["rendered_response"], receipt["rendered_response"] + "\nRewritten.", None)
+        for number, message in enumerate(messages, 1):
+            event = self.attempt / "events" / f"{number:03d}"
+            event.mkdir()
+            driver.write(event / "public.json", {"user": "Test request.", "assistant": message, "attachments": []})
+            driver.observe_project(event, state, self.config)
+            observed = driver.read(event / "exchange-observation.json")
+            self.assertEqual(observed["status"], ("matched", "mismatch", "unobserved")[number - 1])
+            self.assertEqual(observed["enforcement"], "observational_only")
+            if number == 2:
+                self.assertFalse(observed["new_since_previous_observation"])
+            if number == 1:
+                self.assertEqual(observed["expected_response_sha256"], receipt["response_sha256"])
+                self.assertEqual(observed["renderer"], "lead-markdown-v1")
+                self.assertIsNone(observed["user_questions"])
+                context = driver.read(event / "project-context/stdout.txt")
+                self.assertEqual(context["views"]["work"]["current_exchange_ref"], "exchange-one")
+        self.assertEqual(before, (project / "journal.jsonl").read_bytes())
+        self.assertEqual(driver.read(self.attempt / "events/001/project-status/stdout.txt")["project"]["deliveries"], [])
+
+    def test_v3_observation_preserves_user_questions_and_pending_view_without_delivery(self):
+        self.begin()
+        project = self.work / "consultation"
+        script = r"""
+const path = require('path');
+const [scripts, root] = process.argv.slice(1);
+const store = require(path.join(scripts, 'lib/store.cjs'));
+store.init(root, {event_id:'event-init',project_id:'project-questions',project_understanding:{objective:'Test question capture.'}});
+const state = store.status(root).project.state_meta;
+const receipt = store.record(root, {event_id:'event-close',expected_project_id:state.project_id,
+ expected_last_event_id:state.last_event_id,type:'exchange_prepared',payload:{
+ protocol:'durable-exchanges-v1',changes:{evidence:[{evidence_id:'user-message',kind:'user_statement',
+ source_ref:'chat:turn-1',summary:'Why does assignment matter, and what will the effect estimate be?'}],questions:[
+ {question_id:'question-why',origin:'user',statement:'Why does assignment matter?',status:'answered',reason:'Explained comparison.',basis_refs:['user-message']},
+ {question_id:'question-effect',origin:'user',statement:'What will the effect estimate be?',status:'open',reason:'No analysis yet.',basis_refs:['user-message']},
+ {question_id:'question-data',origin:'consultant',statement:'Can you share the data?',status:'open',basis_refs:['user-message']} ]},
+ interpretation:{interpretation_id:'interpret-turn',turn_id:'turn-one',incoming_refs:['user-message'],basis_refs:[],
+ components:[{kind:'question',meaning:'Explain assignment before work.',established:[],unresolved:[],user_question_ref:'question-why',answer_timing:'before_work'},
+ {kind:'question',meaning:'Answer the effect question from eventual results.',established:[],unresolved:['No analysis yet.'],user_question_ref:'question-effect',answer_timing:'after_work'}],
+ next_action:{kind:'lead_only',scope:'Explain assignment and retain the result question.',reason:'An explanation is needed first.'}},
+ exchange:{exchange_id:'exchange-one',turn_id:'turn-one',interpretation_ref:'interpret-turn',basis_refs:[],completed_work_refs:[],
+ reconciliation:{changes:['Explained assignment.'],limitations:['No analysis yet.'],unresolved:['Effect question remains open.'],next_direction:'Obtain the data.'},renderer:'lead-markdown-v3',
+ response:{user_questions:[
+ {question_ref:'question-why',text:'Why does assignment matter?',answer:'It determines which comparison can support the effect claim.',status:'answered',basis_refs:['user-message']},
+ {question_ref:'question-effect',text:'What will the effect estimate be?',answer:'This remains pending until the data can be analyzed.',status:'pending',basis_refs:['user-message']}],
+ status:'No analysis has been performed.',questions:[{question_ref:'question-data',text:'Can you share the data?',why:'The effect requires observations.',needed:'The study data file.'}],
+ next_steps:[],next_steps_none:'Share the study data when available.'}}}});
+process.stdout.write(JSON.stringify(receipt));
+"""
+        run = subprocess.run([self.node, "-e", script,
+                              str(self.work / ".claude/skills/causal-consultant/scripts"), str(project)],
+                             text=True, encoding="utf-8", capture_output=True, timeout=30)
+        self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+        receipt = json.loads(run.stdout)
+        before = (project / "journal.jsonl").read_bytes()
+        state = driver.read(self.attempt / "state.json")
+        state["started_at"] = time.time()
+        event = self.attempt / "events/001"
+        event.mkdir()
+        driver.write(event / "public.json", {"user": "Test question request.",
+                                             "assistant": receipt["rendered_response"], "attachments": []})
+        driver.observe_project(event, state, self.config)
+        observed = driver.read(event / "exchange-observation.json")
+        self.assertEqual(observed["status"], "matched")
+        self.assertEqual(observed["renderer"], "lead-markdown-v3")
+        self.assertEqual([(item["question_ref"], item["status"]) for item in observed["user_questions"]],
+                         [("question-why", "answered"), ("question-effect", "pending")])
+        self.assertEqual(observed["pending_user_question_refs"], ["question-effect"])
+        context = driver.read(event / "project-context/stdout.txt")
+        self.assertEqual(context["views"]["work"]["pending_user_question_refs"], ["question-effect"])
+        interpretation = next(item for item in context["views"]["work"]["interpretations"]
+                              if item["interpretation_id"] == "interpret-turn")
+        self.assertEqual([(item["user_question_ref"], item["answer_timing"])
+                          for item in interpretation["components"] if item["kind"] == "question"],
+                         [("question-why", "before_work"), ("question-effect", "after_work")])
+        self.assertEqual(interpretation["next_action"]["kind"], "lead_only")
+        self.assertEqual(before, (project / "journal.jsonl").read_bytes())
+        self.assertEqual(driver.read(event / "project-status/stdout.txt")["project"]["deliveries"], [])
 
     def test_corrupt_or_unexpected_fixture_inputs_fail(self):
         for name in ("public/data.csv", "actor.json"):

@@ -8,6 +8,9 @@ the consultant's score or force a particular specialist.
 ## Answering
 
 Use the visible conversation to identify what the consultant needs from you.
+An answer may quote or restate a question you asked; that is not a new request
+for information from you. Respond to the consultant's actual request or next
+direction, using what its answer helped you understand.
 Prioritize its most consequential explicit factual question, using the packet's
 goal when choosing among questions. Give a concise answer appropriate to your
 persona's knowledge, reasoning and cooperation. A novice may describe an event
