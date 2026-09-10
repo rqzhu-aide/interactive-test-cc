@@ -1,6 +1,6 @@
 # Adaptive Pilot Blueprints
 
-Default broad full-report testing now uses the four [persona cases](persona-cases.md).
+Current testing selects independent [problems and personas](problem-persona-matrix.md).
 This guide preserves the earlier pilot plans, focused contrasts and full-report
 adaptations as regression coverage, with their original identities and endpoints.
 
@@ -215,9 +215,9 @@ available prior reasoning or presenting attendance as randomized offer fails.
 These two earlier full-report adaptations remain regression cases for consultant 7.0.2.
 They require investigation, supported reproducible analysis and a saved report
 that addresses the user's decision. Their testing-suite version is 7.0.3 and
-case version is 1.0.0. The new default persona suite is documented separately.
-The [runner](runner.md) explains the report completion
-check and prospective 24-exchange capacity. There is no required round count
+case version is 1.0.0. The current independent problem/persona catalog is documented separately.
+The [runner](runner.md) explains the report completion check; these historical
+cases retain their original 24-exchange capacity. There is no required round count
 or mandatory specialist sequence.
 
 | Case | Evidence and endpoint |

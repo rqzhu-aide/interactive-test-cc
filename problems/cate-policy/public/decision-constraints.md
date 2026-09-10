@@ -1,0 +1,5 @@
+# Offer decision and resource constraints
+
+The offer decision is made before the program starts, using readiness_high, barrier_flag and baseline_band. Staff cannot use future engagement or follow-up gain. The outcome is measured in assessment points. For this planning decision, the office assigns each offer a cost equivalent to 2 assessment points in average utility, regardless of later attendance. This is a stated value judgment, not an empirical estimate. Utility is expected skill gain minus 2 times the offer indicator.
+
+Capacity permits offers to at most 37.5 percent of eligible learners in the target distribution. The three baseline fields produce eight equally prevalent groups in this frame. A transparent deterministic rule or a documented randomized tie-break is implementable. The rule must state how it meets capacity. Offering everyone is an informative unconstrained benchmark but is infeasible for deployment; useful feasible comparators include no offers and an untargeted 37.5-percent offer lottery. Statistical uncertainty may justify a cautious recommendation instead of claiming a definite improvement.

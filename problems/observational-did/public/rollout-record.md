@@ -1,0 +1,5 @@
+# Rollout record
+
+The policy began in January 2025 in 60 sites. Participation was chosen administratively, not by lottery: 15 of 60 low-readiness sites and 45 of 60 high-readiness sites adopted. Staffing capacity also influenced adoption and was not retained as a quantitative field. Staff describe that capacity as an enduring influence on score levels. This account is not proof that it has no changing effect. No adoption or anticipatory training occurred in 2022-2024. Never-adopting sites retained the existing program through 2026. Sites did not share tutors or program delivery during the window.
+
+Readiness could influence secular progress and program response. Conditioning only on site and year without considering readiness-related trends is therefore a substantive choice. The office has no records of another simultaneous intervention or measurement change, but absence from these records cannot establish that none occurred. No new staff interviews or covariates are available for this report.

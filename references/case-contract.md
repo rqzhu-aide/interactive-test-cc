@@ -95,11 +95,19 @@ compared; do not invent facts or repair one candidate's run in place.
 
 ## Randomization and Reproducibility
 
-Use the four [persona cases](persona-cases.md) for default broad full-report
-coverage and the [pilot blueprints](pilot-cases.md) for focused regressions. Generate variants within
-reviewed scientific constraints, not new unreviewed worlds during a conversation.
-Keep a fixed regression core; use a modest selection of declared variants rather
-than a Cartesian product of every user, source and mechanism.
+Use the four problems and four independent personas in the
+[composition guide](problem-persona-matrix.md). Any of those 16 pairings is
+supported; the selected scope determines which to run. The same problem's world,
+scientific sources and criteria remain invariant across personas. Initial
+understanding and natural disclosure differ. Generate no new study world during
+a conversation or additional crossed factors without review. Preserve the
+[historical cases](persona-cases.md) and [pilot blueprints](pilot-cases.md).
+
+Composed manifests add `problem_id`, `problem_version`, `persona_version` and
+`target_turns`. Private `problem.json`, `persona.json` and `composition.json` are
+hash-bound alongside ordinary files. The target is operator/reviewer metadata;
+it does not appear in actor packets, govern release or change report completion.
+Operational caps remain a separate frozen configuration.
 
 Useful axes include operational definitions, linkage/missingness patterns,
 source availability, user knowledge, statistical fluency and wording. A changed

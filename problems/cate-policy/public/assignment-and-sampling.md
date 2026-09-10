@@ -1,0 +1,5 @@
+# Assignment and sampling record
+
+Each eligible consenting learner independently received an offer with probability 0.5, using a recorded random allocation routine. Assignment occurred after all baseline fields were recorded. No overrides, missing primary outcomes or cross-learner delivery interference were recorded. Outcomes were collected regardless of attendance. This is an offer experiment, not a trial of forced attendance.
+
+The 2,400 study learners come from a target recruitment frame with equal representation of the eight combinations of readiness_high, barrier_flag and baseline_band. A random 75 learners per combination were placed in the evaluation partition independently of assignment and outcomes; the remaining 225 per combination form development. Both partitions have the same intended covariate weights. No learner is present in both. Future deployment is proposed for the same eligibility rules and baseline distribution; extrapolation beyond that setting needs additional justification.

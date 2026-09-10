@@ -1,21 +1,38 @@
 # Implementation Plan for the V7 Testing Skill
 
 - Class: planning
-- Status: persona redesign added to the adapter and fixture work; fixture validation and live qualification must be reported separately
+- Status: modular four-problem/four-persona revision implemented and locally validated; live qualification remains pending
 - Date: 2026-09-10
-- Package: `interactive-test-cc`, `7.0.5`
-- Current consultant target: identified `7.0.5` snapshot, with `7.0.0`, `7.0.1`, `7.0.2` and `7.0.4` compatibility; not any directory
+- Package: `interactive-test-cc`, `7.0.6`
+- Current consultant target: identified `7.0.6` snapshot, with `7.0.0`, `7.0.1`, `7.0.2`, `7.0.4` and `7.0.5` compatibility; not any directory
   merely labelled v7
 
 ## Scope and Current Deliverables
 
 The entrypoint and references define an adaptive Hermes-user/Claude-consultant
-procedure, separate world/actor/reviewer contracts, independent evaluation and
-four default [persona full-report cases](persona-cases.md), with the earlier pilot
-blueprints and fixtures retained for regression. The [runner](runner.md) implements the minimal adaptive transport
+procedure with independent [problems and personas](problem-persona-matrix.md),
+separate world/actor/reviewer contracts and independent evaluation. Four problem
+definitions support all four personas through a composition helper and the
+existing runner. Old pairings and pilot fixtures remain unchanged historical
+regressions. The [runner](runner.md) implements the minimal adaptive transport
 and ships a College adaptation with exact hashes and an independent numerical
 self-check. Local subprocess checks do not establish a real-host consultation.
-No live campaign, installation or Git publication accompanies these changes.
+Release 7.0.6 aligns the testing and consultant package versions without
+installing either skill or launching a live campaign.
+
+The 7.0.6 modular revision creates study-design, observational DiD/ATE,
+CATE/policy and data-quality problems, with target lengths 5/10/15/8. The user
+confirmed these are descriptive expectations and explicitly rejected pacing
+that tries to finish within them. Targets remain outside actor context;
+scientific completion and separate operational caps determine stopping. Initial
+knowledge and natural disclosure differ by persona, while the problem's world,
+source access, numerical references and report endpoint remain invariant.
+
+Local validation on September 10 passed all 87 tests, including 20 modular tests
+covering all 16 compositions and independent numerical checks. Two isolated
+actor rehearsals exercised novice policy discussion and adversarial study-design
+discussion, with two replies each. These used supplied consultant messages;
+they are not live Hermes/Claude consultations or evidence of typical turn counts.
 
 The 7.0.2 investigation-depth revision adds four paired synthetic contrasts and
 evidence-based review of investigation and scope closure. Its staged comparison
@@ -32,8 +49,8 @@ full-report outcome. Original cases and the staged 12-consultation comparison
 retain their focused endpoints. New full-report limits are prospective; the
 live-host evidence and measured round-count distribution remain pending.
 
-The 7.0.4 persona revision makes the novice grant, cooperative STAR domain expert,
-advanced Schooling statistician and bounded-pressure College user the default
+The 7.0.4 persona revision made the novice grant, cooperative STAR domain expert,
+advanced Schooling statistician and bounded-pressure College user the then-default
 broad full-test set. Explicit individual selection remains allowed. Separate
 private world dossiers from actor knowledge, beliefs and access, and from reviewer
 answer keys. Preserve learning and corrections through evidence-cited optional
@@ -56,6 +73,12 @@ pending questions for independent review. Earlier snapshots retain their own
 renderers; no delivery record is created by the observer. Full-report completion
 still requires the completed, verified saved artifact. Frozen persona cases and
 earlier evidence remain unchanged; live qualification is still pending.
+
+The 7.0.6 release retains the durable-exchange observation contract, including
+optional question routing and earlier renderer behavior. Explicit compatibility
+tests accept 7.0.6 and reject unlisted versions and previews. Its evaluation
+clarifies that complete design documentation does not waive available data
+consistency checks or justify unsupported claims that all checks passed.
 
 The September 7 reorganization makes this definition the testing repository's
 root skill. Pre-v7 files and results are preserved in the sibling local
@@ -176,8 +199,8 @@ using harmless public materials. Verify candidate loading, session resume and
 captured telemetry semantics. Do not reveal real pilot answers in that test.
 Record its actual output; a unit test named live is not a substitute.
 
-For a default broad full test, run all four persona cases to their declared
-full-report objectives. Explicit individual-case selection is allowed. Record
+Run the selected problem/persona pairs to their declared report objectives.
+An explicit full matrix contains all 16 pairs. Record
 fixture self-checks, simulated actor rehearsals and actual live results separately;
 local/fake execution cannot establish a live pass.
 

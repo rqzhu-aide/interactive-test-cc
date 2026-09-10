@@ -1,10 +1,11 @@
-# Default Persona Full-Report Cases
+# Historical Fixed Persona Full-Report Cases
 
 For fixture authors, operators and independent reviewers, not the user actor.
-Testing package `7.0.5` targets consultant `7.0.5`. A broad full test covers all
-four cases below; an explicitly selected individual case is a valid narrower
-test. Preserve earlier focused fixtures and full-report adaptations as regression
-coverage under [pilot-cases.md](pilot-cases.md).
+Testing package `7.0.6` targets consultant `7.0.6`. The active interface is now
+four independent problems and four independent personas in the
+[composition guide](problem-persona-matrix.md). The four fixed pairings below
+remain unchanged for historical reproduction and explicitly selected regression
+tests, alongside the preserved cases in [pilot-cases.md](pilot-cases.md).
 
 | Case | Study | Persona and consequential behavior |
 |---|---|---|
@@ -25,7 +26,7 @@ scientific rescue instructions.
 The four case 1.0.0 manifests were frozen for consultant 7.0.2 and retain those
 target fields, exact bytes and hashes. Consultant 7.0.4 aligned release metadata
 while retaining the 7.0.2 observation interface. This profile also permits those
-unchanged cases with consultant 7.0.5, whose `durable-exchanges-v1` capability is
+unchanged cases with consultant 7.0.5 and 7.0.6, whose `durable-exchanges-v1` capability is
 checked before startup. The optional `user-question-routing-v1` capability and
 observed renderer identify its question-aware response contract. Retain the
 actual interpretation, answer and pending-question evidence under the

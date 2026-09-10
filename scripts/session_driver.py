@@ -14,7 +14,7 @@ import uuid
 from claude_transport import capture, invoke
 
 ACTOR_UPDATES = ("knowledge_updates", "belief_updates", "decision_updates")
-CONSULTANT_VERSIONS = ("7.0.0", "7.0.1", "7.0.2", "7.0.4", "7.0.5")
+CONSULTANT_VERSIONS = ("7.0.0", "7.0.1", "7.0.2", "7.0.4", "7.0.5", "7.0.6")
 EXCHANGE_CAPABILITY = "durable-exchanges-v1"
 USER_QUESTION_CAPABILITY = "user-question-routing-v1"
 
@@ -164,15 +164,15 @@ def validate_config(config):
 def candidate_observation_profile(candidate, config):
     profile = {"consultant_version": read(candidate / "package.json")["version"],
                "enforcement": "observational_only", "capabilities": [], "user_question_routing": False}
-    if profile["consultant_version"] == "7.0.5":
+    if profile["consultant_version"] in ("7.0.5", "7.0.6"):
         probe = subprocess.run(config["node_command"] + [str(candidate / "scripts/project.cjs"), "capabilities"],
                                cwd=candidate, capture_output=True, timeout=30)
-        require(probe.returncode == 0, "7.0.5 consultant capability probe failed")
+        require(probe.returncode == 0, profile["consultant_version"] + " consultant capability probe failed")
         capability = json.loads(probe.stdout)
         require(isinstance(capability, dict) and isinstance(capability.get("capabilities"), list)
                 and all(isinstance(item, str) for item in capability["capabilities"])
                 and EXCHANGE_CAPABILITY in capability["capabilities"],
-                "7.0.5 consultant lacks " + EXCHANGE_CAPABILITY)
+                profile["consultant_version"] + " consultant lacks " + EXCHANGE_CAPABILITY)
         profile["capabilities"] = capability["capabilities"]
         profile["capability_probe"] = capability
         profile["user_question_routing"] = USER_QUESTION_CAPABILITY in capability["capabilities"]

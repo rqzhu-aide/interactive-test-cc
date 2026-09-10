@@ -1,0 +1,5 @@
+# Delivery and decision brief
+
+The program trains the center's regular tutors in a new curriculum. Learners and tutors interact within a center; tutors do not work across centers during this study. Delivering different curricula to individuals in the same center is operationally impractical and would likely mix materials. There are 24 participating centers and resources to train 12 now. The other 12 can receive training after the 12-week primary outcome window. No center has already been promised first access. Region-stratified center randomization is feasible, but an allocation protocol has not yet been adopted.
+
+All centers volunteered for this pilot; they are not a random population sample. The practical question concerns offering the curriculum at these centers to the eligible learner roster. The board wants the learner-average offer effect for this roster, not an attendance-selected comparison or a guarantee for every learner. Each center plans 40 eligible learners. Recruitment and baseline collection can finish before assignment. Program participation remains voluntary. More centers cannot be added in this planning cycle.

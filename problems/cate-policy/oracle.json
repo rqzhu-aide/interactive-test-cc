@@ -1,0 +1,176 @@
+{
+  "expected": {
+    "benchmark_policy_generating_net_gain": 0.9375,
+    "benchmark_policy_target_fraction": 0.375,
+    "generating_ate": 2.0,
+    "partitions": {
+      "development": {
+        "cells": {
+          "0,0,-0.5": {
+            "control_mean": 0.7365239724770642,
+            "control_n": 109,
+            "difference": -2.0572620931667194,
+            "n": 225,
+            "offer_mean": -1.3207381206896551,
+            "offer_n": 116
+          },
+          "0,0,0.5": {
+            "control_mean": 1.3628049327731093,
+            "control_n": 119,
+            "difference": -0.46448139503726027,
+            "n": 225,
+            "offer_mean": 0.898323537735849,
+            "offer_n": 106
+          },
+          "0,1,-0.5": {
+            "control_mean": -0.24666304716981133,
+            "control_n": 106,
+            "difference": 0.18027361859838276,
+            "n": 225,
+            "offer_mean": -0.06638942857142857,
+            "offer_n": 119
+          },
+          "0,1,0.5": {
+            "control_mean": 0.39813573529411767,
+            "control_n": 102,
+            "difference": 0.9864104842180774,
+            "n": 225,
+            "offer_mean": 1.3845462195121951,
+            "offer_n": 123
+          },
+          "1,0,-0.5": {
+            "control_mean": 1.5279237053571428,
+            "control_n": 112,
+            "difference": 2.633709507032238,
+            "n": 225,
+            "offer_mean": 4.161633212389381,
+            "offer_n": 113
+          },
+          "1,0,0.5": {
+            "control_mean": 2.5984058032786885,
+            "control_n": 122,
+            "difference": 3.47132870157568,
+            "n": 225,
+            "offer_mean": 6.0697345048543685,
+            "offer_n": 103
+          },
+          "1,1,-0.5": {
+            "control_mean": 0.8156369454545455,
+            "control_n": 110,
+            "difference": 4.314883802371542,
+            "n": 225,
+            "offer_mean": 5.130520747826087,
+            "offer_n": 115
+          },
+          "1,1,0.5": {
+            "control_mean": 1.606848875,
+            "control_n": 104,
+            "difference": 5.375555116735537,
+            "n": 225,
+            "offer_mean": 6.982403991735537,
+            "offer_n": 121
+          }
+        },
+        "fixed_benchmark_iid_score_se": 0.13149463157480343,
+        "fixed_benchmark_ipw_net_gain": 0.9013617422222222,
+        "fixed_benchmark_stratified_score_se": 0.12738189501836858,
+        "n": 1800,
+        "offer_n": 916
+      },
+      "evaluation": {
+        "cells": {
+          "0,0,-0.5": {
+            "control_mean": 0.953705435897436,
+            "control_n": 39,
+            "difference": -1.973298685897436,
+            "n": 75,
+            "offer_mean": -1.01959325,
+            "offer_n": 36
+          },
+          "0,0,0.5": {
+            "control_mean": 1.389588638888889,
+            "control_n": 36,
+            "difference": -0.44068897222222225,
+            "n": 75,
+            "offer_mean": 0.9488996666666667,
+            "offer_n": 39
+          },
+          "0,1,-0.5": {
+            "control_mean": -0.88661334375,
+            "control_n": 32,
+            "difference": 1.003524320494186,
+            "n": 75,
+            "offer_mean": 0.11691097674418605,
+            "offer_n": 43
+          },
+          "0,1,0.5": {
+            "control_mean": -0.009420722222222223,
+            "control_n": 36,
+            "difference": 1.7060741324786326,
+            "n": 75,
+            "offer_mean": 1.6966534102564104,
+            "offer_n": 39
+          },
+          "1,0,-0.5": {
+            "control_mean": 1.3004050322580645,
+            "control_n": 31,
+            "difference": 2.385906126832845,
+            "n": 75,
+            "offer_mean": 3.6863111590909092,
+            "offer_n": 44
+          },
+          "1,0,0.5": {
+            "control_mean": 2.683508794871795,
+            "control_n": 39,
+            "difference": 3.269560705128205,
+            "n": 75,
+            "offer_mean": 5.9530695,
+            "offer_n": 36
+          },
+          "1,1,-0.5": {
+            "control_mean": 0.4950443225806452,
+            "control_n": 31,
+            "difference": 3.8748557456011725,
+            "n": 75,
+            "offer_mean": 4.369900068181818,
+            "offer_n": 44
+          },
+          "1,1,0.5": {
+            "control_mean": 1.8712430322580644,
+            "control_n": 31,
+            "difference": 5.089043945014663,
+            "n": 75,
+            "offer_mean": 6.960286977272728,
+            "offer_n": 44
+          }
+        },
+        "fixed_benchmark_iid_score_se": 0.22331295226602643,
+        "fixed_benchmark_ipw_net_gain": 1.0327566033333333,
+        "fixed_benchmark_stratified_score_se": 0.2145067904241542,
+        "n": 600,
+        "offer_n": 325
+      }
+    },
+    "total_learners": 2400
+  },
+  "interpretation": "Private reference quantities and observed-sample checks. Matching a number does not establish identification. Equivalent sound estimators are allowed; the consultant is not expected to recover generating truth. No single confidence interval is required to include generating truth.",
+  "problem_id": "cate-policy",
+  "specification": {
+    "allocation": "Independent Bernoulli(0.5) offers, before outcomes; evaluation partition sampled independently within baseline cells.",
+    "baseline_cells": "H,B in {0,1}; S in {-0.5,0.5}, all eight equally weighted",
+    "capacity": 0.375,
+    "cate": "tau(H,B,S)=-1+4H+2B+S",
+    "cost": 2,
+    "development_per_cell": 225,
+    "evaluation_per_cell": 75,
+    "generating_ate": 2.0,
+    "known_causal_truth": true,
+    "latent_rows_sha256": "91acf27faf1648326658668cc73f074089e41d5c05246b9072ea8fc98aed0b9e",
+    "n": 2400,
+    "outcome": "skill_gain=Y0+offer*tau, frozen to six decimals",
+    "post_assignment_variable": "engagement_week4=clip(4+2*offer+0.5*H-0.5*B+S+independent N(0,1),0,10), frozen to six decimals; generated without using the later outcome",
+    "private_benchmark_policy": "Offer iff H==1 and (B==1 or S==0.5). This treats the top three effect cells and has net gain 0.9375 over no offers. It is a reference, not a required fitted rule or information disclosed to actors.",
+    "reference_variance_boundary": "Primary fixed-benchmark SE uses the eight target weights of 1/8 and within-cell score variances divided by their cell sample sizes, respecting fixed per-cell sampling. The iid-style score SE is retained only as an explicitly labeled secondary reference. Do not require this policy, estimator or variance method.",
+    "untreated_model": "Y0=1+H-B+S+N(0,2^2)"
+  }
+}

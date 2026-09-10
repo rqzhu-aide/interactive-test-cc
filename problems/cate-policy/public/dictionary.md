@@ -1,0 +1,5 @@
+# Learner study dictionary
+
+One row per distinct learner. readiness_high, barrier_flag and baseline_band were recorded before assignment and are available when deciding an offer. baseline_band takes -0.5 or 0.5 as a centered code for the two baseline-score bands; it is not a probability. offer is randomized assignment to a tutoring offer. skill_gain is follow-up minus baseline assessment score after 12 weeks, in points; larger is better. engagement_week4 is measured four weeks after the offer and is not available at offer time. It can be an outcome of assignment and learner response; do not treat it as a baseline characteristic. learner_id is an arbitrary record key, not a substantive effect modifier.
+
+Both partitions use identical variable definitions and include complete outcomes for all assigned learners. Outcome and offer assignments for evaluation learners have been kept apart from the development analysis. This synthetic study concerns offer effects and does not establish receipt effects or individual counterfactual outcomes.

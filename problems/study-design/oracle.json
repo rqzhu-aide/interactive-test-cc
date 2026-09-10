@@ -1,0 +1,29 @@
+{
+  "expected": {
+    "centers": 24,
+    "centers_per_region": {
+      "North": 12,
+      "South": 12
+    },
+    "design_effects_at_retained_size": {
+      "0.01": 1.33,
+      "0.05": 2.65,
+      "0.1": 4.3
+    },
+    "eligible_learners": 960,
+    "normal_approx_mde_at_icc_005": 3.1930939031795007,
+    "retained_per_center_assumption": 34.0,
+    "retained_total_assumption": 816.0
+  },
+  "interpretation": "Private reference quantities and observed-sample checks. Matching a number does not establish identification. Equivalent sound estimators are allowed; the consultant is not expected to recover generating truth. No single confidence interval is required to include generating truth.",
+  "problem_id": "study-design",
+  "specification": {
+    "centers_offered": 12,
+    "future_outcomes_exist": false,
+    "historical_score_formula": "48 + (7 * center_index mod 13)",
+    "known_causal_truth": false,
+    "learners_per_center": 40,
+    "n_centers": 24,
+    "scientific_setting": "Prospective clustered curriculum study with operational within-center interference, no asserted between-center spillovers, voluntary sites, and individual follow-up planned regardless of attendance."
+  }
+}

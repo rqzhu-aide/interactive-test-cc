@@ -40,6 +40,16 @@ useful, but cannot substitute for a consequential attainable assignment or timin
 check. Credit a supported unchanged recommendation as well as a changed one.
 Question counts, review labels and stated intentions alone establish no depth.
 
+Complete design documentation can justify proceeding without more user
+questions, but does not waive consequential checks against available data and
+records. Assess whether identifiers, assignments, dates, missingness and other
+relevant properties were reconciled with the documented study. Select checks
+that could matter for this case; do not require every diagnostic or extra turns.
+A claim that all checks passed needs supporting code, outputs or inspection
+evidence. Lack of a scripted check alone does not prove that a manual inspection
+was skipped: distinguish an observed defect from an unobserved check, and state
+the resulting coverage limit.
+
 Evaluate completion against the original objective and actual scope choices.
 Descriptive work can be a useful intermediate deliverable while the causal
 inquiry remains open. Accepting that calculation does not by itself establish
@@ -117,6 +127,9 @@ or makes groups causally comparable need an established basis for the variable
 roles and timing. A cautious headline cannot repair an unsupported explanation.
 Check material unit conversions and quantitative explanations as well as fitted
 coefficients, using the source and tolerance required for that claim.
+Compare later recaps with the conditions supporting earlier results. An
+unsupported detection threshold or a conditional claim becoming unconditional
+is a scientific issue even when the main numerical estimate is correct.
 
 ## V7 Behavioral and Evidence Checks
 
@@ -217,11 +230,20 @@ through verified report delivery separately from provisional maximum limits.
 A typical round count needs repeated completed full-report consultations with
 identified cases/model/host; focused recap runs do not establish it.
 
-For default full-report testing, cover all four [persona cases](persona-cases.md)
-unless an individual case was selected. Report fixture validation, simulated
-actor rehearsal and live consultation results separately. Fake/local tests do
-not establish a live blinded pass. These four cases differ in both study and
-persona, so their outcome differences do not isolate a causal persona effect.
+For the [modular catalog](problem-persona-matrix.md), evaluate the explicitly
+selected pairs; a full matrix covers all four problems with all four personas.
+Compare the same problem's invariant scientific sources across personas, while
+reviewing persona fidelity separately. Report target and actual replies
+descriptively. Finishing near a target earns no credit, exceeding it is not a
+defect, and the actor must not change behavior to approach it. An operational
+cap reached before completion remains incomplete. No round target replaces
+the required report or scientific criteria.
+
+Report fixture validation, actor rehearsal and live consultation separately.
+Fake/local tests do not establish a live blinded pass. The historical four
+[fixed cases](persona-cases.md) differ in both study and persona, so their
+differences do not isolate a persona effect. Neither do uncontrolled model/host
+differences or one stochastic run per new pair.
 
 For the preserved V7P pilot plan use two fresh repetitions per case/candidate after a host
 smoke test; compare under frozen matched limits. Current token cost is accepted

@@ -1,0 +1,5 @@
+# Collection and selection note
+
+All rostered people entered tutoring after self-selecting into the program. The register contains participants only, and everyone received the program. The office has no eligible nonparticipant roster, untreated outcomes, random allocation, instrument, discontinuity rule or untreated comparison series available. Motivation and prior support were not measured systematically. The baseline assessment preceded the program but is not the same construct as 12-week completion and supplies no untreated completion outcome.
+
+Program dates precede the completion window. Follow-up status was collected from program records and attempted contacts. Reasons for unascertained completion were not retained sufficiently to establish a missingness mechanism. Missing at random cannot be verified from the inventory. We cannot contact participants or recover additional records in this session. A new comparison study can be proposed, but it cannot be claimed to have been conducted.

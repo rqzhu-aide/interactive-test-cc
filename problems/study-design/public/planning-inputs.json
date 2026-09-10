@@ -1,0 +1,16 @@
+{
+  "anticipated_attrition_fraction": 0.15,
+  "centers": 24,
+  "centers_offered": 12,
+  "icc_assumptions": [
+    0.01,
+    0.05,
+    0.1
+  ],
+  "learners_per_center": 40,
+  "outcome_sd_assumption": 10,
+  "planning_effect_points": 4,
+  "power_target": 0.8,
+  "provenance": "Operations supplied cluster counts and size. SD, ICC and attrition are planning assumptions, not validated pilot estimates. A four-point offer effect is the board's worthwhile effect, not an observed or guaranteed result. Approximate design-effect calculations may be supplemented by a justified finite-cluster or simulation calculation.",
+  "two_sided_alpha": 0.05
+}

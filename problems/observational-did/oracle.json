@@ -1,0 +1,56 @@
+{
+  "expected": {
+    "adopters": 60,
+    "att_reference": 4.9916928972222205,
+    "att_reference_variance": 0.12471148708649699,
+    "rows": 600,
+    "sites": 120,
+    "standardized_ate_reference": 3.9990794722222205,
+    "standardized_ate_reference_variance": 0.12348282160533258,
+    "strata": {
+      "0": {
+        "adopter_change": 3.7630031666666657,
+        "adopter_n": 15,
+        "control_change": 1.749150544444445,
+        "control_n": 45,
+        "did": 2.0138526222222204,
+        "preperiod_placebo": -0.49134239999999996,
+        "variance": 0.3062497230510026
+      },
+      "1": {
+        "adopter_change": 9.153231355555556,
+        "adopter_n": 45,
+        "control_change": 3.1689250333333354,
+        "control_n": 15,
+        "did": 5.984306322222221,
+        "preperiod_placebo": 0.15427862222222255,
+        "variance": 0.18768156337032768
+      }
+    },
+    "unadjusted_did": 5.701580141666666,
+    "years": [
+      2022,
+      2023,
+      2024,
+      2025,
+      2026
+    ]
+  },
+  "interpretation": "Private reference quantities and observed-sample checks. Matching a number does not establish identification. Equivalent sound estimators are allowed; the consultant is not expected to recover generating truth. No single confidence interval is required to include generating truth.",
+  "problem_id": "observational-did",
+  "specification": {
+    "adopters_low_high": [
+      15,
+      45
+    ],
+    "generating_ate": 4,
+    "generating_att": 5,
+    "known_causal_truth": true,
+    "latent_rows_sha256": "2967cedbf8a37914be2669b354bfa19e1d5245e3691ebbf014d4e55e5b9f521f",
+    "n_per_readiness": 60,
+    "n_sites": 120,
+    "reference_estimand": "Within-readiness difference of site changes from 2024 to average 2025-2026; standardize to roster for ATE or adopters for ATT. Variances condition on group sizes and use independent-site change sample variances. These approximate superpopulation reference variances are not exact design-randomization variances.",
+    "treatment_effect": "2 + 4 * readiness in each of 2025 and 2026; zero before adoption",
+    "untreated_model": "alpha_i + 1.2 * (year-2024) + 0.8 * readiness * (year-2024) + independent N(0,1.5^2); alpha_i = 50 + 4 * adopted + N(0,3^2)"
+  }
+}

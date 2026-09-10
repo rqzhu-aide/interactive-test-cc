@@ -1,0 +1,80 @@
+{
+  "allowed_alternatives": "Equivalent semantic questions and source requests, sound alternative designs or estimators, and justified limited conclusions are allowed. Report endpoints are substantive, not a fixed checklist of worker names or turns.",
+  "completion": "Use the site panel and obtainable records to investigate the tutoring policy and save a complete local report addressing the average effect over all 120 sites in 2025-2026. Distinguish the treated-site effect from any additional assumptions needed for the all-site ATE, with reproducible analysis and uncertainty. HTML is suitable; no publication.",
+  "completion_contract": "full_report",
+  "criteria": [
+    {
+      "id": "c-evidence",
+      "required": true,
+      "rule": "Credit observable source inspection, reasoning and decisions. Private truth, source receipt without inspection and labels alone do not establish science. Investigate consequential attainable gaps, preserve uncertainty, and do not reward more turns or questions."
+    },
+    {
+      "id": "c-report",
+      "required": true,
+      "rule": "Require a complete actual saved consultant report and the full-report capture contract. A design report is complete for a prospective design goal. A bounded descriptive report can be scientifically complete when causal identification fails. An analysis file or recap alone is insufficient. Check substance and relevant output readback/render verification."
+    },
+    {
+      "id": "c-closeout",
+      "required": true,
+      "rule": "Compare actual user-facing replies with saved response evidence, assess detected mismatches, and apply saved qualifications to the actual claims. Preserve and answer user questions, retain genuine pending questions, and assess the candidate's declared response contract. A checker warning cannot be dismissed without review."
+    },
+    {
+      "id": "c-reproducibility",
+      "required": true,
+      "rule": "Inspect actual saved pre-result plans, preparation lineage, computation outputs and report sources. Correct source bytes, units, target populations and provenance matter. Numerical matching is not a substitute for a valid design argument."
+    },
+    {
+      "id": "c-persona-boundary",
+      "required": true,
+      "rule": "Evaluate actor fidelity separately from consultant science. Persona knowledge and beliefs may vary; world truth, data, source access and report goal may not. Do not rush disclosure, correction or completion to match target length. Legitimate noncompletion beyond a target is not automatically an actor or consultant failure."
+    },
+    {
+      "id": "c-did-target",
+      "required": true,
+      "rule": "Keep 2025-2026 equally weighted all-site ATE distinct from adopter ATT and future generalization. Conditional parallel trends alone does not justify ATE for untreated sites. An ATE requires explicit effect-transport assumptions and target weights; a justified ATT plus explanation is acceptable."
+    },
+    {
+      "id": "c-did-identification",
+      "required": true,
+      "rule": "Inspect adoption and timing, readiness-related trends and overlap, stable measurement/composition and possible other changes. Assess conditional parallel trends and no anticipation as assumptions. Pre-trend nonrejection and user agreement do not prove identification."
+    },
+    {
+      "id": "c-did-analysis",
+      "required": true,
+      "rule": "Use sites as repeated units and uncertainty consistent with site-level dependence; do not treat 600 site-years as independent. Adjust for readiness-related trends or justify an alternative. A before/after change or unadjusted cross-sectional contrast is not the requested effect analysis."
+    },
+    {
+      "id": "c-did-sensitivity",
+      "required": true,
+      "rule": "Include a meaningful sensitivity or alternative comparison relevant to trends, periods, covariates or effect transport, and carry its implication into the report. Do not replace a missing identifying assumption with a list of advanced estimators."
+    }
+  ],
+  "numeric_reference": "oracle.json and standalone check_oracle.py. Absolute tolerance 1e-8 for the frozen descriptive/reference calculation, or half the displayed final unit for rounded outputs. Alternative valid estimators require independently matched calculations. Generating truth and realized estimates are distinct; do not demand a private method, exact effect recovery or single-interval coverage.",
+  "problem_id": "observational-did",
+  "problem_version": "1.0.0",
+  "required_observations": [
+    "actual public exchanges",
+    "actor disclosures and learning",
+    "source inspection and release",
+    "prospective analysis and policy plans",
+    "saved computations and report",
+    "reported checker discrepancies",
+    "all stops and attempt limits"
+  ],
+  "scientific_truth": {
+    "adopters_low_high": [
+      15,
+      45
+    ],
+    "generating_ate": 4,
+    "generating_att": 5,
+    "known_causal_truth": true,
+    "latent_rows_sha256": "2967cedbf8a37914be2669b354bfa19e1d5245e3691ebbf014d4e55e5b9f521f",
+    "n_per_readiness": 60,
+    "n_sites": 120,
+    "reference_estimand": "Within-readiness difference of site changes from 2024 to average 2025-2026; standardize to roster for ATE or adopters for ATT. Variances condition on group sizes and use independent-site change sample variances. These approximate superpopulation reference variances are not exact design-randomization variances.",
+    "treatment_effect": "2 + 4 * readiness in each of 2025 and 2026; zero before adoption",
+    "untreated_model": "alpha_i + 1.2 * (year-2024) + 0.8 * readiness * (year-2024) + independent N(0,1.5^2); alpha_i = 50 + 4 * adopted + N(0,3^2)"
+  },
+  "validity": "Fixture self-checks and protocol rehearsals are not live consultant qualification. An unavailable fact cannot be an expected discovery. New or contradictory facts require a versioned world, not in-session repair."
+}

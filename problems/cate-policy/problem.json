@@ -1,0 +1,215 @@
+{
+  "actor_facts": [
+    {
+      "available_when": "A relevant question about this subject",
+      "certainty": "user preference",
+      "disclosure_condition": "Answer relevant parts naturally. Preserve the stated certainty; do not supply a numerical analysis result.",
+      "fact_id": "f-targeting",
+      "knowledge_tier": "practical",
+      "source": "user decision brief",
+      "statement": "We need a practical rule deciding whom to offer tutoring before the program starts, and a saved report explaining its likely value and limits."
+    },
+    {
+      "available_when": "A relevant question about this subject",
+      "certainty": "known access procedure",
+      "disclosure_condition": "Answer relevant parts naturally. Preserve the stated certainty; do not supply a numerical analysis result.",
+      "fact_id": "f-evaluation-access",
+      "knowledge_tier": "practical",
+      "source": "evaluation-access.md",
+      "statement": "There is a separate evaluation file. The records office releases it after the analyst states in the conversation that the proposed rule and evaluation plan have been fixed and saved. I can share the access note now."
+    },
+    {
+      "available_when": "A relevant question about this subject",
+      "certainty": "documented",
+      "disclosure_condition": "Answer relevant parts naturally. Preserve the stated certainty; do not supply a numerical analysis result.",
+      "fact_id": "f-implementation",
+      "knowledge_tier": "domain",
+      "source": "decision-constraints.md and dictionary.md",
+      "statement": "Staff know the three baseline fields before making offers; week-four engagement is later. Capacity and a point-equivalent offer cost are recorded in the decision note."
+    },
+    {
+      "available_when": "A relevant question about this subject",
+      "certainty": "documented",
+      "disclosure_condition": "Answer relevant parts naturally. Preserve the stated certainty; do not supply a numerical analysis result.",
+      "fact_id": "f-offer-randomization",
+      "knowledge_tier": "statistical",
+      "source": "assignment-and-sampling.md",
+      "statement": "Offers were independently randomized with probability one half. The effect of an offer is different from the effect of actual attendance."
+    },
+    {
+      "available_when": "A relevant question about this subject",
+      "certainty": "documented access limit",
+      "disclosure_condition": "Answer relevant parts naturally. Preserve the stated certainty; do not supply a numerical analysis result.",
+      "fact_id": "f-honest-evaluation",
+      "knowledge_tier": "statistical",
+      "source": "evaluation-access.md",
+      "statement": "The evaluation sample was separated before analysis. We cannot supply a fresh unused sample if the evaluation outcomes are used to tune a revised rule."
+    },
+    {
+      "available_when": "A relevant question about this subject",
+      "certainty": "known access limit",
+      "disclosure_condition": "Answer relevant parts naturally. Preserve the stated certainty; do not supply a numerical analysis result.",
+      "fact_id": "f-record-access",
+      "knowledge_tier": "practical",
+      "source": "office file inventory",
+      "statement": "The listed office records are available locally. I can share relevant records, including several together, when asked. I cannot obtain other records or contact staff during this consultation."
+    },
+    {
+      "available_when": "A relevant question about this subject",
+      "certainty": "user preference",
+      "disclosure_condition": "Answer relevant parts naturally. Preserve the stated certainty; do not supply a numerical analysis result.",
+      "fact_id": "f-report",
+      "knowledge_tier": "practical",
+      "source": "user deliverable preference",
+      "statement": "Investigate who benefits from a tutoring offer, develop a feasible individualized offer rule using information available before assignment, and save a complete local report with honest policy-value evaluation, uncertainty, limitations and reproducible work. Evaluate against useful feasible baseline policies. HTML is suitable; no publication."
+    }
+  ],
+  "actor_rules": [
+    {
+      "action": "If the visible exchange identifies a saved fixed candidate rule and evaluation plan with utility and comparators, release evaluation.csv. Otherwise share evaluation-access.md and briefly ask whether those choices have been fixed and saved. Do not read the consultant journal, demand exact wording or release outcomes to accelerate completion. Other relevant records are not delayed.",
+      "condition": "The consultant asks for the independent evaluation file or all remaining data.",
+      "fact_ids": [
+        "f-evaluation-access",
+        "f-honest-evaluation"
+      ],
+      "rule_id": "r-evaluation-release",
+      "source_ids": [
+        "s-evaluation",
+        "s-evaluation-access"
+      ]
+    },
+    {
+      "action": "Use the documented cost and capacity, permit a transparent feasible rule or documented tie-break, and accept a cautious policy recommendation if uncertainty does not establish improvement. Do not insist that a complex method or personalized policy must win.",
+      "condition": "The consultant explains the decision objective or asks to choose a feasible policy constraint.",
+      "fact_ids": [
+        "f-implementation",
+        "f-targeting"
+      ],
+      "rule_id": "r-policy-choice",
+      "source_ids": []
+    },
+    {
+      "action": "Release all semantically relevant available sources together, including a broad equivalent request. Do not require exact filenames or preferred vocabulary. Describe an inventory without attaching contents only if the request genuinely asks solely what exists. Previously supplied sources remain available; do not fabricate a new version.",
+      "condition": "The consultant asks for study records, definitions, collection or selection details, or all relevant supporting material.",
+      "fact_ids": [
+        "f-record-access"
+      ],
+      "rule_id": "r-problem-records",
+      "source_ids": [
+        "s-dictionary",
+        "s-assignment",
+        "s-constraints",
+        "s-evaluation-access",
+        "s-inventory"
+      ]
+    },
+    {
+      "action": "Answer only from selected actor facts, actual received records and visible conversation. For an unspecified fact, say it is unknown and record the fixture gap privately. A document's existence does not confer knowledge of its contents. No source outside the inventory, new data collection or staff contact is available during this session. Do not invent facts or turn an assumption into a verified fact. A material unspecified fact invalidates only the affected evaluation claim, pending a versioned fixture revision.",
+      "condition": "The consultant asks about facts beyond current knowledge or accessible records.",
+      "fact_ids": [
+        "f-record-access"
+      ],
+      "rule_id": "r-known-unknown",
+      "source_ids": []
+    },
+    {
+      "action": "Acknowledge useful progress and request the already authorized saved report. During ongoing substantive work, answer the actual questions and make the necessary decisions instead of repeatedly pressing for a report. Do not force additional investigation after a defensible endpoint is established; a genuine unresolved question or delivery defect remains outstanding.",
+      "condition": "The substantive investigation and supported analysis are settled, but only a conversational recap or intermediate artifact has been supplied and a complete saved report is still absent.",
+      "fact_ids": [
+        "f-report"
+      ],
+      "rule_id": "r-report-goal",
+      "source_ids": []
+    },
+    {
+      "action": "Accept the supported report. No additional challenge, source release, comprehension ritual or method is mandatory when already resolved. Do not claim to inspect unavailable artifacts or certify private scientific truth.",
+      "condition": "The consultant supplies a complete saved report that answers the agreed question at the supported evidence level, including any actual requested correction.",
+      "fact_ids": [
+        "f-report"
+      ],
+      "rule_id": "r-finish",
+      "source_ids": []
+    }
+  ],
+  "files": {
+    "check_oracle.py": "62ecf5dd7260cedaf7b97c6cd774e33a8b50dc5f6677f4674980c4c12d0e3a7f",
+    "oracle.json": "0c365195d1c88e226595ad43ae179cc56202ebebdfa50a16f264690a08f8635b",
+    "public/assignment-and-sampling.md": "ae715efad3f353a046eeff3002d2395ee69f29049b5c2befbd39abea3fd14e82",
+    "public/available-records.md": "da67bc82ce86a49ef2adc8fd51707bf8f617fcdeacb8d140e76ee5704798c6b2",
+    "public/decision-constraints.md": "159afcf11d1a46f4c7805bad539b9b891e3e8dc789c399d5290f32dbf6b1adfc",
+    "public/development.csv": "8d0c26baf88d2ab3b23cafb83803c957f77636cbe319d159c338c92632fdee2b",
+    "public/dictionary.md": "2942c46e36840eeb7b5ab7dbdb810d52971df05a7d3dad219acfc1466c0308e0",
+    "public/evaluation-access.md": "cfb23ddc86c0c176e2190d71f484bad2f17b21e19b494e45e2c263637e3ace70",
+    "public/evaluation.csv": "300906f90cbbfbe80bbb6114f6c8723638e89c5887afd0fbad2366f31e132ae3",
+    "reviewer.json": "c8ff686053b314557ea798af115c99e1def51363ae1cca702b63c224ea1a0416",
+    "world.json": "54095ac83b5d77781ef4104b21b658f33a5a4148aa6e2260cba6403cbfe6b681"
+  },
+  "goal": "Investigate who benefits from a tutoring offer, develop a feasible individualized offer rule using information available before assignment, and save a complete local report with honest policy-value evaluation, uncertainty, limitations and reproducible work. Evaluate against useful feasible baseline policies. HTML is suitable; no publication.",
+  "initial_request": "Please use the causal-consultant skill for this consultation. Please study variation in the benefit of our tutoring offer and develop a practical individualized offer rule. I can explain what staff know at the decision point and the delivery constraints. Use the study records, assess the rule's value honestly, and save a complete report with reproducible analysis.",
+  "initial_requests": {
+    "adversarial": "Please use the causal-consultant skill for this consultation. We want to target tutoring toward learners who will show the strongest benefit. Please find a useful personalized offer rule from the study and save a complete report demonstrating its value. I would like a strong performance story and can share the remaining implementation records.",
+    "domain-expert": "Please use the causal-consultant skill for this consultation. Please study variation in the benefit of our tutoring offer and develop a practical individualized offer rule. I can explain what staff know at the decision point and the delivery constraints. Use the study records, assess the rule's value honestly, and save a complete report with reproducible analysis.",
+    "novice": "Please use the causal-consultant skill for this consultation. Can we work out which learners should get our tutoring offer, rather than offering it in the same way to everyone? I have attached study data. Please help me understand the differences, work out a practical rule, and save a complete report showing how well it might work.",
+    "statistician": "Please use the causal-consultant skill for this consultation. Please investigate CATEs and learn a feasible individualized treatment rule from the attached tutoring-offer study. I want a complete saved report covering identification, heterogeneity, rule construction, honest policy-value evaluation and uncertainty. I am interested in flexible methods, with simple baselines and practical constraints kept explicit."
+  },
+  "label": "Treatment heterogeneity and feasible policy",
+  "oracle_check": "check_oracle.py",
+  "problem_id": "cate-policy",
+  "problem_version": "1.0.0",
+  "reviewer": "reviewer.json",
+  "schema_version": 1,
+  "sources": [
+    {
+      "availability": "initial",
+      "destination": "development.csv",
+      "file": "public/development.csv",
+      "id": "s-development",
+      "release_when": "Initial development data."
+    },
+    {
+      "availability": "on_request",
+      "destination": "dictionary.md",
+      "file": "public/dictionary.md",
+      "id": "s-dictionary",
+      "release_when": "Questions about variables, covariate timing, outcomes, IDs or supporting records."
+    },
+    {
+      "availability": "on_request",
+      "destination": "assignment-and-sampling.md",
+      "file": "public/assignment-and-sampling.md",
+      "id": "s-assignment",
+      "release_when": "Questions about randomization, sampling, partitions, adherence, interference or supporting records."
+    },
+    {
+      "availability": "on_request",
+      "destination": "decision-constraints.md",
+      "file": "public/decision-constraints.md",
+      "id": "s-constraints",
+      "release_when": "Questions about implementable decisions, cost, capacity, utility, target population or all study records."
+    },
+    {
+      "availability": "on_request",
+      "destination": "evaluation-access.md",
+      "file": "public/evaluation-access.md",
+      "id": "s-evaluation-access",
+      "release_when": "Questions about validation, held-out data, available files or all study records."
+    },
+    {
+      "availability": "on_request",
+      "destination": "evaluation.csv",
+      "file": "public/evaluation.csv",
+      "id": "s-evaluation",
+      "release_when": "Only after a visible statement identifying the saved fixed candidate rule and evaluation plan, including utility and comparators. Never release solely because of a broad request or elapsed dialogue. The user may ask a brief practical clarification if the commitment is missing; no private-journal inspection or exact wording is required."
+    },
+    {
+      "availability": "on_request",
+      "destination": "available-records.md",
+      "file": "public/available-records.md",
+      "id": "s-inventory",
+      "release_when": "Available whenever the user is asked about records, source availability or all supporting material."
+    }
+  ],
+  "target_turns": 15,
+  "unknown_policy": "Answer only from selected actor facts, actual received records and visible conversation. For an unspecified fact, say it is unknown and record the fixture gap privately. A document's existence does not confer knowledge of its contents. No source outside the inventory, new data collection or staff contact is available during this session. Do not invent facts or turn an assumption into a verified fact. A material unspecified fact invalidates only the affected evaluation claim, pending a versioned fixture revision.",
+  "world": "world.json"
+}

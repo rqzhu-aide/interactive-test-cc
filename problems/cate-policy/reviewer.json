@@ -1,0 +1,88 @@
+{
+  "allowed_alternatives": "Equivalent semantic questions and source requests, sound alternative designs or estimators, and justified limited conclusions are allowed. Report endpoints are substantive, not a fixed checklist of worker names or turns.",
+  "completion": "Investigate who benefits from a tutoring offer, develop a feasible individualized offer rule using information available before assignment, and save a complete local report with honest policy-value evaluation, uncertainty, limitations and reproducible work. Evaluate against useful feasible baseline policies. HTML is suitable; no publication.",
+  "completion_contract": "full_report",
+  "criteria": [
+    {
+      "id": "c-evidence",
+      "required": true,
+      "rule": "Credit observable source inspection, reasoning and decisions. Private truth, source receipt without inspection and labels alone do not establish science. Investigate consequential attainable gaps, preserve uncertainty, and do not reward more turns or questions."
+    },
+    {
+      "id": "c-report",
+      "required": true,
+      "rule": "Require a complete actual saved consultant report and the full-report capture contract. A design report is complete for a prospective design goal. A bounded descriptive report can be scientifically complete when causal identification fails. An analysis file or recap alone is insufficient. Check substance and relevant output readback/render verification."
+    },
+    {
+      "id": "c-closeout",
+      "required": true,
+      "rule": "Compare actual user-facing replies with saved response evidence, assess detected mismatches, and apply saved qualifications to the actual claims. Preserve and answer user questions, retain genuine pending questions, and assess the candidate's declared response contract. A checker warning cannot be dismissed without review."
+    },
+    {
+      "id": "c-reproducibility",
+      "required": true,
+      "rule": "Inspect actual saved pre-result plans, preparation lineage, computation outputs and report sources. Correct source bytes, units, target populations and provenance matter. Numerical matching is not a substitute for a valid design argument."
+    },
+    {
+      "id": "c-persona-boundary",
+      "required": true,
+      "rule": "Evaluate actor fidelity separately from consultant science. Persona knowledge and beliefs may vary; world truth, data, source access and report goal may not. Do not rush disclosure, correction or completion to match target length. Legitimate noncompletion beyond a target is not automatically an actor or consultant failure."
+    },
+    {
+      "id": "c-cate-identification",
+      "required": true,
+      "rule": "Establish randomized offer probability, outcome timing, population and baseline covariates. Interpret estimated heterogeneity as conditional average offer effects, not known individual counterfactual effects or attendance effects."
+    },
+    {
+      "id": "c-cate-analysis",
+      "required": true,
+      "rule": "Use justified heterogeneity estimation and assess its uncertainty or stability, with simple comparisons where useful. Flexible methods are allowed but not mandatory. Selection of subgroups or a rule and evaluation of that same selection must be distinguished."
+    },
+    {
+      "id": "c-policy-feasibility",
+      "required": true,
+      "rule": "Specify a rule using decision-time baseline variables only, the 2-point cost judgment, 37.5-percent capacity and the target covariate distribution. Do not use engagement, outcomes or arbitrary learner IDs as substantive effect modifiers. Treat-all may be reported only as an infeasible benchmark."
+    },
+    {
+      "id": "c-policy-evaluation",
+      "required": true,
+      "rule": "Save and visibly identify the fixed rule and evaluation plan before obtaining evaluation outcomes. Evaluate its value relative to feasible comparators, with appropriate uncertainty and documented weighting. Any post-evaluation revision is disclosed as using the holdout; no new independent sample exists. Do not require the private optimal rule or claim success from in-sample value."
+    },
+    {
+      "id": "c-policy-conclusion",
+      "required": true,
+      "rule": "Carry uncertain heterogeneity, estimated value and deployment limits into the actual recommendation. No superiority claim is required when the honest evaluation is inconclusive; a useful cautious complete report remains acceptable."
+    }
+  ],
+  "numeric_reference": "oracle.json and standalone check_oracle.py. Absolute tolerance 1e-8 for the frozen descriptive/reference calculation, or half the displayed final unit for rounded outputs. Alternative valid estimators require independently matched calculations. Generating truth and realized estimates are distinct; do not demand a private method, exact effect recovery or single-interval coverage.",
+  "problem_id": "cate-policy",
+  "problem_version": "1.0.0",
+  "required_observations": [
+    "actual public exchanges",
+    "actor disclosures and learning",
+    "source inspection and release",
+    "prospective analysis and policy plans",
+    "saved computations and report",
+    "reported checker discrepancies",
+    "all stops and attempt limits"
+  ],
+  "scientific_truth": {
+    "allocation": "Independent Bernoulli(0.5) offers, before outcomes; evaluation partition sampled independently within baseline cells.",
+    "baseline_cells": "H,B in {0,1}; S in {-0.5,0.5}, all eight equally weighted",
+    "capacity": 0.375,
+    "cate": "tau(H,B,S)=-1+4H+2B+S",
+    "cost": 2,
+    "development_per_cell": 225,
+    "evaluation_per_cell": 75,
+    "generating_ate": 2.0,
+    "known_causal_truth": true,
+    "latent_rows_sha256": "91acf27faf1648326658668cc73f074089e41d5c05246b9072ea8fc98aed0b9e",
+    "n": 2400,
+    "outcome": "skill_gain=Y0+offer*tau, frozen to six decimals",
+    "post_assignment_variable": "engagement_week4=clip(4+2*offer+0.5*H-0.5*B+S+independent N(0,1),0,10), frozen to six decimals; generated without using the later outcome",
+    "private_benchmark_policy": "Offer iff H==1 and (B==1 or S==0.5). This treats the top three effect cells and has net gain 0.9375 over no offers. It is a reference, not a required fitted rule or information disclosed to actors.",
+    "reference_variance_boundary": "Primary fixed-benchmark SE uses the eight target weights of 1/8 and within-cell score variances divided by their cell sample sizes, respecting fixed per-cell sampling. The iid-style score SE is retained only as an explicitly labeled secondary reference. Do not require this policy, estimator or variance method.",
+    "untreated_model": "Y0=1+H-B+S+N(0,2^2)"
+  },
+  "validity": "Fixture self-checks and protocol rehearsals are not live consultant qualification. An unavailable fact cannot be an expected discovery. New or contradictory facts require a versioned world, not in-session repair."
+}

@@ -1,0 +1,99 @@
+{
+  "assumption_boundary": "Known randomized assignment supports offer effects under the documented design. Finite-sample estimates are noisy; policy cost is a stakeholder preference, CATE is not an individual effect, and future deployment needs population/implementation stability.",
+  "generation": {
+    "generator": "scripts/generate_problem_bank.py",
+    "generator_sha256": "7fda9a7b736db9fdac6e99dc33cdf9b9220b77f0fd231926cd18b968e0de5f82",
+    "numeric_note": "CSV values are frozen to six decimal places where indicated. Seed alone does not replace preserved bytes.",
+    "seed": 26091003,
+    "specification": {
+      "allocation": "Independent Bernoulli(0.5) offers, before outcomes; evaluation partition sampled independently within baseline cells.",
+      "baseline_cells": "H,B in {0,1}; S in {-0.5,0.5}, all eight equally weighted",
+      "capacity": 0.375,
+      "cate": "tau(H,B,S)=-1+4H+2B+S",
+      "cost": 2,
+      "development_per_cell": 225,
+      "evaluation_per_cell": 75,
+      "generating_ate": 2.0,
+      "known_causal_truth": true,
+      "latent_rows_sha256": "91acf27faf1648326658668cc73f074089e41d5c05246b9072ea8fc98aed0b9e",
+      "n": 2400,
+      "outcome": "skill_gain=Y0+offer*tau, frozen to six decimals",
+      "post_assignment_variable": "engagement_week4=clip(4+2*offer+0.5*H-0.5*B+S+independent N(0,1),0,10), frozen to six decimals; generated without using the later outcome",
+      "private_benchmark_policy": "Offer iff H==1 and (B==1 or S==0.5). This treats the top three effect cells and has net gain 0.9375 over no offers. It is a reference, not a required fitted rule or information disclosed to actors.",
+      "reference_variance_boundary": "Primary fixed-benchmark SE uses the eight target weights of 1/8 and within-cell score variances divided by their cell sample sizes, respecting fixed per-cell sampling. The iid-style score SE is retained only as an explicitly labeled secondary reference. Do not require this policy, estimator or variance method.",
+      "untreated_model": "Y0=1+H-B+S+N(0,2^2)"
+    }
+  },
+  "kind": "wholly synthetic independent problem, invariant to persona",
+  "privacy": "World and oracle are reviewer-only. No persona receives generating equations, latent values, numerical answers or target-turn metadata from this dossier. Scientific truth and source accessibility do not change with personality.",
+  "reference_outputs": {
+    "checker_file": "check_oracle.py",
+    "checker_sha256": "62ecf5dd7260cedaf7b97c6cd774e33a8b50dc5f6677f4674980c4c12d0e3a7f",
+    "oracle_file": "oracle.json",
+    "oracle_sha256": "0c365195d1c88e226595ad43ae179cc56202ebebdfa50a16f264690a08f8635b"
+  },
+  "scientific_truth": {
+    "allocation": "Independent Bernoulli(0.5) offers, before outcomes; evaluation partition sampled independently within baseline cells.",
+    "baseline_cells": "H,B in {0,1}; S in {-0.5,0.5}, all eight equally weighted",
+    "capacity": 0.375,
+    "cate": "tau(H,B,S)=-1+4H+2B+S",
+    "cost": 2,
+    "development_per_cell": 225,
+    "evaluation_per_cell": 75,
+    "generating_ate": 2.0,
+    "known_causal_truth": true,
+    "latent_rows_sha256": "91acf27faf1648326658668cc73f074089e41d5c05246b9072ea8fc98aed0b9e",
+    "n": 2400,
+    "outcome": "skill_gain=Y0+offer*tau, frozen to six decimals",
+    "post_assignment_variable": "engagement_week4=clip(4+2*offer+0.5*H-0.5*B+S+independent N(0,1),0,10), frozen to six decimals; generated without using the later outcome",
+    "private_benchmark_policy": "Offer iff H==1 and (B==1 or S==0.5). This treats the top three effect cells and has net gain 0.9375 over no offers. It is a reference, not a required fitted rule or information disclosed to actors.",
+    "reference_variance_boundary": "Primary fixed-benchmark SE uses the eight target weights of 1/8 and within-cell score variances divided by their cell sample sizes, respecting fixed per-cell sampling. The iid-style score SE is retained only as an explicitly labeled secondary reference. Do not require this policy, estimator or variance method.",
+    "untreated_model": "Y0=1+H-B+S+N(0,2^2)"
+  },
+  "source_inventory": [
+    {
+      "availability": "initial",
+      "file": "public/development.csv",
+      "sha256": "8d0c26baf88d2ab3b23cafb83803c957f77636cbe319d159c338c92632fdee2b",
+      "source_id": "s-development"
+    },
+    {
+      "availability": "on_request",
+      "file": "public/dictionary.md",
+      "sha256": "2942c46e36840eeb7b5ab7dbdb810d52971df05a7d3dad219acfc1466c0308e0",
+      "source_id": "s-dictionary"
+    },
+    {
+      "availability": "on_request",
+      "file": "public/assignment-and-sampling.md",
+      "sha256": "ae715efad3f353a046eeff3002d2395ee69f29049b5c2befbd39abea3fd14e82",
+      "source_id": "s-assignment"
+    },
+    {
+      "availability": "on_request",
+      "file": "public/decision-constraints.md",
+      "sha256": "159afcf11d1a46f4c7805bad539b9b891e3e8dc789c399d5290f32dbf6b1adfc",
+      "source_id": "s-constraints"
+    },
+    {
+      "availability": "on_request",
+      "file": "public/evaluation-access.md",
+      "sha256": "cfb23ddc86c0c176e2190d71f484bad2f17b21e19b494e45e2c263637e3ace70",
+      "source_id": "s-evaluation-access"
+    },
+    {
+      "availability": "on_request",
+      "file": "public/evaluation.csv",
+      "sha256": "300906f90cbbfbe80bbb6114f6c8723638e89c5887afd0fbad2366f31e132ae3",
+      "source_id": "s-evaluation"
+    },
+    {
+      "availability": "on_request",
+      "file": "public/available-records.md",
+      "sha256": "da67bc82ce86a49ef2adc8fd51707bf8f617fcdeacb8d140e76ee5704798c6b2",
+      "source_id": "s-inventory"
+    }
+  ],
+  "world_id": "synthetic-cate-policy",
+  "world_version": "1.0.0"
+}

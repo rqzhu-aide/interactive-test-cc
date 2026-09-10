@@ -1,0 +1,75 @@
+{
+  "assumption_boundary": "No trial effect is known; feasibility facts are distinct from uncertain power inputs and identification assumptions for the future study.",
+  "generation": {
+    "generator": "scripts/generate_problem_bank.py",
+    "generator_sha256": "7fda9a7b736db9fdac6e99dc33cdf9b9220b77f0fd231926cd18b968e0de5f82",
+    "numeric_note": "CSV values are frozen to six decimal places where indicated. Seed alone does not replace preserved bytes.",
+    "seed": 26091001,
+    "specification": {
+      "centers_offered": 12,
+      "future_outcomes_exist": false,
+      "historical_score_formula": "48 + (7 * center_index mod 13)",
+      "known_causal_truth": false,
+      "learners_per_center": 40,
+      "n_centers": 24,
+      "scientific_setting": "Prospective clustered curriculum study with operational within-center interference, no asserted between-center spillovers, voluntary sites, and individual follow-up planned regardless of attendance."
+    }
+  },
+  "kind": "wholly synthetic independent problem, invariant to persona",
+  "privacy": "World and oracle are reviewer-only. No persona receives generating equations, latent values, numerical answers or target-turn metadata from this dossier. Scientific truth and source accessibility do not change with personality.",
+  "reference_outputs": {
+    "checker_file": "check_oracle.py",
+    "checker_sha256": "62ecf5dd7260cedaf7b97c6cd774e33a8b50dc5f6677f4674980c4c12d0e3a7f",
+    "oracle_file": "oracle.json",
+    "oracle_sha256": "0a456cc56e86e3bad69e763d89765eaec17495c39f30c3ea8335bd2c1483040a"
+  },
+  "scientific_truth": {
+    "centers_offered": 12,
+    "future_outcomes_exist": false,
+    "historical_score_formula": "48 + (7 * center_index mod 13)",
+    "known_causal_truth": false,
+    "learners_per_center": 40,
+    "n_centers": 24,
+    "scientific_setting": "Prospective clustered curriculum study with operational within-center interference, no asserted between-center spillovers, voluntary sites, and individual follow-up planned regardless of attendance."
+  },
+  "source_inventory": [
+    {
+      "availability": "initial",
+      "file": "public/centers.csv",
+      "sha256": "e27e86c5efb79fb7128ed79b5d9b539d3638ea41cdd92cec469099fa1764db38",
+      "source_id": "s-centers"
+    },
+    {
+      "availability": "on_request",
+      "file": "public/dictionary.md",
+      "sha256": "c7489f36e9eeefb1c4fe8ecaed86315c5898e756805511a22c60c75aa46ca5bc",
+      "source_id": "s-dictionary"
+    },
+    {
+      "availability": "on_request",
+      "file": "public/delivery-constraints.md",
+      "sha256": "4f6c619d103ca585510e9b8f00cbdb4cc6b25161607e0ad4c66827d7cc1760b5",
+      "source_id": "s-delivery"
+    },
+    {
+      "availability": "on_request",
+      "file": "public/calendar-and-measures.md",
+      "sha256": "2d53027ec3655d7a9850f79fa6c48814e4112b807be920c678e6bf8f2eae0165",
+      "source_id": "s-calendar"
+    },
+    {
+      "availability": "on_request",
+      "file": "public/planning-inputs.json",
+      "sha256": "8c1a6f65a683d23a2f7a3aa4d706b40e08f8b20d1ee3028fd558e76f9bd3cd88",
+      "source_id": "s-planning"
+    },
+    {
+      "availability": "on_request",
+      "file": "public/available-records.md",
+      "sha256": "69d455142b9f6a91d123d2d701d05996ae4e0af7acc47b6d50336df010f9237d",
+      "source_id": "s-inventory"
+    }
+  ],
+  "world_id": "synthetic-study-design",
+  "world_version": "1.0.0"
+}

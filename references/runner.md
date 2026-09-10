@@ -2,27 +2,27 @@
 
 Hermes supplies adaptive user replies; this standard-library adapter transports
 them and captures evidence for a separate reviewer. Use shared Python 3.10+,
-Node 18.18+, an existing Claude Code installation, and consultant 7.0.5. The
-explicit observation allowlist also accepts 7.0.0, 7.0.1, 7.0.2 and 7.0.4 and retains the same package inventory,
+Node 18.18+, an existing Claude Code installation, and consultant 7.0.6. The
+explicit observation allowlist also accepts 7.0.0, 7.0.1, 7.0.2, 7.0.4 and 7.0.5 and retains the same package inventory,
 validator, helper and evidence checks for each supported version; it does not
 admit 7.0.3 or future versions automatically.
 No installation or paid consultation occurs in `preflight`.
 
 The consultant's historical 7.0.4 release aligned version metadata while retaining
-the 7.0.2 observation interface. The 7.0.5 profile adds durable exchange evidence.
+the 7.0.2 observation interface. The 7.0.5 profile adds durable exchange evidence;
+7.0.6 retains that observation contract for the modular catalog release.
 Frozen persona case 1.0.0 manifests still identify their
 original 7.0.2 target. Use the [documented release profile](persona-cases.md)
 without rewriting those files. Startup binds the actual candidate's version,
 package inventory and hashes separately from the frozen case identity; earlier
 rehearsals and comparisons retain their original evidence labels.
 
-For a broad full test through the consultant's saved report, cover all four
-[persona cases](persona-cases.md): `persona-novice-grant-v7`,
-`persona-domain-star-v7`, `persona-statistician-schooling-v7` and
-`persona-adversarial-college-v7`, under `cases/`. Each declares
-`completion_contract: "full_report"`. An explicitly selected individual case is
-allowed. Earlier `college-policy-report-v7` and `investigation-allocation-report-v7`
-adaptations, together with the focused fixtures, remain regression coverage.
+Select a problem and persona from the [active composition catalog](problem-persona-matrix.md).
+Any of the four problems supports any of the four personas. Compose the pair
+before `preflight`; every new pair requires its appropriate saved report.
+An explicit full matrix is 16 independent attempts. Establish unspecified
+persona/campaign scope before dispatch. The old fixed [persona cases](persona-cases.md),
+report adaptations and focused fixtures remain explicit historical regressions.
 
 The focused case at `cases/college-policy-v7` (case 1.1.0) contains unchanged
 College data, semantic actor rules, an explicit unknown policy timetable and an
@@ -44,16 +44,18 @@ with the actual shared executables or an already verified isolation wrapper:
   "max_agent_turns_per_call": 120,
   "call_timeout_seconds": 3600,
   "limits": {
-    "consultant_turns": 24,
+    "consultant_turns": 40,
     "active_seconds": 14400,
-    "elapsed_seconds": 21600
+    "elapsed_seconds": 43200
   }
 }
 ```
 
-This is provisional prospective capacity per full-report case: at most 24 consultant exchanges,
-four active hours and six elapsed hours. It is not a minimum duration or a
-prediction. Stop as soon as the requested report is complete. Choose and freeze
+This is independent operational capacity per composed case: at most 40 consultant exchanges,
+four active hours and twelve elapsed hours. It is not a minimum duration or a
+prediction. The private 5/10/15/8 target lengths never instruct the actor or stop
+the run. Persona-dependent discussion may exceed them without a defect. Stop
+when the actual objective is met, not to approach the target. Choose and freeze
 host-appropriate capacity before a run; preserve older cases' recorded limits
 and failures rather than applying this envelope retrospectively.
 
@@ -95,8 +97,9 @@ the actual outputs and applicability to this run before assigning valid executio
 The adapter does not create an OS sandbox or validate attestation semantics.
 
 ```sh
-python scripts/session_driver.py preflight --case cases/persona-novice-grant-v7 --candidate /skills/causal-consultant --config /private/config.json
-python scripts/session_driver.py start --case cases/persona-novice-grant-v7 --candidate /skills/causal-consultant --config /private/config.json --attempt /private/run001 --work /public/work001
+python scripts/compose_case.py --problem observational-did --persona novice --output /private/cases/run001
+python scripts/session_driver.py preflight --case /private/cases/run001 --candidate /skills/causal-consultant --config /private/config.json
+python scripts/session_driver.py start --case /private/cases/run001 --candidate /skills/causal-consultant --config /private/config.json --attempt /private/run001 --work /public/work001
 ```
 
 Commands return JSON and nonzero on error. Use fresh, nonoverlapping case,
@@ -105,12 +108,14 @@ file, runs the independent fixture check, validates the complete consultant
 distribution including `package.json`, and checks that its helper loads. It
 also binds a declared private world dossier and checks its world identity and
 the actor's persona identity against `case.json`. The example starts one case;
-use fresh attempts and neutral work directories for the other three in a broad test. It
+use fresh attempts and neutral work directories for other selected pairs. The
+composer's suggested `run_limits` do not override the runner configuration;
+the actual limits are those explicitly frozen in that configuration. Startup
 stages only the runtime under `.claude/skills/causal-consultant` and initial
 public sources. It captures Claude version/help, without sending a user message.
 Confirm actual candidate selection in the host smoke, accounting for installed
 skills/settings. Keep scenario names out of public paths.
-For consultant 7.0.5, preflight also requires its reported
+For consultant 7.0.5 and 7.0.6, preflight also requires the reported
 `durable-exchanges-v1` capability and freezes that observation profile. This is
 helper compatibility evidence, not proof of correct consultant behavior.
 The optional `user-question-routing-v1` capability identifies the revised
@@ -126,7 +131,8 @@ version and independent checks.
 
 Initialize a separate persistent actor context with only the frozen `actor.json`,
 `references/user-simulator.md`, and public materials/conversation. Do not give it
-`world.json`, the oracle, reviewer packet, private traces or this operator guide. The operator
+`world.json`, `problem.json`, `composition.json`, the oracle, reviewer packet,
+private traces, target lengths or this operator guide. The operator
 uses metadata to stage sources without revealing private locations.
 
 For the first step, use the exact frozen `public/initial-message.txt` as `message`,

@@ -1,0 +1,87 @@
+{
+  "assumption_boundary": "Generating assumptions hold in the private synthetic model but are not empirical certifications available to the consultant. Causal and extrapolation claims must remain conditional on their support in the supplied record.",
+  "generation": {
+    "generator": "scripts/generate_problem_bank.py",
+    "generator_sha256": "7fda9a7b736db9fdac6e99dc33cdf9b9220b77f0fd231926cd18b968e0de5f82",
+    "numeric_note": "CSV values are frozen to six decimal places where indicated. Seed alone does not replace preserved bytes.",
+    "seed": 26091002,
+    "specification": {
+      "adopters_low_high": [
+        15,
+        45
+      ],
+      "generating_ate": 4,
+      "generating_att": 5,
+      "known_causal_truth": true,
+      "latent_rows_sha256": "2967cedbf8a37914be2669b354bfa19e1d5245e3691ebbf014d4e55e5b9f521f",
+      "n_per_readiness": 60,
+      "n_sites": 120,
+      "reference_estimand": "Within-readiness difference of site changes from 2024 to average 2025-2026; standardize to roster for ATE or adopters for ATT. Variances condition on group sizes and use independent-site change sample variances. These approximate superpopulation reference variances are not exact design-randomization variances.",
+      "treatment_effect": "2 + 4 * readiness in each of 2025 and 2026; zero before adoption",
+      "untreated_model": "alpha_i + 1.2 * (year-2024) + 0.8 * readiness * (year-2024) + independent N(0,1.5^2); alpha_i = 50 + 4 * adopted + N(0,3^2)"
+    }
+  },
+  "kind": "wholly synthetic independent problem, invariant to persona",
+  "privacy": "World and oracle are reviewer-only. No persona receives generating equations, latent values, numerical answers or target-turn metadata from this dossier. Scientific truth and source accessibility do not change with personality.",
+  "reference_outputs": {
+    "checker_file": "check_oracle.py",
+    "checker_sha256": "62ecf5dd7260cedaf7b97c6cd774e33a8b50dc5f6677f4674980c4c12d0e3a7f",
+    "oracle_file": "oracle.json",
+    "oracle_sha256": "ffa08f3711df7c23790a5e4c629d4f6ae792307976e4a551322fd4a0da12acae"
+  },
+  "scientific_truth": {
+    "adopters_low_high": [
+      15,
+      45
+    ],
+    "generating_ate": 4,
+    "generating_att": 5,
+    "known_causal_truth": true,
+    "latent_rows_sha256": "2967cedbf8a37914be2669b354bfa19e1d5245e3691ebbf014d4e55e5b9f521f",
+    "n_per_readiness": 60,
+    "n_sites": 120,
+    "reference_estimand": "Within-readiness difference of site changes from 2024 to average 2025-2026; standardize to roster for ATE or adopters for ATT. Variances condition on group sizes and use independent-site change sample variances. These approximate superpopulation reference variances are not exact design-randomization variances.",
+    "treatment_effect": "2 + 4 * readiness in each of 2025 and 2026; zero before adoption",
+    "untreated_model": "alpha_i + 1.2 * (year-2024) + 0.8 * readiness * (year-2024) + independent N(0,1.5^2); alpha_i = 50 + 4 * adopted + N(0,3^2)"
+  },
+  "source_inventory": [
+    {
+      "availability": "initial",
+      "file": "public/panel.csv",
+      "sha256": "57f5a8629f54c64f98212c81be995c1bd40c8d771a7753c4dbe36741b2631ed6",
+      "source_id": "s-panel"
+    },
+    {
+      "availability": "on_request",
+      "file": "public/dictionary.md",
+      "sha256": "5827db0cf62fa2ec4cb229f9c2e614e90e5a736a9b4d2c759940b65d7c3b423b",
+      "source_id": "s-dictionary"
+    },
+    {
+      "availability": "on_request",
+      "file": "public/site-roster.csv",
+      "sha256": "887d3b4c84daa8b16e7c99b46c5c13019eb5a67dfabfce2d84ded0c1858be106",
+      "source_id": "s-roster"
+    },
+    {
+      "availability": "on_request",
+      "file": "public/rollout-record.md",
+      "sha256": "d5182cbdeeddaeae49c8cd06a99712f44948850bd5eb97be5022a6a106bd49f6",
+      "source_id": "s-rollout"
+    },
+    {
+      "availability": "on_request",
+      "file": "public/decision-and-assumptions.md",
+      "sha256": "757c3ec1a989478301839aaa046ebaf724e87a694b6fc6ee14e0da24faf86799",
+      "source_id": "s-decision"
+    },
+    {
+      "availability": "on_request",
+      "file": "public/available-records.md",
+      "sha256": "563bea29d9dd8a326528b83f15e2642de3f528dde9c7fd3bfd9bfeef5fbe723d",
+      "source_id": "s-inventory"
+    }
+  ],
+  "world_id": "synthetic-observational-did",
+  "world_version": "1.0.0"
+}

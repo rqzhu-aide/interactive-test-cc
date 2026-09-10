@@ -2,7 +2,7 @@
 name: interactive-test-cc
 description: Define, prepare and evaluate adaptive multi-turn tests of causal-consultant v7, with a Hermes simulated user and a consultant accessed through Claude Code. Use for end-to-end investigation, reproducible analysis and saved reporting, or explicitly focused tests of elicitation, preparation, useful stopping and continuity.
 metadata:
-  version: "7.0.5"
+  version: "7.0.6"
 ---
 
 # Adaptive Causal Consultation Testing
@@ -12,21 +12,24 @@ cooperation achieve a useful, scientifically defensible outcome. Do not supply
 a sequence of expert analysis
 instructions and call compliance proactive consulting.
 
-The default coverage is the four [persona full-report cases](references/persona-cases.md).
-Earlier full-report cases and focused fixtures remain regression coverage under
-the [pilot guide](references/pilot-cases.md). Fixture validation, actor rehearsal
-and live qualification are separate evidence stages; see the persona guide for status.
+The active catalog is four independent problems and four independent personas
+under the [problem/persona guide](references/problem-persona-matrix.md). Any pair
+is supported, yielding 16 possible combinations. Select the requested pair;
+explicit full-matrix coverage means all 16, not the previous fixed pairings.
+Earlier cases remain historical/regression fixtures under the
+[persona archive guide](references/persona-cases.md) and [pilot guide](references/pilot-cases.md).
+Fixture validation, actor rehearsal and live qualification are separate stages.
 Use the [runner guide](references/runner.md) for startup, adaptive steps and review.
 Local subprocess tests do not establish Hermes/Claude compatibility. The actual
 host smoke and four V7P pilot runs remain pending.
 
-Target: `causal-consultant` `7.0.5` (also compatible with `7.0.0`, `7.0.1`, `7.0.2` and `7.0.4`),
+Target: `causal-consultant` `7.0.6` (also compatible with `7.0.0`, `7.0.1`, `7.0.2`, `7.0.4` and `7.0.5`),
 pinned to the actual tested snapshot. The investigation-depth comparison uses
 the frozen `7.0.1` baseline and revised `7.0.2` candidate.
 The [persona release profile](references/persona-cases.md) preserves the frozen
 case identities while binding each new run to its actual candidate. The 7.0.5
-profile also verifies the helper's `durable-exchanges-v1` capability and retains
-the observed turn/exchange views. It records `user-question-routing-v1` when
+and 7.0.6 profiles verify the helper's `durable-exchanges-v1` capability and retain
+the observed turn/exchange views. They record `user-question-routing-v1` when
 present; earlier 7.0.5 snapshots retain their own response contract. Consultant
 `7.0.3` and later unlisted candidates require an explicitly checked compatibility profile. Preserve
 the pre-v7 testing skill, runner, fixtures and results in the sibling local
@@ -42,7 +45,7 @@ new agents on every turn:
 
 | Role | Reads | Produces |
 |---|---|---|
-| Fixture author | [Case contract](references/case-contract.md), selected [persona case](references/persona-cases.md) or [regression blueprint](references/pilot-cases.md), [evaluation rules](references/evaluation.md) | Frozen public materials, private world dossier, actor packet and reviewer packet |
+| Fixture author | [Case contract](references/case-contract.md), selected [problem and persona](references/problem-persona-matrix.md) or explicitly requested [regression blueprint](references/pilot-cases.md), [evaluation rules](references/evaluation.md) | Frozen public materials, private world dossier, actor packet and reviewer packet |
 | User actor | [Reply policy](references/user-simulator.md), actor packet, visible conversation and legitimately received materials | Persona-appropriate reply and private disclosure/update record |
 | Run operator | [Runner guide](references/runner.md), [Hermes/Claude contract](references/hermes-claude.md), frozen run configuration | Exact-session transport and captured evidence |
 | Independent final reviewer | [Evaluation rules](references/evaluation.md), reviewer packet and actual evidence | Evidence-backed outcome, findings and coverage limits |
@@ -60,15 +63,17 @@ replace an installed consultant or launch a campaign merely by loading this skil
 
 ## Consultation Loop
 
-For a broad request to test the consultant, or an explicit full/end-to-end test,
-cover all four persona cases, each with `completion_contract: "full_report"`.
-An explicitly selected individual case is allowed; identify that narrower coverage.
-Each public request and actor goal includes the consultant's saved scientific
-report. A short recap,
-analysis output or the testing reviewer's assessment is a different deliverable.
-Honor an explicitly selected focused case, but identify its narrower coverage.
-Freeze a suitable full-report adaptation before running if none matches the
-requested study; do not reinterpret an old focused result as an end-to-end test.
+Compose the selected problem and persona with `scripts/compose_case.py`; pass
+its output as the runner's `--case`. Each problem requires a saved report,
+including a prospective design report for `study-design` and an honest audit
+report for `data-quality-edge`. A recap or testing assessment is a different
+deliverable. Resolve an omitted persona or campaign scope before dispatch.
+Honor explicitly selected historical focused cases with their own endpoints.
+
+The problems' 5/10/15/8 target lengths are private descriptive metadata, never
+actor instructions or completion criteria. Persona-dependent discussion and
+disclosure may take fewer or more replies. Do not accelerate, pad or withhold
+information to meet a target. Keep operational limits separate and prospective.
 
 1. Freeze the scenario, material identities, actor rules, candidate, environment
    and whole-consultation limits. Verify that private materials are outside the

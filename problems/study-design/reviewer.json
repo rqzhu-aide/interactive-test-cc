@@ -1,0 +1,74 @@
+{
+  "allowed_alternatives": "Equivalent semantic questions and source requests, sound alternative designs or estimators, and justified limited conclusions are allowed. Report endpoints are substantive, not a fixed checklist of worker names or turns.",
+  "completion": "Prepare a complete saved local design report for a feasible prospective evaluation of tutoring offers at the 24 listed learning centers. Explain the design and collection plan, precision assumptions and practical decisions. No trial has run and no program-effect results are requested. A self-contained HTML report is suitable; no publication.",
+  "completion_contract": "full_report",
+  "criteria": [
+    {
+      "id": "c-evidence",
+      "required": true,
+      "rule": "Credit observable source inspection, reasoning and decisions. Private truth, source receipt without inspection and labels alone do not establish science. Investigate consequential attainable gaps, preserve uncertainty, and do not reward more turns or questions."
+    },
+    {
+      "id": "c-report",
+      "required": true,
+      "rule": "Require a complete actual saved consultant report and the full-report capture contract. A design report is complete for a prospective design goal. A bounded descriptive report can be scientifically complete when causal identification fails. An analysis file or recap alone is insufficient. Check substance and relevant output readback/render verification."
+    },
+    {
+      "id": "c-closeout",
+      "required": true,
+      "rule": "Compare actual user-facing replies with saved response evidence, assess detected mismatches, and apply saved qualifications to the actual claims. Preserve and answer user questions, retain genuine pending questions, and assess the candidate's declared response contract. A checker warning cannot be dismissed without review."
+    },
+    {
+      "id": "c-reproducibility",
+      "required": true,
+      "rule": "Inspect actual saved pre-result plans, preparation lineage, computation outputs and report sources. Correct source bytes, units, target populations and provenance matter. Numerical matching is not a substitute for a valid design argument."
+    },
+    {
+      "id": "c-persona-boundary",
+      "required": true,
+      "rule": "Evaluate actor fidelity separately from consultant science. Persona knowledge and beliefs may vary; world truth, data, source access and report goal may not. Do not rush disclosure, correction or completion to match target length. Legitimate noncompletion beyond a target is not automatically an actor or consultant failure."
+    },
+    {
+      "id": "c-design",
+      "required": true,
+      "rule": "Justify a feasible allocation unit and define the roster-based learner-average offer estimand, recruitment before assignment, treatment/comparison and follow-up. Address voluntary participation, within-center interference and limited generalization. Individual randomization that ignores documented curriculum mixing is not adequate."
+    },
+    {
+      "id": "c-design-precision",
+      "required": true,
+      "rule": "Assess precision for 24 centers, not 960 independent assignments. State SD/ICC/attrition/effect assumptions and sensitivity. Approximate normal design-effect calculations are a check, not uniquely required or exact finite-cluster power. Account for cluster count in inference and distinguish planned from realized sample size."
+    },
+    {
+      "id": "c-design-prospective",
+      "required": true,
+      "rule": "Produce the design, measurement and analysis plan without invented outcomes, fitted effect estimates or guarantees of significance. A design report is a valid full report without an effect-estimation run. Planning simulations, if used, are explicitly synthetic planning exercises."
+    },
+    {
+      "id": "c-design-missing",
+      "required": true,
+      "rule": "Specify follow-up regardless of attendance, collection of missingness reasons, and a defensible future missing-data/sensitivity plan without asserting missing at random from an administrative expectation."
+    }
+  ],
+  "numeric_reference": "oracle.json and standalone check_oracle.py. Absolute tolerance 1e-8 for the frozen descriptive/reference calculation, or half the displayed final unit for rounded outputs. Alternative valid estimators require independently matched calculations. Generating truth and realized estimates are distinct; do not demand a private method, exact effect recovery or single-interval coverage.",
+  "problem_id": "study-design",
+  "problem_version": "1.0.0",
+  "required_observations": [
+    "actual public exchanges",
+    "actor disclosures and learning",
+    "source inspection and release",
+    "prospective analysis and policy plans",
+    "saved computations and report",
+    "reported checker discrepancies",
+    "all stops and attempt limits"
+  ],
+  "scientific_truth": {
+    "centers_offered": 12,
+    "future_outcomes_exist": false,
+    "historical_score_formula": "48 + (7 * center_index mod 13)",
+    "known_causal_truth": false,
+    "learners_per_center": 40,
+    "n_centers": 24,
+    "scientific_setting": "Prospective clustered curriculum study with operational within-center interference, no asserted between-center spillovers, voluntary sites, and individual follow-up planned regardless of attendance."
+  },
+  "validity": "Fixture self-checks and protocol rehearsals are not live consultant qualification. An unavailable fact cannot be an expected discovery. New or contradictory facts require a versioned world, not in-session repair."
+}

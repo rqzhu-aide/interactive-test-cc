@@ -186,13 +186,13 @@ process.stdout.write(JSON.stringify(store.status(root)));
         candidate = self.root / "version-probe"
         candidate.mkdir()
         (candidate / "SKILL.md").write_text("Test-only runtime file.", encoding="utf-8")
-        for version in ("7.0.0", "7.0.1", "7.0.2", "7.0.4", "7.0.5"):
+        for version in ("7.0.0", "7.0.1", "7.0.2", "7.0.4", "7.0.5", "7.0.6"):
             with self.subTest(version=version):
                 driver.write(candidate / "package.json", {"version": version, "files": ["SKILL.md"]})
                 self.assertEqual(driver.candidate_inventory(candidate), {
                     "SKILL.md": driver.digest(candidate / "SKILL.md"),
                     "package.json": driver.digest(candidate / "package.json")})
-        for version in ("6.9.9", "7.0.3", "7.0.6", "7.1.0", "7.0.2-preview", "7.0.4-preview", "7.0.5-preview"):
+        for version in ("6.9.9", "7.0.3", "7.0.7", "7.1.0", "7.0.2-preview", "7.0.4-preview", "7.0.5-preview", "7.0.6-preview"):
             with self.subTest(version=version):
                 driver.write(candidate / "package.json", {"version": version, "files": ["SKILL.md"]})
                 with self.assertRaisesRegex(ValueError, "observation profile"):
@@ -201,26 +201,28 @@ process.stdout.write(JSON.stringify(store.status(root)));
     def test_new_profile_requires_capability_and_preserves_old_profile(self):
         candidate = self.root / "profile-probe"
         candidate.mkdir()
-        driver.write(candidate / "package.json", {"version": "7.0.5"})
-        for code, body in ((1, {}), (0, {"capabilities": []}), (0, []),
-                           (0, {"capabilities": driver.EXCHANGE_CAPABILITY})):
-            with self.subTest(code=code, body=body), patch.object(driver.subprocess, "run") as run:
-                run.return_value = subprocess.CompletedProcess([], code, json.dumps(body).encode(), b"")
-                with self.assertRaisesRegex(ValueError, "capability|lacks"):
-                    driver.candidate_observation_profile(candidate, self.config)
+        for version in ("7.0.5", "7.0.6"):
+            driver.write(candidate / "package.json", {"version": version})
+            for code, body in ((1, {}), (0, {"capabilities": []}), (0, []),
+                               (0, {"capabilities": driver.EXCHANGE_CAPABILITY})):
+                with self.subTest(version=version, code=code, body=body), patch.object(driver.subprocess, "run") as run:
+                    run.return_value = subprocess.CompletedProcess([], code, json.dumps(body).encode(), b"")
+                    with self.assertRaisesRegex(ValueError, version + ".*(capability|lacks)"):
+                        driver.candidate_observation_profile(candidate, self.config)
+            with self.subTest(version=version), patch.object(driver.subprocess, "run") as run:
+                run.return_value = subprocess.CompletedProcess([], 0, json.dumps({
+                    "capabilities": [driver.EXCHANGE_CAPABILITY]}).encode(), b"")
+                profile = driver.candidate_observation_profile(candidate, self.config)
+                self.assertEqual(profile["consultant_version"], version)
+                self.assertEqual(profile["capabilities"], [driver.EXCHANGE_CAPABILITY])
+                self.assertFalse(profile["user_question_routing"])
+                self.assertEqual(profile["enforcement"], "observational_only")
+                self.assertEqual(run.call_args.args[0][-1], "capabilities")
+                run.return_value = subprocess.CompletedProcess([], 0, json.dumps({
+                    "capabilities": [driver.EXCHANGE_CAPABILITY, driver.USER_QUESTION_CAPABILITY]}).encode(), b"")
+                self.assertTrue(driver.candidate_observation_profile(candidate, self.config)["user_question_routing"])
         with patch.object(driver.subprocess, "run") as run:
-            run.return_value = subprocess.CompletedProcess([], 0, json.dumps({
-                "capabilities": [driver.EXCHANGE_CAPABILITY]}).encode(), b"")
-            profile = driver.candidate_observation_profile(candidate, self.config)
-            self.assertEqual(profile["capabilities"], [driver.EXCHANGE_CAPABILITY])
-            self.assertFalse(profile["user_question_routing"])
-            self.assertEqual(profile["enforcement"], "observational_only")
-            self.assertEqual(run.call_args.args[0][-1], "capabilities")
-            run.return_value = subprocess.CompletedProcess([], 0, json.dumps({
-                "capabilities": [driver.EXCHANGE_CAPABILITY, driver.USER_QUESTION_CAPABILITY]}).encode(), b"")
-            self.assertTrue(driver.candidate_observation_profile(candidate, self.config)["user_question_routing"])
             driver.write(candidate / "package.json", {"version": "7.0.4"})
-            run.reset_mock()
             self.assertEqual(driver.candidate_observation_profile(candidate, self.config)["capabilities"], [])
             run.assert_not_called()
 
