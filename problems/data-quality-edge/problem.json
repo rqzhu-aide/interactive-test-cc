@@ -43,7 +43,7 @@
       "fact_id": "f-record-access",
       "knowledge_tier": "practical",
       "source": "office file inventory",
-      "statement": "The listed office records are available locally. I can share relevant records, including several together, when asked. I cannot obtain other records or contact staff during this consultation."
+      "statement": "The listed office records are available locally. I can share records that help with the questions we are discussing. I cannot obtain other records or contact staff during this consultation."
     },
     {
       "available_when": "A relevant question about this subject",
@@ -68,7 +68,7 @@
       "source_ids": []
     },
     {
-      "action": "Release all semantically relevant available sources together, including a broad equivalent request. Do not require exact filenames or preferred vocabulary. Describe an inventory without attaching contents only if the request genuinely asks solely what exists. Previously supplied sources remain available; do not fabricate a new version.",
+      "action": "Apply the shared r-records rule and the selected persona's disclosure_policy. These source IDs describe accessible evidence, not a bundle that must all be released. Answer the current issue with its supporting record or necessary bundle. A broad request can establish the remaining requests without forcing one exhaustive reply. Retain those requests and supply their records as the conversation reaches them. Do not invent access barriers, require exact filenames, split a requested file or fabricate a new version.",
       "condition": "The consultant asks for study records, definitions, collection or selection details, or all relevant supporting material.",
       "fact_ids": [
         "f-record-access"
@@ -93,7 +93,7 @@
       "source_ids": []
     },
     {
-      "action": "Acknowledge useful progress and request the already authorized saved report. During ongoing substantive work, answer the actual questions and make the necessary decisions instead of repeatedly pressing for a report. Do not force additional investigation after a defensible endpoint is established; a genuine unresolved question or delivery defect remains outstanding.",
+      "action": "Acknowledge the findings and choose among the actual offered directions. Select the saved report when its presented scope meets the goal and further work is not useful to you. An earlier report request is a desired outcome, not standing approval. During ongoing work, answer questions and steer bounded next actions. Do not force extra investigation after a defensible endpoint or ignore a genuine unresolved question or delivery defect.",
       "condition": "The substantive investigation and supported analysis are settled, but only a conversational recap or intermediate artifact has been supplied and a complete saved report is still absent.",
       "fact_ids": [
         "f-report"
@@ -114,15 +114,15 @@
   "files": {
     "check_oracle.py": "62ecf5dd7260cedaf7b97c6cd774e33a8b50dc5f6677f4674980c4c12d0e3a7f",
     "oracle.json": "7c071bf4ceb64a01d7a1d51f0b7c95eb4985b2b6f86f5786e18890f08975081a",
-    "public/available-records.md": "b81cc628bab65a41aa37c9ac4ddf3e8fad031d345c2fce3cec7bea5258dc4ef8",
+    "public/available-records.md": "a54a92f831aea99142809cef99c61c80424f111f2486f5034c924c1fe5149792",
     "public/collection-and-selection.md": "dea91e849bf443172f9da968eeb68b73cd6aeeb96ebe0743277e0570c162f606",
     "public/dictionary.md": "116d5502e744cee692eae3cf05c6ca4f300edb5897956658d0c9b0e906a45846",
     "public/export-ledger.md": "a80a10cd0a309f8a508ba5eac510cbb74091ed0af4244d94ac3bac30674dc548",
     "public/extract.csv": "b2c2bfe1aae32c2f6bbf055254a69982f6dac940a2a0e00a3442b7d8fe16a27f",
     "public/participant-roster.csv": "9f1fa36f8e599d265e60cf4a501aed29c97035040a3557757ecb1247acbe69a4",
     "public/report-decision.md": "d3798d86dea0d08273295f10f9275ebb876546d3b82b5b16b52467c8d236b388",
-    "reviewer.json": "86f101e925a48b2a03287d3005b12bda5dfe46d70c649ef457131edb6637b945",
-    "world.json": "9d91f49e283f0d2c4baa39c78064867adf7ae4cb6bbd0d62d2fd673e74ea579c"
+    "reviewer.json": "a8c822b4da40284b4a39aa50a2ff4d5de70a257662dd98280acfdc2340ce85b3",
+    "world.json": "56138d633e8710a664219a6087b054651cdbd60e5cb2a538abc0dc3c657e438d"
   },
   "goal": "Audit the tutoring program extract, investigate what can and cannot support a causal conclusion, and save a complete local report with reproducible data preparation, honest descriptive findings or bounds, remaining data limitations and a practical future-evidence plan. HTML is suitable; no publication.",
   "initial_request": "Please use the causal-consultant skill for this consultation. Please audit our tutoring participant extract and assess whether it can support the claim that the program improved completion. I can supply the roster and export records. We need a complete saved report with reliable summaries, unresolved limitations and a practical plan for better evidence.",
@@ -135,7 +135,7 @@
   "label": "Incomplete participant extract and causal limits",
   "oracle_check": "check_oracle.py",
   "problem_id": "data-quality-edge",
-  "problem_version": "1.0.0",
+  "problem_version": "1.0.2",
   "reviewer": "reviewer.json",
   "schema_version": 1,
   "sources": [

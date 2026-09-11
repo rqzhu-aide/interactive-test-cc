@@ -30,7 +30,9 @@ elif scenario == "invalid":
 elif scenario == "empty":
     raise SystemExit(0)
 result = {"type": "result", "subtype": "success", "is_error": False,
-          "session_id": session_id, "result": "What would the extra funding pay for?" if flag == "--session-id" else "Recorded your reply."}
+          "session_id": session_id, "result": "What records describe how the policy was introduced?" if flag == "--session-id" else "Recorded your reply."}
+if scenario == "fixture_response":
+    result["result"] = Path("fake-response.txt").read_text(encoding="utf-8")
 if scenario == "changed":
     result["session_id"] = "wrong-session"
 if scenario == "missing_id":

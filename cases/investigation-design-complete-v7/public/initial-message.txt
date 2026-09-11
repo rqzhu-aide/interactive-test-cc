@@ -1,1 +1,0 @@
-Please use causal-consultant to analyze this synthetic pilot. Estimate the average effect of being offered the program for these 12 sites, with each site weighted equally, give appropriate uncertainty, and save reproducible code and results. I have supplied the study notes, allocation table and outcomes. Please carry out the supported analysis and explain its limits.

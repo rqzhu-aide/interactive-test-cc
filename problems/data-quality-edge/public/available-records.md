@@ -9,4 +9,4 @@ All study names and records in this exercise are synthetic.
 - collection-and-selection.md: Questions about selection, treatment, comparison groups, timing, collection, missingness or all study records.
 - report-decision.md: Questions about decision needs, acceptable report scope or all supporting records.
 
-These records are the complete accessible inventory. A meaningful request may obtain several together. No extra staff contacts or new data are available in this session.
+These are the available office records. Related records can be shared together to address the question being discussed. No extra staff contacts or new data are available in this session.

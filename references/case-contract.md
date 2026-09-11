@@ -1,7 +1,7 @@
 # Frozen Case Contract
 
-For fixture authors and run operators. The minimal validator and complete College
-adaptation implement this contract as described in [runner.md](runner.md).
+For fixture authors and run operators. The four problem/persona compositions
+use this contract and the shared validator described in [runner.md](runner.md).
 
 ## Information Boundaries
 
@@ -23,8 +23,8 @@ fact is not automatically something the user knows or can obtain.
 
 For persona fixtures, `case.json` includes `world: "world.json"`, `world_id`,
 `world_version` and `persona_id`. Match the dossier's world identity and the
-actor's `persona_id`, and bind the private dossier in the fixture hashes. These
-fields are optional for preserved earlier cases, not an instruction to rewrite them.
+actor's `persona_id`, and bind the private dossier in the fixture hashes.
+The runner can still read older external frozen run packages; do not rewrite them.
 
 Facts are not necessarily identifying assumptions. The user may know how a list
 was assembled but cannot establish exchangeability just by agreeing to it.
@@ -51,8 +51,17 @@ when causal identification is unsupported; a recap alone cannot.
 Full-report completion requires captured evidence of a completed, verified
 report run and its actual saved output. The reviewer separately checks report
 substance, source/result consistency and applicable readback/render validation.
-Keep the consultant report separate from the final testing assessment. Preserve
-historical focused fixtures; changing their endpoint creates a new case identity.
+Keep the consultant report separate from the final testing assessment. Older
+external packages retain their recorded endpoint; do not change them in place.
+
+For `consultation-loop-v1`, behavioral validity is separate from the scientific
+world and report endpoint. Preserve actual proposal, later choice, protected
+start, findings discussion and report selection chronology. An initial desire
+for a report cannot authorize a later action automatically. An extension has
+its own bounded choice and returns to discussion. Scope revisions, questions,
+pause/resume and reopening preserve their user meaning when they occur; none is
+a mandatory quota in each case. A faithful user stop without a report leaves a
+full-report objective incomplete, without automatically being an actor defect.
 
 Keep the manifest and descriptive case IDs away from the consultant. Use neutral
 filenames, working directories and session labels, not names such as
@@ -72,11 +81,15 @@ Use events such as a request about the recorded event, not exact words or a
 particular assistant turn. Combined questions may satisfy several conditions
 at once. Repeated questions do not unlock progressively better facts by default.
 
-Source rules specify the immutable file version, what request warrants release,
-how it becomes available and any declared cost or delay. A relevant inventory
-request can reveal that a source exists without releasing its contents. A
-broader equivalent request can legitimately release the file; do not impose a
-password-like question sequence. Record receipt separately from inspection.
+Source rules specify the immutable file version, what request makes it eligible,
+how it becomes available and any genuine prerequisite. Eligibility is not an
+instruction to send every eligible source at once. The persona's disclosure
+policy supplies the current topic's record or necessary bundle, acknowledges
+remaining requests and follows up as those topics arise. A broad request can
+establish those requests without a filename password. Keep short necessary
+answers and requested files intact; no invented delay or access barrier is
+allowed. Record receipt separately from inspection. Preserve pending requests
+in the actor's existing disclosure history, not a second editable memory file.
 
 Action rules allow choosing among consultant options without knowing the scoring
 key: for example prefer work on existing records, decline new staff contact,
@@ -100,8 +113,8 @@ Use the four problems and four independent personas in the
 supported; the selected scope determines which to run. The same problem's world,
 scientific sources and criteria remain invariant across personas. Initial
 understanding and natural disclosure differ. Generate no new study world during
-a conversation or additional crossed factors without review. Preserve the
-[historical cases](persona-cases.md) and [pilot blueprints](pilot-cases.md).
+a conversation or additional crossed factors without review. The old fixed
+case catalog is removed; prior versions remain in Git and frozen run packages.
 
 Composed manifests add `problem_id`, `problem_version`, `persona_version` and
 `target_turns`. Private `problem.json`, `persona.json` and `composition.json` are

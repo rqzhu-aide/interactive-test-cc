@@ -55,9 +55,9 @@ Descriptive work can be a useful intermediate deliverable while the causal
 inquiry remains open. Accepting that calculation does not by itself establish
 that accessible causal evidence was exhausted. An explicit user decision to
 narrow or end the inquiry should be honored, with unresolved questions retained
-as limitations. Apply each fixture's frozen stopping rule: the unchanged College
-case tests descriptive delivery and recap, and gains no retrospective
-investigation-depth coverage under these new contrasts.
+as limitations. Apply the selected problem's report endpoint and the actor's
+actual choices. A user pause can be valid while the full-report objective
+remains incomplete; neither a target turn count nor a recap establishes delivery.
 
 ## Actor Fidelity
 
@@ -101,6 +101,36 @@ whether the report incorporates all requested work remain reviewer judgments.
 Missing or unverifiable reporting makes a claimed successful full-report outcome
 incomplete. Useful bounded advice may support a limited report, but cannot waive
 that deliverable. Preserve environment/cap failures and attributable defects.
+
+For `consultation-loop-v1`, inspect `consultation_loop_check` and every action's
+first observed event. Compare the actual earlier assistant proposal with the
+scope, then read the entire later user response. Interpret questions, corrections,
+withdrawals, deferrals and changed populations before deciding it grants the
+recorded action. The observer retains attributed excerpts and the actual text;
+it does not classify natural-language consent. Neither `decision_updates` nor a
+candidate delivery/approval record proves agreement. A matching yes substring
+does not resolve a prerequisite question or authorize a changed scope.
+
+Check the first plan, output and transport activity, including orphan plans and
+artifacts outside registered report runs. A renamed final report is still report
+production. Its scope must have been offered with actual findings, diagnostics
+and limits, followed by a later user selection before creation. A finding reply
+may offer the report; it may not also create it using the initial request.
+Later consent, an edited journal or a compliant latest state cannot erase an
+earlier observed breach. The helper's assignment label does not make protected
+effect/policy estimation an audit. Inspect computation contents when uncertain.
+
+Keep structural protocol evidence, scientific findings and actor fidelity
+separate. Bounded work should return useful findings and choices; a selected
+extension returns to discussion, not automatic reporting. Check deferred scope
+memory, partial answers, focus changes, interruption, pause/resume and reopening
+where triggered. Untriggered paths are unexercised coverage, not required extra
+turns. Report completion is an artifact result, not a permanently closed project.
+The adapter preserves observed structural breaches as failures even if the
+reviewer omits them. Missing captures remain unobserved. Per-reply snapshots
+cannot establish exact within-call timing or rule out transient bypassed files;
+consult actual transport/tool evidence. Diagnostic mode remains invalid and
+cannot establish a passing live test.
 
 Open actual saved code and outputs for material numerical claims. Apply the
 case's independent row-level or estimator/uncertainty references and declared
@@ -240,13 +270,10 @@ cap reached before completion remains incomplete. No round target replaces
 the required report or scientific criteria.
 
 Report fixture validation, actor rehearsal and live consultation separately.
-Fake/local tests do not establish a live blinded pass. The historical four
-[fixed cases](persona-cases.md) differ in both study and persona, so their
-differences do not isolate a persona effect. Neither do uncontrolled model/host
-differences or one stochastic run per new pair.
-
-For the preserved V7P pilot plan use two fresh repetitions per case/candidate after a host
-smoke test; compare under frozen matched limits. Current token cost is accepted
+Fake/local tests do not establish a live blinded pass. Uncontrolled model/host
+differences or one stochastic run per pair do not isolate a persona or skill
+effect. Use fresh repetitions of the selected pairs after a host smoke test;
+compare under frozen matched limits. Current token cost is accepted
 for exploration, not a reason to optimize before testing utility. Set any new
 token/cost envelope before these runs, without changing historical failures.
 Report protocol and scientific results separately for any v6/v7 comparison.
@@ -254,9 +281,7 @@ Cross-host/model results do not isolate a skill effect. Small pilots are
 diagnostic evidence, not release qualification, population reliability or proof
 that simulated users match real people. Follow up with real-user trials later.
 
-For the investigation-depth revision, start with the allocation-availability pair
-and fully documented control under the [pilot guide](pilot-cases.md). Two fresh
-repetitions for each of three conditions and two candidates yield 12 consultations.
-Inspect scientific behavior, repairs and effort before expanding; freeze later
-stage limits prospectively. Correct and retest material attributable failures
-or leave the affected behavior explicitly unqualified.
+Inspect scientific behavior, repairs and effort before expanding a campaign;
+freeze later stage limits prospectively. Correct and retest material attributable
+failures or leave the affected behavior explicitly unqualified. Earlier run
+packages keep their original identities, criteria and observed failures.

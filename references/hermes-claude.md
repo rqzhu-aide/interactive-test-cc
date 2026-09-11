@@ -2,9 +2,6 @@
 
 For run operators and adapter developers. This describes the required v7
 transport; the minimal CLI is documented in [runner.md](runner.md).
-The legacy `scripts/send_one.py` in
-the sibling local `interactive-test-cc-v6` archive is evidence for what can be
-reused, not a ready v7 launcher or a file in this active package.
 
 ## Deployment Profile
 
@@ -46,8 +43,8 @@ not tool traces or journal content used privately for evaluation.
 Use a verified host permission/sandbox boundary, such as separate identities or
 mount visibility, sufficient to deny private reads through allowed tools. A
 different CWD or the v7 project's containment checks are not such a boundary.
-The legacy sender hard-codes `--dangerously-skip-permissions`; do not inherit that
-default. Removing the flag alone also does not prove isolation. Any exceptional
+There is no implicit permission-bypass flag. Its absence alone does not prove
+isolation. Any exceptional
 execution profile needs explicit approval and independent boundary verification.
 
 Check isolation using harmless test files under the same execution identity/tool
@@ -67,7 +64,7 @@ adapter and reply selection stays in the Hermes actor.
 |---|---|---|
 | `start` | Frozen case and candidate, host profile, fresh work/results locations, limits | Validate identities/access, stage initial public materials, create attempt record; return opaque run ID |
 | `step` | Run ID, short public message, private disclosure record, requested source releases | Validate allowed release, stage public attachments, dispatch one consultant turn, resume exact session and capture raw output; return public reply and execution status |
-| `inspect` | Run ID and caller role | Actor view: public exchange and legitimately available materials only; operator/reviewer view: private evidence locations and status |
+| `inspect` | Run ID and caller role | Actor view: public exchange, available materials and that actor's own disclosure/update history; operator/reviewer view: private evidence locations and status |
 | `finish` | Run ID, stop reason, independent assessment when available | Close the attempt without inventing completion; bind evidence/assessment and derive disposition |
 
 `start` does not secretly send the first prompt; every model invocation is a

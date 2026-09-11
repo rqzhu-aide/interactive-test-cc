@@ -1,3 +1,0 @@
-Use the causal-consultant skill. I am advising an education board about adding $1,000 per student to instructional budgets at colleges. Using the attached College data, can you work out whether that would improve graduation and give me something I can use at the meeting?
-
-The supplied files are data.csv and dictionary.md in the working directory. Save any consultation project in consultation/.

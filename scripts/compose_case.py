@@ -16,22 +16,22 @@ COMMON_RULES = [
      "action": "Send exactly the frozen initial request. Do not add private profile, benchmark or expected-answer information.",
      "fact_ids": [], "source_ids": []},
     {"rule_id": "r-known-facts", "condition": "The consultant asks a factual question you can answer from your packet or legitimately learned information.",
-     "action": "Answer the relevant parts with their qualifications. Use your persona's natural level of detail; combine answers when useful. Cite visible learning in knowledge_updates. Do not turn an assumption, belief or user agreement into a verified study property.",
+     "action": "Answer the current question or closely connected group from what you actually understand, following your persona's disclosure_policy. Keep a short necessary answer together. For a long questionnaire, prioritize the issue blocking the next useful step, acknowledge the remaining topics and retain them in unanswered_questions. Do not recite every known fact or treat a broad request as permission to complete the whole intake at once. Cite visible learning in knowledge_updates; preserve qualifications.",
      "fact_ids": [], "source_ids": []},
     {"rule_id": "r-records", "condition": "The consultant asks for records or information covered by the source inventory.",
-     "action": "Release all semantically relevant accessible records whose stated release conditions are met, including for a broad equivalent request. An inventory question may only call for listing availability. Do not require exact filenames or keywords, fabricate delays or repeat an attachment. Honor any genuine evaluation-data prerequisite in the problem's release rules. Refer to previously delivered files when asked again.",
+     "action": "Source conditions establish eligibility, not an instruction to attach everything eligible. Supply the record or coherent bundle needed for the current issue, with a brief explanation of its relevance. For a broad request covering several topics, start with the current consequential topic and say what other records are available or still requested; do not send the entire dossier in one reply. Follow up on acknowledged requests as the discussion reaches them, without requiring repeated requests. Honor a specific request for a necessary bundle and keep a requested file intact. Do not require private filenames, invent retrieval delays, claim accessible records are unavailable or repeat an attachment. Preserve genuine evaluation-data prerequisites.",
      "fact_ids": [], "source_ids": []},
     {"rule_id": "r-clarify", "condition": "An explanation, request or decision is unclear at your persona's current understanding.",
      "action": "Ask a natural focused question about its practical meaning. Still answer clear parts you know. Retain what you learn and do not repeat a resolved misunderstanding.",
      "fact_ids": [], "source_ids": []},
     {"rule_id": "r-proceed", "condition": "The consultant proposes useful work within the requested study and deliverable.",
-     "action": "Respond using the actual offered choices and your documented decision constraints. The initial report request remains authorized. If a meaningful choice needs explanation, ask for it; otherwise permit supported work without prescribing internal routing or a preferred result.",
+     "action": "Respond to the actual offered scope and choices using your documented decision constraints. The initial report request states a goal, not standing permission for analysis or reporting. Ask about unclear implications; otherwise choose supported bounded work in ordinary language. An extension selection authorizes that extension only. Do not prescribe internal routing or a preferred result.",
      "fact_ids": [], "source_ids": []},
     {"rule_id": "r-persona", "condition": "The visible exchange warrants a belief update, method discussion or a permitted presentation-pressure event.",
      "action": "Use only the selected persona's behavior and finite pressure policy. Record the visible basis and retain learning. Persona preferences cannot change study facts or replace the problem's endpoint.",
      "fact_ids": [], "source_ids": []},
     {"rule_id": "r-report", "condition": "The substantive work is settled but the requested saved report has not yet been delivered, or an actual visible omission needs correction.",
-     "action": "Ask for the remaining deliverable or specific correction. Do not press for finalization while material questions or required work remain; provide useful information or discuss them instead. A conversational recap or personal satisfaction does not substitute for the saved report.",
+     "action": "Use the actual findings and offered directions to choose useful further work or the saved report. If no report option has been offered, you may naturally ask about the deliverable, without treating that request as permission to skip discussion. Ask for a concrete correction when needed. Do not force completion while material questions remain. A recap does not substitute for the saved report.",
      "fact_ids": [], "source_ids": []},
     {"rule_id": "r-stop", "condition": "The requested saved report has been visibly delivered, the stated scope is addressed, and no accepted correction or outstanding user question remains.",
      "action": "Stop without manufacturing another recap or an unused pressure event. Judge completion from information a user can actually see; do not read private helper observations or certify hidden scientific truth. Independent review checks actual artifact integrity and scientific quality.",
@@ -77,9 +77,10 @@ def persona_definition(persona_id, personas_root):
             "unsupported knowledge tiers")
     require(not any(key in persona for key in ("goal", "sources", "world", "target_turns", "completion_contract")),
             "persona cannot override the problem, access, endpoint or duration")
-    for key in ("behavior", "learning_policy", "pressure_policy", "forbidden"):
+    for key in ("behavior", "disclosure_policy", "learning_policy", "pressure_policy", "forbidden"):
         require(isinstance(persona.get(key), list) and all(isinstance(x, str) and x.strip() for x in persona[key]),
                 "invalid persona behavior field: " + key)
+    require(bool(persona["disclosure_policy"]), "persona disclosure policy must not be empty")
     return file, persona
 
 
@@ -117,7 +118,7 @@ def compose_case(problem_id, persona_id, output, bank_root=None, personas_root=N
         "facts": facts, "sources": sources, "rules": rules, "unknown_policy": problem["unknown_policy"],
         "reply_record": {"required": ["message", "fact_ids", "rule_ids", "attachments", "unanswered_questions", "fixture_gaps", "stop"],
                          "optional": ["knowledge_updates", "belief_updates", "decision_updates"]},
-        "pacing": "Respond naturally from your current understanding and the visible exchange. Do not accelerate, prolong, withhold information or request completion to satisfy a benchmark duration. A longer conversation may be appropriate; do not invent missing facts to finish. Operational stopping is the operator's responsibility."
+        "pacing": "Share information progressively around the issue currently being discussed, using your persona's disclosure_policy. Broad relevance does not require exhausting all facts or records in one reply. Retain and revisit unanswered requests; do not hide a known consequential correction, fragment a necessary answer or invent delays. No turn number, target or operational limit determines disclosure or completion. Operational stopping is the operator's responsibility."
     }
     request = problem["initial_requests"][persona_id]
     require("causal-consultant" in request, "initial request must invoke consultant")
@@ -140,8 +141,8 @@ def compose_case(problem_id, persona_id, output, bank_root=None, personas_root=N
         "science_boundary": "Persona changes initial understanding and interaction, not the problem's world, source access, data, scientific criteria or report endpoint."
     })
     manifest = {
-        "schema_version": 1, "case_id": problem_id + "--" + persona_id, "case_version": "1.0.0",
-        "suite_version": "7.0.6", "edition": "modular-problem-persona",
+        "schema_version": 1, "case_id": problem_id + "--" + persona_id, "case_version": "1.0.2",
+        "suite_version": "7.0.7", "edition": "modular-problem-persona",
         "problem_id": problem_id, "problem_version": problem["problem_version"],
         "persona_id": persona_id, "persona_version": persona["persona_version"],
         "world": problem["world"], "world_id": world["world_id"], "world_version": world["world_version"],

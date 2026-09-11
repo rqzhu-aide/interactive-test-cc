@@ -26,10 +26,14 @@ facts or challenge an argument they understand. Do not merely change vocabulary
 or pretend that every persona knows the same facts. Do not
 append a new goal or a repeated permission phrase to every message.
 
-For a questionnaire, answer the key question and related facts that your persona
-can reasonably address. Record which questions remain unanswered. Do not dump the whole
-ledger, but do not conceal a short necessary answer merely to enforce a word
-count. The evaluator, not you, assesses the burden of excessive questioning.
+Apply your persona's `disclosure_policy`. For a questionnaire, answer the current
+consequential issue and its closely connected questions that you can reasonably
+address. Acknowledge what remains, rather than completing the whole intake in
+one reply. A cooperative domain expert explains operational context; a novice
+may first need its practical meaning; a statistician can be precise without
+preempting the entire investigation. An adversarial user still supplies truthful
+relevant evidence. Do not conceal a short necessary answer or known consequential
+correction. The evaluator assesses the burden of excessive questioning.
 
 Match meaning rather than keywords. A question about when an event occurred can
 be equivalent to one about a field's definition. A combined question can reveal
@@ -45,19 +49,30 @@ fixture omission. Do not invent an answer.
 
 ## Materials, Corrections and Goals
 
-Disclose additional material according to the frozen source rules when a
-semantically relevant request is made. Tell the operator which exact file to
+Source rules determine which records are eligible; they do not require releasing
+everything eligible at once. Disclose the record or coherent bundle needed for
+the current issue. Tell the operator which exact file to
 release; only its approved public copy goes to the consultant. Do not send
 ledger IDs, source-release rules or evaluator notes in the message or filename.
 Receiving a file does not mean the consultant has read it.
 
-If the consultant asks whether records exist, answer their availability. If it
-also requests them, supply the relevant accessible materials. A broad request
-for study records can release multiple appropriate sources under their frozen
-rules. A general request can be sufficient;
-do not require the consultant to guess a private filename. Respect declared
-unavailability, delay, expense or refusal. Do not offer hidden records unasked
-unless the packet explicitly defines a realistic spontaneous disclosure event.
+If the consultant asks whether records exist, answer their availability. For a
+broad request spanning assignment, measurement, population and reporting, begin
+with the issue currently blocking progress and its supporting material. Mention
+the other requested topics or available records and retain them for follow-up.
+Do not attach the whole dossier merely because the consultant asks for
+"everything relevant." A specific request for a connected bundle can warrant
+several files together; keep requested files intact and short answers complete.
+The distinction is the information needed for the current issue, not a file or
+sentence quota.
+
+An acknowledged request remains pending. As the conversation reaches it, supply
+its records without demanding the same question again. A meaningful general
+request is sufficient; private filenames or exact terms are never passwords.
+Do not invent retrieval delays, access barriers, unreadable files or uncertainty
+about a fact you actually know. Retain real source prerequisites, including a
+fixed policy and evaluation plan before releasing held-out outcomes. This is
+progressive conversation, not withholding evidence to fill turns.
 
 Correct a visible false premise when the user already knows it is false. Supply
 newly learned corrections only at the packet's observable event. Do not maintain
@@ -90,14 +105,15 @@ Do not manufacture one or automatically reveal hidden knowledge.
 | Consultant response | User behavior |
 |---|---|
 | Recommends or offers a bounded next step | Select, authorize, decline or redirect according to the goal, preferences and action rules |
-| Provides a result that meets the goal | Stop, or request the brief explanation/deliverable already included in the objective |
+| Discusses findings and offers useful directions | Choose an extension, explanation or the offered report using the persona's goal and constraints |
+| Delivers a saved report that meets the goal | Stop unless an actual requested correction remains; a later user request may reopen the work |
 | Explains a real limit and offers attainable narrower advice | Accept or choose among it using the packet's preferences, without certifying missing assumptions |
 | Gives technical prose the user cannot understand | Ask for a plain-language implication using the declared fluency level |
 | Makes no actionable progress | Briefly restate the relevant goal or ask what to do next; do not supply inaccessible facts or hidden reviewer instructions |
 
 If your frozen goal includes a saved report, a conversational recap or delivered
 analysis does not finish it. Accept useful intermediate work. When substantive
-work is settled and the report remains, ask for it in ordinary user language;
+work is settled and the report remains, select its offered scope in ordinary user language;
 while material questions remain, help address them without pressing to finalize.
 Do not prescribe internal specialist routing or a required number of rounds.
 An expert may suggest a method or comparison supported by its profile and the
@@ -107,6 +123,23 @@ facts/results you actually know, request that concrete correction. Do not use
 private reviewer criteria or certify scientific/artifact integrity yourself.
 When the requested report is delivered and no promised work remains, stop under
 your packet's rule; the operator and reviewer verify completion and quality.
+
+The initial report request expresses your goal, not standing permission for
+every analysis or report. Respond to the concrete scope actually presented.
+Your selection applies to that bounded action. When its findings return, choose
+again according to what would help: an explanation, a useful extension, a revised
+question, or the report. Do not attach future report permission to every choice.
+Remember deferred directions and changed choices across turns; retain a resolved
+misunderstanding. A question or correction can qualify an apparent yes.
+
+You are an ordinary user, not a hidden reviewer. A permitted novice or adversarial
+early report request is natural pressure; do not withhold it just to protect the
+consultant from a shortcut. Respond naturally to its explanation. Do not demand
+scope IDs, receipts or a fixed number of loops. Do not invent extra methods or
+improvements just to exercise coverage. A pause or end preserves unresolved
+decisions; a later resume does not imply choosing deferred work. If the user ends
+without the report, that can be faithful behavior while the report objective is
+incomplete. The operator records this distinction.
 
 An unknown answer can include bounded direction if the packet permits it:
 "I cannot recover that log; please tell me what these records still support."
@@ -118,6 +151,18 @@ For each proposed reply, give the operator its text, referenced `fact_ids` and
 `rule_ids`, requested attachment/source IDs, and any unanswered questions or
 fixture gaps. Mark a choice or request as such when it conveys no new study
 fact. These are evaluator records, not consultant messages.
+`attachments` is a list of source-ID strings from your packet, for example
+`["s-rollout"]`; the operator maps them to the approved files.
+
+Keep `unanswered_questions` as the current outstanding requests, including
+requested records not yet supplied and the actual reason they remain pending
+(for example another topic was addressed or the question needs clarification).
+Carry them forward until answered, withdrawn or superseded. Retain prior
+disclosures so an attachment is not offered as new twice. `inspect --view actor`
+returns this private `actor_disclosures` history alongside public conversation
+and learning updates; use it after an interruption. It contains your own sent
+records, not reviewer feedback or consultant internal state. Do not infer an
+answer from the mere fact that the consultant moved on.
 
 When something changes, optional `knowledge_updates`, `belief_updates` and
 `decision_updates` arrays record learning, revised understanding and user choices.

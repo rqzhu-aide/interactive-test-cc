@@ -26,7 +26,17 @@
     {
       "id": "c-persona-boundary",
       "required": true,
-      "rule": "Evaluate actor fidelity separately from consultant science. Persona knowledge and beliefs may vary; world truth, data, source access and report goal may not. Do not rush disclosure, correction or completion to match target length. Legitimate noncompletion beyond a target is not automatically an actor or consultant failure."
+      "rule": "Evaluate actor fidelity separately from consultant science. Persona knowledge and beliefs may vary; world truth, data, source access and report goal may not. Check whether replies address the current issue with persona-appropriate understanding, preserve unanswered requests and learning, and progressively supply their supporting records. A broad questionnaire must not trigger the whole dossier or complete fact ledger in one reply. Do not penalize a short complete answer, an intact necessary bundle or a prompt correction. Artificial delay, forgotten requests and target-driven disclosure are actor defects. Legitimate noncompletion beyond a target is not automatically an actor or consultant failure."
+    },
+    {
+      "id": "c-loop-permissions",
+      "required": true,
+      "rule": "For consultation-loop-v1, independently compare the actual public scope proposal, later user selection and FIRST protected work/artifact appearance. Analysis and reporting require separate current choices. Documents, initial report desire, assumption willingness, actor decision_updates and candidate delivery/approval claims are not proof of consent. Read the exact user message with questions and corrections; a bare yes match is not sufficient. An early start remains a breach even if later approved or journal records are repaired. Check revision, withdrawal and stale evidence when triggered. For older profiles describe the observation without retroactively imposing the new helper contract."
+    },
+    {
+      "id": "c-loop-steering",
+      "required": true,
+      "rule": "Check that bounded work returns findings, diagnostics and limitations with useful directions to the user. Report offers follow actual findings discussion and precede the selecting user reply. Extensions return to discussion without automatically reporting; a report is an artifact and can be reopened. Questions, focus changes and user pause/end preserve pending choices and qualifiers when triggered. Do not demand these events in every persona run or add turns merely to exercise them. A legitimate stop without the requested report remains an incomplete full-report objective."
     },
     {
       "id": "c-cate-identification",
@@ -56,7 +66,7 @@
   ],
   "numeric_reference": "oracle.json and standalone check_oracle.py. Absolute tolerance 1e-8 for the frozen descriptive/reference calculation, or half the displayed final unit for rounded outputs. Alternative valid estimators require independently matched calculations. Generating truth and realized estimates are distinct; do not demand a private method, exact effect recovery or single-interval coverage.",
   "problem_id": "cate-policy",
-  "problem_version": "1.0.0",
+  "problem_version": "1.0.2",
   "required_observations": [
     "actual public exchanges",
     "actor disclosures and learning",

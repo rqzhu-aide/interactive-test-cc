@@ -8,4 +8,4 @@ All study names and records in this exercise are synthetic.
 - calendar-and-measures.md: Questions about recruitment, measurement, timing, follow-up or all study records.
 - planning-inputs.json: Questions about feasibility, sample size, worthwhile effect, precision, ICC, attrition or all study records.
 
-These records are the complete accessible inventory. A meaningful request may obtain several together. No extra staff contacts or new data are available in this session.
+These are the available office records. Related records can be shared together to address the question being discussed. No extra staff contacts or new data are available in this session.

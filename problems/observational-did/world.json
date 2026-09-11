@@ -2,7 +2,7 @@
   "assumption_boundary": "Generating assumptions hold in the private synthetic model but are not empirical certifications available to the consultant. Causal and extrapolation claims must remain conditional on their support in the supplied record.",
   "generation": {
     "generator": "scripts/generate_problem_bank.py",
-    "generator_sha256": "7fda9a7b736db9fdac6e99dc33cdf9b9220b77f0fd231926cd18b968e0de5f82",
+    "generator_sha256": "be16abee70088d48450445b0912465fca6627f15fe1b00b87a0b64b088a79c47",
     "numeric_note": "CSV values are frozen to six decimal places where indicated. Seed alone does not replace preserved bytes.",
     "seed": 26091002,
     "specification": {
@@ -78,7 +78,7 @@
     {
       "availability": "on_request",
       "file": "public/available-records.md",
-      "sha256": "563bea29d9dd8a326528b83f15e2642de3f528dde9c7fd3bfd9bfeef5fbe723d",
+      "sha256": "2f64c87db5fa78282bf23f28377397a9ca7fe9b55622c63973376508fbd194b6",
       "source_id": "s-inventory"
     }
   ],

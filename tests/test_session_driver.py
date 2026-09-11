@@ -12,6 +12,7 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 import session_driver as driver
+from compose_case import compose_case
 
 
 class SessionTests(unittest.TestCase):
@@ -28,7 +29,7 @@ class SessionTests(unittest.TestCase):
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)
         self.case = self.root / "case"
-        shutil.copytree(ROOT / "cases/college-policy-v7", self.case)
+        compose_case("observational-did", "domain-expert", self.case)
         self.attempt, self.work = self.root / "private", self.root / "work"
         self.config = {"claude_command": [sys.executable, str(ROOT / "tests/fake_claude.py"), "ok"],
                        "node_command": [self.node], "max_agent_turns_per_call": 10,
@@ -39,12 +40,20 @@ class SessionTests(unittest.TestCase):
         return driver.start(self.case, self.candidate, self.config, self.attempt, self.work)
 
     def reply(self, initial=False, **updates):
-        record = {"message": (self.case / "public/initial-message.txt").read_text() if initial else "No spending plan has been agreed.",
-                  "fact_ids": [] if initial else ["f-policy"], "rule_ids": [] if initial else ["r-answer"],
+        record = {"message": (self.case / "public/initial-message.txt").read_text() if initial else "I cannot obtain additional office records.",
+                  "fact_ids": [] if initial else ["f-record-access"], "rule_ids": [] if initial else ["r-known-facts"],
                   "attachments": [], "unanswered_questions": [], "fixture_gaps": [], "stop": False}
         return {**record, **updates}
 
-    def manifest(self):
+    def manifest(self, *changed_problem_files):
+        # Intentional test-only contract/identity overrides must also bind the
+        # copied problem's inventory. Never refresh source or numerical hashes.
+        if changed_problem_files:
+            self.assertTrue(set(changed_problem_files) <= {"reviewer.json", "world.json"})
+            problem = driver.read(self.case / "problem.json")
+            for name in changed_problem_files:
+                problem["files"][name] = driver.digest(self.case / name)
+            driver.write(self.case / "problem.json", problem)
         manifest = driver.read(self.case / "case.json")
         manifest["files"] = {name: sha for name, sha in driver.inventory(self.case).items() if name != "case.json"}
         driver.write(self.case / "case.json", manifest)
@@ -63,11 +72,17 @@ class SessionTests(unittest.TestCase):
         reviewer = driver.read(self.case / "reviewer.json")
         reviewer["useful_stop"] = True  # Exercise both otherwise-successful review outcomes.
         driver.write(self.case / "reviewer.json", reviewer)
-        self.manifest()
+        self.manifest("reviewer.json")
+
+    def focused_endpoint(self):
+        """Change only this temporary test's delivery contract, never its study facts."""
+        manifest = driver.read(self.case / "case.json")
+        manifest["completion_contract"] = "focused"
+        driver.write(self.case / "case.json", manifest)
 
     def saved_run(self, run_id="report-main", status="completed", content="<html><body>Test-only report.</body></html>",
-                  kind="report", project_root="consultation"):
-        """Produce actual v7 journal/manifest evidence with the staged helper, not fake status JSON."""
+                  kind="report", project_root="consultation", prepare_only=False, offered=None):
+        """Produce real helper artifacts; recorded fixture consent is not actual public consent."""
         script = r"""
 const fs = require('fs'), path = require('path'), crypto = require('crypto');
 const [scripts, root] = process.argv.slice(1);
@@ -79,14 +94,18 @@ const ids = event_id => ({event_id, expected_project_id: current().project_id, e
 if (!fs.existsSync(path.join(root, 'journal.jsonl'))) {
   store.init(root, {event_id:'event-init', project_id:'project-test', project_understanding:{objective:'Test-only report evidence'}});
   store.record(root, {...ids('event-source'), type:'memory_updated', payload:{changes:{evidence:[{
-    evidence_id:'source-data', kind:'file', source_ref:'data.csv', summary:'Frozen public input for a structural test.',
+    evidence_id:'source-data', kind:'file', source_ref:'panel.csv', summary:'Frozen public input for a structural test.',
     source_sha256:crypto.createHash('sha256').update(fs.readFileSync(spec.source)).digest('hex')
   }]}}});
 }
-const plan = {kind:spec.kind, objective:'Save a test-only artifact.', claim_boundary:'Structural test only.',
-  inputs:[{source_ref:'data.csv',path:spec.source}],
+let plan = {kind:spec.kind, objective:'Save a test-only artifact.', claim_boundary:'Structural test only.',
+  inputs:[{source_ref:'panel.csv',path:spec.source}],
   ...(spec.kind === 'report' ? {purpose:'Test report completion.',evidence_refs:['source-data'],format:'html'} :
     {question:'Test an audit artifact.',diagnostics:[]})};
+if (store.capabilities().capabilities.includes('consultation-loop-v1')) {
+  plan = require(spec.fixture)(scripts, root, plan, spec.run_id, spec.offered, spec.prepare_only);
+  if (spec.prepare_only) { process.stdout.write(JSON.stringify(plan)); process.exit(0); }
+}
 runs.start(root, {...ids('event-start-'+spec.run_id),run_id:spec.run_id,plan});
 const {event_id, ...writeIds} = ids('unused');
 runs.write(root, {...writeIds,run_id:spec.run_id,path:'report.html',content:spec.content});
@@ -102,9 +121,12 @@ process.stdout.write(JSON.stringify(store.status(root)));
         result = subprocess.run([self.node, "-e", script,
                                  str(self.work / ".claude/skills/causal-consultant/scripts"), str(self.work / project_root)],
                                 input=json.dumps({"run_id": run_id, "status": status, "content": content,
-                                                  "kind": kind, "source": str(self.work / "data.csv")}),
+                                                  "kind": kind, "source": str(self.work / "panel.csv"),
+                                                  "fixture": str(ROOT / "tests/fixtures/current_policy.cjs"),
+                                                  "prepare_only": prepare_only, "offered": offered}),
                                 text=True, encoding="utf-8", capture_output=True, timeout=30)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        return json.loads(result.stdout)
 
     def completion_check(self):
         state = driver.read(self.attempt / "state.json")
@@ -115,14 +137,15 @@ process.stdout.write(JSON.stringify(store.status(root)));
         self.assertFalse(result["initial_message_sent"])
         self.assertFalse((self.work / "fake-session.txt").exists())
         self.assertTrue((self.work / ".claude/skills/causal-consultant/package.json").is_file())
-        self.assertEqual(driver.digest(self.work / "data.csv"), driver.digest(self.case / "public/data.csv"))
+        self.assertEqual(driver.digest(self.work / "panel.csv"), driver.digest(self.case / "public/panel.csv"))
         self.assertFalse((self.work / "actor.json").exists())
         driver.step(self.attempt, self.reply(initial=True))
         driver.step(self.attempt, self.reply())
         actor = driver.inspect(self.attempt, "actor")
         self.assertEqual(len(actor["conversation"]), 2)
-        self.assertEqual(set(actor), {"conversation", "public_files"})
-        self.assertNotIn("fact_ids", str(actor))
+        self.assertEqual(set(actor), {"conversation", "public_files", "actor_disclosures"})
+        self.assertEqual(actor["actor_disclosures"][-1]["fact_ids"], ["f-record-access"])
+        self.assertNotIn("fact_ids", str(actor["conversation"]))
         self.assertEqual(driver.read(self.attempt / "state.json")["turns"], 2)
 
     def test_missing_package_json_fails_before_consultation(self):
@@ -143,15 +166,15 @@ process.stdout.write(JSON.stringify(store.status(root)));
         driver.write(self.case / "actor.json", actor)
         world = {"world_id": "world-test", "world_version": "1.0.0", "private_truth": "TEST_ONLY_PRIVATE_VALUE"}
         driver.write(self.case / "world.json", world)
-        self.manifest()
+        self.manifest("world.json")
         driver.validate_case(self.case)
         for changed in ({**world, "world_id": "wrong"}, {**world, "world_version": "2.0.0"}):
             driver.write(self.case / "world.json", changed)
-            self.manifest()
+            self.manifest("world.json")
             with self.assertRaisesRegex(ValueError, "world identity mismatch"):
                 driver.validate_case(self.case)
         driver.write(self.case / "world.json", world)
-        self.manifest()
+        self.manifest("world.json")
         self.begin()
         self.assertFalse((self.work / "world.json").exists())
         self.assertNotIn("TEST_ONLY_PRIVATE_VALUE", json.dumps(driver.inspect(self.attempt, "actor")))
@@ -161,9 +184,9 @@ process.stdout.write(JSON.stringify(store.status(root)));
 
     def test_private_actor_learning_survives_replies_without_public_leak(self):
         self.begin()
-        change = {"subject": "belief-spending", "before": "The spreadsheet specifies an intervention.",
-                  "after": "The extra spending still needs a concrete purpose.",
-                  "evidence": "The consultant's first reply asks what extra funding would pay for."}
+        change = {"subject": "belief-context", "before": "The spreadsheet explains how the policy was introduced.",
+                  "after": "The consultant also needs the policy's introduction records.",
+                  "evidence": "The consultant's first reply asks which records describe the introduction."}
         with self.assertRaisesRegex(ValueError, "initial dispatch"):
             driver.step(self.attempt, self.reply(initial=True, belief_updates=[change]))
         driver.step(self.attempt, self.reply(initial=True))
@@ -177,22 +200,44 @@ process.stdout.write(JSON.stringify(store.status(root)));
         visible = driver.inspect(self.attempt, "actor")
         self.assertEqual(visible["actor_updates"], [{"event": "002", "belief_updates": [change]}])
         self.assertEqual(len(visible["conversation"]), 3)
-        self.assertNotIn("belief-spending", json.dumps(visible["conversation"]))
+        self.assertNotIn("belief-context", json.dumps(visible["conversation"]))
         sent = (self.attempt / "events/002/transport/request.txt").read_text(encoding="utf-8")
-        self.assertNotIn("belief-spending", sent)
+        self.assertNotIn("belief-context", sent)
         self.assertEqual(driver.read(self.attempt / "events/002/actor.json")["belief_updates"], [change])
+
+    def test_actor_resume_retains_disclosures_and_unanswered_questions_without_reviewer_truth(self):
+        self.begin()
+        driver.step(self.attempt, self.reply(initial=True))
+        outstanding = "Please explain why the introduction records matter before I choose."
+        driver.step(self.attempt, self.reply(unanswered_questions=[outstanding]))
+        first_view = driver.inspect(self.attempt, "actor")
+        self.assertEqual(first_view["actor_disclosures"][-1], {
+            "event": "002", "fact_ids": ["f-record-access"], "attachments": [],
+            "unanswered_questions": [outstanding]})
+        driver.step(self.attempt, self.reply(message="I am still waiting for that explanation.",
+                                           fact_ids=[], unanswered_questions=[outstanding]))
+        resumed = driver.inspect(self.attempt, "actor")
+        self.assertEqual(resumed["actor_disclosures"][:2], first_view["actor_disclosures"])
+        self.assertEqual(resumed["actor_disclosures"][-1]["unanswered_questions"], [outstanding])
+        self.assertNotIn("world.json", json.dumps(resumed))
+        self.assertNotIn("reviewer.json", json.dumps(resumed))
+        self.assertNotIn("oracle", json.dumps(resumed))
+        for event in ("002", "003"):
+            sent = (self.attempt / "events" / event / "transport/request.txt").read_text(encoding="utf-8")
+            self.assertNotIn("f-record-access", sent)
+            self.assertNotIn("unanswered_questions", sent)
 
     def test_candidate_inventory_accepts_only_explicit_compatible_versions(self):
         candidate = self.root / "version-probe"
         candidate.mkdir()
         (candidate / "SKILL.md").write_text("Test-only runtime file.", encoding="utf-8")
-        for version in ("7.0.0", "7.0.1", "7.0.2", "7.0.4", "7.0.5", "7.0.6"):
+        for version in ("7.0.0", "7.0.1", "7.0.2", "7.0.4", "7.0.5", "7.0.6", "7.0.7"):
             with self.subTest(version=version):
                 driver.write(candidate / "package.json", {"version": version, "files": ["SKILL.md"]})
                 self.assertEqual(driver.candidate_inventory(candidate), {
                     "SKILL.md": driver.digest(candidate / "SKILL.md"),
                     "package.json": driver.digest(candidate / "package.json")})
-        for version in ("6.9.9", "7.0.3", "7.0.7", "7.1.0", "7.0.2-preview", "7.0.4-preview", "7.0.5-preview", "7.0.6-preview"):
+        for version in ("6.9.9", "7.0.3", "7.0.8", "7.1.0", "7.0.2-preview", "7.0.4-preview", "7.0.5-preview", "7.0.6-preview", "7.0.7-preview"):
             with self.subTest(version=version):
                 driver.write(candidate / "package.json", {"version": version, "files": ["SKILL.md"]})
                 with self.assertRaisesRegex(ValueError, "observation profile"):
@@ -225,6 +270,54 @@ process.stdout.write(JSON.stringify(store.status(root)));
             driver.write(candidate / "package.json", {"version": "7.0.4"})
             self.assertEqual(driver.candidate_observation_profile(candidate, self.config)["capabilities"], [])
             run.assert_not_called()
+
+    def test_707_profile_requires_loop_capability_and_keeps_observational_limits(self):
+        candidate = self.root / "loop-profile"
+        candidate.mkdir()
+        driver.write(candidate / "package.json", {"version": "7.0.7"})
+        with patch.object(driver.subprocess, "run") as run:
+            run.return_value = subprocess.CompletedProcess([], 0, json.dumps({
+                "capabilities": [driver.EXCHANGE_CAPABILITY]}).encode(), b"")
+            with self.assertRaisesRegex(ValueError, "lacks consultation-loop-v1"):
+                driver.candidate_observation_profile(candidate, self.config)
+            run.return_value = subprocess.CompletedProcess([], 0, json.dumps({
+                "capabilities": [driver.EXCHANGE_CAPABILITY, driver.LOOP_CAPABILITY]}).encode(), b"")
+            profile = driver.candidate_observation_profile(candidate, self.config)
+            self.assertTrue(profile["consultation_loop"])
+            self.assertEqual(profile["enforcement"], "observational_only")
+
+    def test_actual_scope_response_and_later_choice_are_retained_independently(self):
+        self.full_report_case()
+        self.config["claude_command"][-1] = "fixture_response"
+        self.begin()
+        offered = self.saved_run(prepare_only=True)["offered"]
+        response = self.work / "fake-response.txt"
+        response.write_text(offered["rendered_response"], encoding="utf-8")
+        driver.step(self.attempt, self.reply(initial=True))
+        self.assertFalse((self.work / "consultation/runs/report-main").exists())
+        self.saved_run(offered=offered)
+        response.write_text("The requested synthetic report is saved.", encoding="utf-8")
+        user = "I choose the proposed report scope exactly as presented."
+        driver.step(self.attempt, self.reply(message=user, fact_ids=[], rule_ids=[]))
+        result = driver.finish(self.attempt, self.assessment())
+        self.assertTrue(result["completion_check"]["satisfied"])
+        check = result["consultation_loop_check"]
+        self.assertEqual(check["status"], "no_structural_breach", check)
+        self.assertEqual(check["actions"][0]["user_choice_candidates"][0]["actual_user_text"], user)
+        self.assertTrue(check["actions"][0]["semantic_review_required"])
+        self.assertEqual(result["test_validity"], "invalid")
+        self.assertEqual(result["quality_rating"], "inconclusive")
+
+    def test_saved_approval_and_actor_update_cannot_hide_unobserved_prior_offer(self):
+        self.full_report_case()
+        self.begin()
+        self.saved_run()
+        driver.step(self.attempt, self.reply(initial=True))
+        result = driver.finish(self.attempt, self.assessment())
+        self.assertTrue(result["completion_check"]["satisfied"])
+        self.assertEqual(result["consultation_loop_check"]["status"], "breach")
+        self.assertEqual(result["test_validity"], "invalid")
+        self.assertEqual(result["quality_rating"], "fail")
 
     def test_project_root_binding_is_explicit_or_unique_and_contained(self):
         files = {"journal.jsonl": "root", ".claude/skills/example/journal.jsonl": "runtime"}
@@ -383,7 +476,7 @@ process.stdout.write(JSON.stringify(receipt));
         self.assertEqual(driver.read(event / "project-status/stdout.txt")["project"]["deliveries"], [])
 
     def test_corrupt_or_unexpected_fixture_inputs_fail(self):
-        for name in ("public/data.csv", "actor.json"):
+        for name in ("public/panel.csv", "actor.json"):
             original = (self.case / name).read_bytes()
             (self.case / name).write_bytes(original + b" ")
             with self.assertRaisesRegex(ValueError, "identity mismatch"):
@@ -394,8 +487,13 @@ process.stdout.write(JSON.stringify(receipt));
             driver.validate_case(self.case)
 
     def test_numeric_oracle_catches_coherently_rehashed_changed_data(self):
-        data = self.case / "public/data.csv"
-        data.write_bytes(data.read_bytes().replace(b",118\r\n", b",18\r\n"))
+        data = self.case / "public/panel.csv"
+        lines = data.read_text(encoding="utf-8").splitlines()
+        column = lines[0].split(",").index("mean_skill_score")
+        row = lines[1].split(",")
+        row[column] = str(float(row[column]) + 100)
+        lines[1] = ",".join(row)
+        data.write_text("\n".join(lines) + "\n", encoding="utf-8")
         self.manifest()
         with self.assertRaisesRegex(ValueError, "self-check failed"):
             driver.validate_case(self.case)
@@ -452,7 +550,7 @@ process.stdout.write(JSON.stringify(receipt));
 
     def test_changed_public_input_blocks_further_dispatch(self):
         self.begin()
-        (self.work / "data.csv").write_text("changed")
+        (self.work / "panel.csv").write_text("changed")
         with self.assertRaisesRegex(ValueError, "public input changed"):
             driver.step(self.attempt, self.reply(initial=True))
 
@@ -488,7 +586,7 @@ process.stdout.write(JSON.stringify(receipt));
         self.begin()
         driver.step(self.attempt, self.reply(initial=True))
         review = self.assessment()
-        review["findings"] = [{"owner": "consultant", "severity": "material", "criterion": "c-target",
+        review["findings"] = [{"owner": "consultant", "severity": "material", "criterion": "c-evidence",
                                "description": "Test-only defect", "consequence": "Unsupported policy claim",
                                "evidence_refs": ["private/events/001/public.json"]}]
         self.assertEqual(driver.finish(self.attempt, review)["quality_rating"], "fail")
@@ -497,7 +595,7 @@ process.stdout.write(JSON.stringify(receipt));
         self.begin()
         driver.step(self.attempt, self.reply(initial=True))
         review = self.assessment()
-        review["coverage"]["c-compute"]["status"] = "not_applicable"
+        review["coverage"]["c-reproducibility"]["status"] = "not_applicable"
         with self.assertRaisesRegex(ValueError, "cannot be waived"):
             driver.finish(self.attempt, review)
 
@@ -578,7 +676,7 @@ process.stdout.write(JSON.stringify(receipt));
         verify_log = self.attempt / "events/001/project-verify/stdout.txt"
         snapshot_output = self.attempt / "events/001/work-snapshot/consultation/runs/report-main/report.html"
         for path, replacement in ((output, b"changed after verification"),
-                                  (self.work / "data.csv", b"source changed after verification"),
+                                  (self.work / "panel.csv", b"source changed after verification"),
                                   (verify_log, None), (snapshot_output, None)):
             original = path.read_bytes()
             with self.subTest(path=path):
@@ -647,6 +745,7 @@ process.stdout.write(JSON.stringify(receipt));
                 self.assertEqual(result["outcome"], expected)
 
     def test_focused_completion_still_needs_no_report(self):
+        self.focused_endpoint()
         self.begin()
         driver.step(self.attempt, self.reply(initial=True))
         result = driver.finish(self.attempt, self.assessment())
@@ -676,6 +775,7 @@ process.stdout.write(JSON.stringify(receipt));
         self.assertEqual(result["resources"]["elapsed_seconds"], expected)
 
     def test_rating_rules_with_reviewed_host_and_missing_evidence(self):
+        self.focused_endpoint()
         self.begin()
         driver.step(self.attempt, self.reply(initial=True))
         base = self.assessment()
@@ -687,14 +787,15 @@ process.stdout.write(JSON.stringify(receipt));
         index["files"]["private/host/smoke.txt"] = "test-only"
         base["host_checks"] = {key: {"verified": True, "reason": "Test-only reviewed probe", "evidence_refs": ["private/host/smoke.txt"]}
                                for key in ("candidate_loading", "exact_resume", "private_isolation", "role_separation")}
-        self.assertEqual(driver.assess(base, state, frozen, index)["quality_rating"], "pass")
+        loop_check = driver.consultation_loop_check(self.attempt, frozen, index)
+        self.assertEqual(driver.assess(base, state, frozen, index, loop_check=loop_check)["quality_rating"], "pass")
         missing = copy.deepcopy(base)
-        missing["coverage"]["c-cadence"]["status"] = "unobserved"
+        missing["coverage"]["c-closeout"]["status"] = "unobserved"
         self.assertEqual(driver.assess(missing, state, frozen, index)["quality_rating"], "inconclusive")
         minor = copy.deepcopy(base)
-        minor["findings"] = [{"owner": "consultant", "severity": "minor", "criterion": "c-target",
+        minor["findings"] = [{"owner": "consultant", "severity": "minor", "criterion": "c-evidence",
                               "description": "Test defect", "consequence": "Test consequence", "evidence_refs": ["private/events/001/public.json"]}]
-        self.assertEqual(driver.assess(minor, state, frozen, index)["quality_rating"], "weak")
+        self.assertEqual(driver.assess(minor, state, frozen, index, loop_check=loop_check)["quality_rating"], "weak")
         for owner in ("simulator", "fixture", "harness", "environment"):
             invalid = copy.deepcopy(minor)
             invalid["findings"][0].update(owner=owner, severity="material")

@@ -2,34 +2,26 @@
 
 Hermes supplies adaptive user replies; this standard-library adapter transports
 them and captures evidence for a separate reviewer. Use shared Python 3.10+,
-Node 18.18+, an existing Claude Code installation, and consultant 7.0.6. The
-explicit observation allowlist also accepts 7.0.0, 7.0.1, 7.0.2, 7.0.4 and 7.0.5 and retains the same package inventory,
+Node 18.18+, an existing Claude Code installation, and consultant 7.0.7. The
+explicit observation allowlist also accepts 7.0.0, 7.0.1, 7.0.2, 7.0.4, 7.0.5 and 7.0.6 and retains the same package inventory,
 validator, helper and evidence checks for each supported version; it does not
 admit 7.0.3 or future versions automatically.
 No installation or paid consultation occurs in `preflight`.
 
-The consultant's historical 7.0.4 release aligned version metadata while retaining
-the 7.0.2 observation interface. The 7.0.5 profile adds durable exchange evidence;
-7.0.6 retains that observation contract for the modular catalog release.
-Frozen persona case 1.0.0 manifests still identify their
-original 7.0.2 target. Use the [documented release profile](persona-cases.md)
-without rewriting those files. Startup binds the actual candidate's version,
-package inventory and hashes separately from the frozen case identity; earlier
-rehearsals and comparisons retain their original evidence labels.
+Version 7.0.7 requires `consultation-loop-v1` and adds passive chronology checks
+against the actual public transcript and per-reply snapshots. Existing captures
+and older profiles retain their historical meaning.
+Startup binds the actual candidate's version, package inventory and hashes
+separately from the composed case identity.
 
 Select a problem and persona from the [active composition catalog](problem-persona-matrix.md).
 Any of the four problems supports any of the four personas. Compose the pair
 before `preflight`; every new pair requires its appropriate saved report.
 An explicit full matrix is 16 independent attempts. Establish unspecified
-persona/campaign scope before dispatch. The old fixed [persona cases](persona-cases.md),
-report adaptations and focused fixtures remain explicit historical regressions.
-
-The focused case at `cases/college-policy-v7` (case 1.1.0) contains unchanged
-College data, semantic actor rules, an explicit unknown policy timetable and an
-independent descriptive oracle/self-check. It supplies no causal-effect truth.
-It is an adaptation of the recorded local diagnostic, not one of V7P01-V7P04.
-Keep that fixture unchanged. The versioned synthetic investigation-depth cases
-and first comparison stage are listed in [pilot-cases.md](pilot-cases.md).
+persona/campaign scope before dispatch. The repository contains four reusable
+problems and four personas; composed cases are private run inputs generated on
+request. Previous frozen cases and their plans are available through Git history
+and retained run packages, outside the active catalog.
 
 ## Configuration and startup
 
@@ -56,7 +48,7 @@ four active hours and twelve elapsed hours. It is not a minimum duration or a
 prediction. The private 5/10/15/8 target lengths never instruct the actor or stop
 the run. Persona-dependent discussion may exceed them without a defect. Stop
 when the actual objective is met, not to approach the target. Choose and freeze
-host-appropriate capacity before a run; preserve older cases' recorded limits
+host-appropriate capacity before a run; preserve earlier runs' recorded limits
 and failures rather than applying this envelope retrospectively.
 
 No minimum, mandatory four-round count or guessed number of rounds applies.
@@ -115,7 +107,7 @@ stages only the runtime under `.claude/skills/causal-consultant` and initial
 public sources. It captures Claude version/help, without sending a user message.
 Confirm actual candidate selection in the host smoke, accounting for installed
 skills/settings. Keep scenario names out of public paths.
-For consultant 7.0.5 and 7.0.6, preflight also requires the reported
+For consultant 7.0.5 through 7.0.7, preflight also requires the reported
 `durable-exchanges-v1` capability and freezes that observation profile. This is
 helper compatibility evidence, not proof of correct consultant behavior.
 The optional `user-question-routing-v1` capability identifies the revised
@@ -141,9 +133,9 @@ semantic rules. This example illustrates the format, not a prescribed next turn:
 
 ```json
 {
-  "message": "The board has not agreed how colleges would use the extra money.",
-  "fact_ids": ["f-policy"],
-  "rule_ids": ["r-answer"],
+  "message": "I cannot obtain additional office records.",
+  "fact_ids": ["f-record-access"],
+  "rule_ids": ["r-known-facts"],
   "attachments": [],
   "unanswered_questions": [],
   "fixture_gaps": [],
@@ -171,7 +163,9 @@ python scripts/session_driver.py inspect --attempt /private/run001 --view actor
 The actor view contains public messages and available filenames, plus
 `actor_updates` when the actor has recorded updates. Each history entry identifies
 its event and the actor's own update arrays for an existing public exchange;
-it adds no reviewer evidence. Resume with this history so learning and corrections
+it adds no reviewer evidence. `actor_disclosures` also retains that actor's own
+fact IDs, attachments and unanswered questions from dispatched exchanges.
+Resume with this history so learning, earlier disclosures and outstanding requests
 persist. The first
 call uses an explicit UUID; all later calls use `--resume` with that exact ID and
 the same work directory. Verbose stream JSON retains complete stdout/stderr,
@@ -206,8 +200,7 @@ answer before dependent work; the latter should be retained before work and
 answered from its results or left pending with a reason. A supplied action
 selection does not erase a question in the same message. Inspect the actual
 exchange and sources; neither a section label nor a saved question status proves
-the answer is adequate. Existing persona facts, actor rules and stopping
-conditions remain unchanged.
+the answer is adequate. Apply the persona packet frozen for that attempt.
 
 Limits count attempted consultation turns and consultant subprocess active time,
 including failures. Active time excludes harness observations. Elapsed time begins
@@ -277,20 +270,32 @@ report changes a claimed `objective_met` or `useful_stop` to `incomplete`.
 Finalization remains available for failures. Scientific/report-content quality
 still needs the independent review; artifact verification alone cannot earn a pass.
 
+For the new loop profile, each turn also saves
+`consultation-loop-observation.json`. Finish reconstructs
+`consultation_loop_check` from retained public messages and snapshots, rather
+than trusting that saved observation or the candidate's latest state. The first
+protected start must follow an actual scope offer and later user text attributed
+to its selection. A report also requires actual findings discussion. A captured
+structural breach makes quality fail even after later approval. Missing captures
+remain unobserved. The reviewer must still interpret the whole user reply,
+classify unregistered artifacts/computations and assess evidence changes. The
+observer records evidence and never creates delivery or permission records.
+Keep the snapshot, public JSON, observer module and raw transport evidence in
+the run package. A valid user pause without a report leaves the full-report
+objective incomplete; the operator can resume the same ready session later.
+
 ## Validation and target-host handoff
 
 Run `python -m unittest discover -s tests -v` with the sibling consultant package.
 The tests invoke real subprocesses using `tests/fake_claude.py`; they validate
 adapter behavior, not consultant performance or Hermes/Claude compatibility.
 Before claiming live performance, run the actual host smoke and the selected
-persona full-report consultations with independent review. The legacy College recap case covers a
-shorter endpoint. Missing worker traces remain unobserved;
+persona full-report consultations with independent review. Missing worker traces remain unobserved;
 do not infer cadence from final prose or add overlapping usage totals.
 
 The flags follow the official [CLI reference](https://code.claude.com/docs/en/cli-reference)
 and [headless guide](https://code.claude.com/docs/en/headless). Confirm support and
-behavior in the installed host version. The four V7P pilots and investigation-depth
-campaign remain pending. For the latter, compare frozen 7.0.1 and 7.0.2 snapshots
-under matched host/model/tools and prospectively frozen limits, starting with
-the 12-consultation stage in the pilot guide. Local tests do not qualify these
-consulting behaviors.
+behavior in the installed host version. Compare selected problem/persona pairs
+under identified candidate versions, matched host/model/tools and prospectively
+frozen limits. Local tests do not qualify live consulting behavior or establish
+typical conversation length.

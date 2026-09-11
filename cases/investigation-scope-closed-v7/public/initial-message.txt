@@ -1,2 +1,0 @@
-Please use causal-consultant to help our consortium decide what this synthetic advising-grant pilot tells us about improving completion. Did offering the grant improve four-year completion for the 2020 entering students at these 24 sites? We are considering repeating the same program for future entrants. Please investigate what these files can support and give useful advice with reproducible results where supported.
-Start with a saved descriptive comparison between sites with and without a grant offer. I also want to know whether it tells us if the program helped.

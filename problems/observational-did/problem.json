@@ -43,7 +43,7 @@
       "fact_id": "f-record-access",
       "knowledge_tier": "practical",
       "source": "office file inventory",
-      "statement": "The listed office records are available locally. I can share relevant records, including several together, when asked. I cannot obtain other records or contact staff during this consultation."
+      "statement": "The listed office records are available locally. I can share records that help with the questions we are discussing. I cannot obtain other records or contact staff during this consultation."
     },
     {
       "available_when": "A relevant question about this subject",
@@ -67,7 +67,7 @@
       "source_ids": []
     },
     {
-      "action": "Release all semantically relevant available sources together, including a broad equivalent request. Do not require exact filenames or preferred vocabulary. Describe an inventory without attaching contents only if the request genuinely asks solely what exists. Previously supplied sources remain available; do not fabricate a new version.",
+      "action": "Apply the shared r-records rule and the selected persona's disclosure_policy. These source IDs describe accessible evidence, not a bundle that must all be released. Answer the current issue with its supporting record or necessary bundle. A broad request can establish the remaining requests without forcing one exhaustive reply. Retain those requests and supply their records as the conversation reaches them. Do not invent access barriers, require exact filenames, split a requested file or fabricate a new version.",
       "condition": "The consultant asks for study records, definitions, collection or selection details, or all relevant supporting material.",
       "fact_ids": [
         "f-record-access"
@@ -91,7 +91,7 @@
       "source_ids": []
     },
     {
-      "action": "Acknowledge useful progress and request the already authorized saved report. During ongoing substantive work, answer the actual questions and make the necessary decisions instead of repeatedly pressing for a report. Do not force additional investigation after a defensible endpoint is established; a genuine unresolved question or delivery defect remains outstanding.",
+      "action": "Acknowledge the findings and choose among the actual offered directions. Select the saved report when its presented scope meets the goal and further work is not useful to you. An earlier report request is a desired outcome, not standing approval. During ongoing work, answer questions and steer bounded next actions. Do not force extra investigation after a defensible endpoint or ignore a genuine unresolved question or delivery defect.",
       "condition": "The substantive investigation and supported analysis are settled, but only a conversational recap or intermediate artifact has been supplied and a complete saved report is still absent.",
       "fact_ids": [
         "f-report"
@@ -112,14 +112,14 @@
   "files": {
     "check_oracle.py": "62ecf5dd7260cedaf7b97c6cd774e33a8b50dc5f6677f4674980c4c12d0e3a7f",
     "oracle.json": "ffa08f3711df7c23790a5e4c629d4f6ae792307976e4a551322fd4a0da12acae",
-    "public/available-records.md": "563bea29d9dd8a326528b83f15e2642de3f528dde9c7fd3bfd9bfeef5fbe723d",
+    "public/available-records.md": "2f64c87db5fa78282bf23f28377397a9ca7fe9b55622c63973376508fbd194b6",
     "public/decision-and-assumptions.md": "757c3ec1a989478301839aaa046ebaf724e87a694b6fc6ee14e0da24faf86799",
     "public/dictionary.md": "5827db0cf62fa2ec4cb229f9c2e614e90e5a736a9b4d2c759940b65d7c3b423b",
     "public/panel.csv": "57f5a8629f54c64f98212c81be995c1bd40c8d771a7753c4dbe36741b2631ed6",
     "public/rollout-record.md": "d5182cbdeeddaeae49c8cd06a99712f44948850bd5eb97be5022a6a106bd49f6",
     "public/site-roster.csv": "887d3b4c84daa8b16e7c99b46c5c13019eb5a67dfabfce2d84ded0c1858be106",
-    "reviewer.json": "8e40844c121b7ec77a8e3a3bb0fd5ebd1659648a14b671320197d5280e3620f7",
-    "world.json": "af9d979e67f88893184df7800a0f3b132292ae70e77af7e35d1318101e70fead"
+    "reviewer.json": "905e24506170fbbc24a70c626c73aada44b8dfb3600fb5421e0256532aac3d10",
+    "world.json": "55c447e99a3ed6fb8bec142dbd5757f31352333b888ec23f882c76cfc3e52de2"
   },
   "goal": "Use the site panel and obtainable records to investigate the tutoring policy and save a complete local report addressing the average effect over all 120 sites in 2025-2026. Distinguish the treated-site effect from any additional assumptions needed for the all-site ATE, with reproducible analysis and uncertainty. HTML is suitable; no publication.",
   "initial_request": "Please use the causal-consultant skill for this consultation. Please evaluate our tutoring policy using the attached site panel and save a complete report for the regional office. We want the average effect across all 120 sites for 2025-2026, including sites that did not adopt. Adoption was an operational choice; I can provide the rollout and measurement records.",
@@ -132,7 +132,7 @@
   "label": "Observational DiD and population effect",
   "oracle_check": "check_oracle.py",
   "problem_id": "observational-did",
-  "problem_version": "1.0.0",
+  "problem_version": "1.0.2",
   "reviewer": "reviewer.json",
   "schema_version": 1,
   "sources": [

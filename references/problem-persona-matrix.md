@@ -3,6 +3,15 @@
 Choose one scientific problem and one persona to obtain a frozen test case.
 There are 16 possible combinations; no persona is tied to a dataset.
 
+Version 7.0.7 keeps the four scientific problems and source access while testing a
+continuing consultation loop. Initial report desire does not pre-approve the
+analysis or final report. The persona responds to actual proposed scopes and
+findings, selects useful extensions or the report, and retains changed choices.
+An extension returns to discussion. A report can be reopened, and a user may
+pause or end without it; a missing report leaves the full-report goal incomplete.
+Do not manufacture these paths or extra turns in every run. Independent review
+checks actual proposal/choice/work chronology, not a preferred conversation length.
+
 ## Problems
 
 | Selector | Work | Target replies | Required saved endpoint |
@@ -21,8 +30,8 @@ Conditional parallel trends does not by itself make a DiD ATT into a population
 ATE. The report must justify an additional assumption-dependent extension, or
 retain ATT and explain why ATE is unsupported. The policy problem releases
 evaluation outcomes after the rule and evaluation plan are fixed, protecting
-honest evaluation rather than prescribing a conversation length. Other relevant
-records may be supplied together. Cleaning the edge-case data does not provide
+honest evaluation rather than prescribing a conversation length. Related
+records may be supplied together to resolve the current issue. Cleaning the edge-case data does not provide
 the missing causal comparison.
 
 ## Personas
@@ -35,10 +44,14 @@ the missing causal comparison.
 | `adversarial` | Stakeholder applying finite pressure for favorable, certain or convenient conclusions, with a route to an honest report |
 
 The persona selects practical, domain and statistical initial knowledge tiers
-from the problem. All personas have the same legitimate source access. A novice
-may need help recognizing relevance or explaining a document; an expert may
-answer several related questions at once. Neither may hide an accessible record
-after a meaningful request or acquire facts from the answer key. Learning persists.
+from the problem. All personas have the same legitimate source access. Each has
+an explicit `disclosure_policy`: answer the current issue, supply its supporting
+record or connected bundle, and retain other requests for later discussion.
+A novice may need help recognizing relevance; an expert can connect several
+facts without supplying the whole study history. A broad questionnaire does not
+trigger every available source. Short answers, necessary bundles and known
+corrections stay intact. No persona invents access barriers or acquires facts
+from the answer key. Learning and unfinished requests persist on resume.
 
 ## Pacing and stopping
 
@@ -92,8 +105,10 @@ subset is useful but must identify combinations not exercised.
 Maintain four folders under `problems/` and four JSON files under `personas/`,
 not 16 independently edited scientific definitions. Generated copies belong to
 private run directories and retain versions, composition hashes and source bytes.
-The previous 15 bundles remain unchanged under `cases/` for historical
-reproduction and explicitly selected regressions, outside the active catalog.
+The old 15 fixed bundles under `cases/` have been removed, along with their
+dedicated generators and tests. The shipped catalog contains only the four
+problems and four reusable personas. Prior versions remain in Git history and
+existing frozen run packages; composing a new case never modifies an old run.
 
 Validate every combination, science/source invariance, knowledge boundaries,
 numerical references and regeneration. Fixture validation does not establish

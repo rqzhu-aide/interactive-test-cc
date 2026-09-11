@@ -1,3 +1,0 @@
-# Program calendar and extract reconciliation
-
-For the site IDs in data.csv, offers were drawn on 2020-02-01. The funded service period is 2020-09-01 through 2024-05-31, serving the 2020 entering cohort. The recorded grant flag refers to this program only. There was no earlier version of this grant, and its allocation was not announced before the stated draw. The outcome column in the extract refers to the distinct measurement made on 2024-09-01 for 2020 entrants. The export is a join on site ID, not proof that every column refers to the same cohort. The funded 2020 entrants are the same cohort measured by the 2024 outcome; the package was delivered throughout their study period.

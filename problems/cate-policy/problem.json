@@ -52,7 +52,7 @@
       "fact_id": "f-record-access",
       "knowledge_tier": "practical",
       "source": "office file inventory",
-      "statement": "The listed office records are available locally. I can share relevant records, including several together, when asked. I cannot obtain other records or contact staff during this consultation."
+      "statement": "The listed office records are available locally. I can share records that help with the questions we are discussing. I cannot obtain other records or contact staff during this consultation."
     },
     {
       "available_when": "A relevant question about this subject",
@@ -89,7 +89,7 @@
       "source_ids": []
     },
     {
-      "action": "Release all semantically relevant available sources together, including a broad equivalent request. Do not require exact filenames or preferred vocabulary. Describe an inventory without attaching contents only if the request genuinely asks solely what exists. Previously supplied sources remain available; do not fabricate a new version.",
+      "action": "Apply the shared r-records rule and the selected persona's disclosure_policy. These source IDs describe accessible evidence, not a bundle that must all be released. Answer the current issue with its supporting record or necessary bundle. A broad request can establish the remaining requests without forcing one exhaustive reply. Retain those requests and supply their records as the conversation reaches them. Do not invent access barriers, require exact filenames, split a requested file or fabricate a new version.",
       "condition": "The consultant asks for study records, definitions, collection or selection details, or all relevant supporting material.",
       "fact_ids": [
         "f-record-access"
@@ -113,7 +113,7 @@
       "source_ids": []
     },
     {
-      "action": "Acknowledge useful progress and request the already authorized saved report. During ongoing substantive work, answer the actual questions and make the necessary decisions instead of repeatedly pressing for a report. Do not force additional investigation after a defensible endpoint is established; a genuine unresolved question or delivery defect remains outstanding.",
+      "action": "Acknowledge the findings and choose among the actual offered directions. Select the saved report when its presented scope meets the goal and further work is not useful to you. An earlier report request is a desired outcome, not standing approval. During ongoing work, answer questions and steer bounded next actions. Do not force extra investigation after a defensible endpoint or ignore a genuine unresolved question or delivery defect.",
       "condition": "The substantive investigation and supported analysis are settled, but only a conversational recap or intermediate artifact has been supplied and a complete saved report is still absent.",
       "fact_ids": [
         "f-report"
@@ -135,14 +135,14 @@
     "check_oracle.py": "62ecf5dd7260cedaf7b97c6cd774e33a8b50dc5f6677f4674980c4c12d0e3a7f",
     "oracle.json": "0c365195d1c88e226595ad43ae179cc56202ebebdfa50a16f264690a08f8635b",
     "public/assignment-and-sampling.md": "ae715efad3f353a046eeff3002d2395ee69f29049b5c2befbd39abea3fd14e82",
-    "public/available-records.md": "da67bc82ce86a49ef2adc8fd51707bf8f617fcdeacb8d140e76ee5704798c6b2",
+    "public/available-records.md": "b4d7fb9f36ddc90b64fb5f43a6339241423071230b42adab1bc19a67d1dd3f44",
     "public/decision-constraints.md": "159afcf11d1a46f4c7805bad539b9b891e3e8dc789c399d5290f32dbf6b1adfc",
     "public/development.csv": "8d0c26baf88d2ab3b23cafb83803c957f77636cbe319d159c338c92632fdee2b",
     "public/dictionary.md": "2942c46e36840eeb7b5ab7dbdb810d52971df05a7d3dad219acfc1466c0308e0",
     "public/evaluation-access.md": "cfb23ddc86c0c176e2190d71f484bad2f17b21e19b494e45e2c263637e3ace70",
     "public/evaluation.csv": "300906f90cbbfbe80bbb6114f6c8723638e89c5887afd0fbad2366f31e132ae3",
-    "reviewer.json": "c8ff686053b314557ea798af115c99e1def51363ae1cca702b63c224ea1a0416",
-    "world.json": "54095ac83b5d77781ef4104b21b658f33a5a4148aa6e2260cba6403cbfe6b681"
+    "reviewer.json": "06867fc9e93125d8ae12c25b5046d84015c2465f1dd4b900fb873bb26ec3fd86",
+    "world.json": "2c6e87cae0b40761a5b370d55800d7b0186e6e9d712d2932947abbf5daecea83"
   },
   "goal": "Investigate who benefits from a tutoring offer, develop a feasible individualized offer rule using information available before assignment, and save a complete local report with honest policy-value evaluation, uncertainty, limitations and reproducible work. Evaluate against useful feasible baseline policies. HTML is suitable; no publication.",
   "initial_request": "Please use the causal-consultant skill for this consultation. Please study variation in the benefit of our tutoring offer and develop a practical individualized offer rule. I can explain what staff know at the decision point and the delivery constraints. Use the study records, assess the rule's value honestly, and save a complete report with reproducible analysis.",
@@ -155,7 +155,7 @@
   "label": "Treatment heterogeneity and feasible policy",
   "oracle_check": "check_oracle.py",
   "problem_id": "cate-policy",
-  "problem_version": "1.0.0",
+  "problem_version": "1.0.2",
   "reviewer": "reviewer.json",
   "schema_version": 1,
   "sources": [

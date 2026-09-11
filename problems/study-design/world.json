@@ -2,7 +2,7 @@
   "assumption_boundary": "No trial effect is known; feasibility facts are distinct from uncertain power inputs and identification assumptions for the future study.",
   "generation": {
     "generator": "scripts/generate_problem_bank.py",
-    "generator_sha256": "7fda9a7b736db9fdac6e99dc33cdf9b9220b77f0fd231926cd18b968e0de5f82",
+    "generator_sha256": "be16abee70088d48450445b0912465fca6627f15fe1b00b87a0b64b088a79c47",
     "numeric_note": "CSV values are frozen to six decimal places where indicated. Seed alone does not replace preserved bytes.",
     "seed": 26091001,
     "specification": {
@@ -66,7 +66,7 @@
     {
       "availability": "on_request",
       "file": "public/available-records.md",
-      "sha256": "69d455142b9f6a91d123d2d701d05996ae4e0af7acc47b6d50336df010f9237d",
+      "sha256": "71329fdf63502480b3464800866dabbadf04c59a6def5ed88b92d42f7e4b9bb6",
       "source_id": "s-inventory"
     }
   ],

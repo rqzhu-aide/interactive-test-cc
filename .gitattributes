@@ -1,6 +1,4 @@
 # Keep runtime hashes stable across platforms.
 * text=auto eol=lf
-# Fixture manifests bind exact bytes, including the supplied CSV's CRLF endings.
-cases/** -text
 # Modular problem definitions also bind their exact source and oracle bytes.
 problems/** -text

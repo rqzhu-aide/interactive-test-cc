@@ -12,9 +12,10 @@ import time
 import uuid
 
 from claude_transport import capture, invoke
+from consultation_observer import CAPABILITY as LOOP_CAPABILITY, evaluate_frames, retained_frames
 
 ACTOR_UPDATES = ("knowledge_updates", "belief_updates", "decision_updates")
-CONSULTANT_VERSIONS = ("7.0.0", "7.0.1", "7.0.2", "7.0.4", "7.0.5", "7.0.6")
+CONSULTANT_VERSIONS = ("7.0.0", "7.0.1", "7.0.2", "7.0.4", "7.0.5", "7.0.6", "7.0.7")
 EXCHANGE_CAPABILITY = "durable-exchanges-v1"
 USER_QUESTION_CAPABILITY = "user-question-routing-v1"
 
@@ -163,8 +164,9 @@ def validate_config(config):
 
 def candidate_observation_profile(candidate, config):
     profile = {"consultant_version": read(candidate / "package.json")["version"],
-               "enforcement": "observational_only", "capabilities": [], "user_question_routing": False}
-    if profile["consultant_version"] in ("7.0.5", "7.0.6"):
+               "enforcement": "observational_only", "capabilities": [], "user_question_routing": False,
+               "consultation_loop": False}
+    if profile["consultant_version"] in ("7.0.5", "7.0.6", "7.0.7"):
         probe = subprocess.run(config["node_command"] + [str(candidate / "scripts/project.cjs"), "capabilities"],
                                cwd=candidate, capture_output=True, timeout=30)
         require(probe.returncode == 0, profile["consultant_version"] + " consultant capability probe failed")
@@ -176,6 +178,9 @@ def candidate_observation_profile(candidate, config):
         profile["capabilities"] = capability["capabilities"]
         profile["capability_probe"] = capability
         profile["user_question_routing"] = USER_QUESTION_CAPABILITY in capability["capabilities"]
+        profile["consultation_loop"] = LOOP_CAPABILITY in capability["capabilities"]
+        if profile["consultant_version"] == "7.0.7":
+            require(profile["consultation_loop"], "7.0.7 consultant lacks " + LOOP_CAPABILITY)
     return profile
 
 
@@ -248,7 +253,7 @@ def start(case, candidate, config, attempt, work):
                 shutil.copyfile(case / source["file"], destination)
                 public[source["destination"]] = digest(destination)
         frozen["adapter_files"] = {
-            name: digest(Path(__file__).parent / name) for name in ("session_driver.py", "claude_transport.py")}
+            name: digest(Path(__file__).parent / name) for name in ("session_driver.py", "claude_transport.py", "consultation_observer.py")}
         testing_root = Path(__file__).resolve().parents[1]
         testing_files = [testing_root / "SKILL.md", testing_root / "README.md"]
         testing_files += list((testing_root / "references").glob("*"))
@@ -455,6 +460,8 @@ def step(attempt, reply):
                                           "attachments": [v["path"] for v in released.values()]})
             write(attempt / "state.json", state)
             observe_project(event, state, config)
+            if frozen.get("observation_profile", {}).get("consultation_loop"):
+                write(event / "consultation-loop-observation.json", consultation_loop_check(attempt, frozen))
             state["last_activity_at"] = time.time()
             record_time_limits(state, config, state["last_activity_at"])
             if state["status"] == "ready" and state["breaches"]:
@@ -488,13 +495,20 @@ def inspect(attempt, view):
         if view == "actor":
             result = {"conversation": conversation, "public_files": list(state["public_files"])}
             updates = []
+            disclosures = []
             for path in sorted((attempt / "events").glob("*/public.json")):
                 record = read(path.parent / "actor.json")
+                disclosures.append({"event": path.parent.name,
+                                    "fact_ids": record["fact_ids"],
+                                    "attachments": record["attachments"],
+                                    "unanswered_questions": record["unanswered_questions"]})
                 changes = {field: record[field] for field in ACTOR_UPDATES if record.get(field)}
                 if changes:
                     updates.append({"event": path.parent.name, **changes})
             if updates:
                 result["actor_updates"] = updates
+            if disclosures:
+                result["actor_disclosures"] = disclosures
             return result
         require(state["status"] != "finished", "review already finalized")
         index = evidence(attempt, state)
@@ -574,7 +588,22 @@ def full_report_completion(attempt, state, index):
     return result
 
 
-def assess(review, state, frozen, index, completion_check=None):
+def consultation_loop_check(attempt, frozen, index=None):
+    if not frozen.get("observation_profile", {}).get("consultation_loop"):
+        return {"profile": LOOP_CAPABILITY, "status": "not_applicable", "findings": [], "evidence_refs": [],
+                "reason": "The frozen candidate uses an older observation profile."}
+    frames = retained_frames(attempt, read, inventory)
+    public_paths = [source["destination"] for source in frozen["case_manifest"]["sources"]]
+    for frame in frames:
+        frame["public_paths"] = public_paths
+    result = evaluate_frames(frames)
+    if index is not None:
+        require(all(ref in index["files"] for ref in result["evidence_refs"]),
+                "consultation loop observation has unbound evidence")
+    return result
+
+
+def assess(review, state, frozen, index, completion_check=None, loop_check=None):
     require(review["evidence_sha256"] == index["sha256"], "review evidence changed; inspect and review again")
     require(review["test_validity"] in ("valid", "invalid", "unverified"), "invalid test validity")
     require(review["outcome"] in ("objective_met", "useful_stop", "incomplete", "execution_error"), "invalid outcome")
@@ -628,14 +657,20 @@ def assess(review, state, frozen, index, completion_check=None):
     if outcome == "useful_stop":
         require(packet.get("useful_stop") and review.get("useful_stop_basis"), "case does not permit this useful stop")
     defects = [f for f in review["findings"] if f["owner"] == "consultant"]
-    if any(f["severity"] in ("material", "fundamental") for f in defects):
+    loop_required = frozen.get("observation_profile", {}).get("consultation_loop", False)
+    if loop_required and loop_check is None:
+        loop_check = {"profile": LOOP_CAPABILITY, "status": "unobserved", "findings": [],
+                      "reason": "Actual consultation chronology was not checked.", "evidence_refs": []}
+    if any(f["severity"] in ("material", "fundamental") for f in defects) or (loop_check or {}).get("status") == "breach":
         rating = "fail"
-    elif validity != "valid" or missing or state["breaches"] or outcome not in ("objective_met", "useful_stop"):
+    elif validity != "valid" or missing or state["breaches"] or outcome not in ("objective_met", "useful_stop") or (
+            loop_required and loop_check["status"] != "no_structural_breach"):
         rating = "inconclusive"
     else:
         rating = "weak" if defects else "pass"
     return {**review, "test_validity": validity, "outcome": outcome, "quality_rating": rating,
             "completion_check": completion_check,
+            "consultation_loop_check": loop_check,
             "resources": {"consultant_turns": state["turns"],
                           "active_seconds": None if state["status"] == "pending" else state["active_seconds"],
                           "recorded_active_seconds": state["active_seconds"],
@@ -656,7 +691,8 @@ def finish(attempt, review):
         frozen["reviewer_packet"] = read(attempt / "case" / frozen["case_manifest"]["reviewer"])
         completion_check = (full_report_completion(attempt, state, index)
                             if frozen["case_manifest"].get("completion_contract") == "full_report" else None)
-        result = assess(review, state, frozen, index, completion_check)
+        loop_check = consultation_loop_check(attempt, frozen, index)
+        result = assess(review, state, frozen, index, completion_check, loop_check)
         write(attempt / "assessment.json", result)
         state["status"] = "finished"
         write(attempt / "state.json", state)

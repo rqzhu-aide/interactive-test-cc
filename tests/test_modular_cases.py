@@ -59,7 +59,7 @@ class ModularCases(unittest.TestCase):
                 manifest = validate_case(directory)
                 self.assertEqual(returned, manifest)
                 self.assertEqual(manifest["schema_version"], 1)
-                self.assertEqual(manifest["suite_version"], "7.0.6")
+                self.assertEqual(manifest["suite_version"], "7.0.7")
                 self.assertEqual(manifest["completion_contract"], "full_report")
                 self.assertEqual(manifest["problem_id"], problem)
                 self.assertEqual(manifest["persona_id"], persona)
@@ -259,6 +259,22 @@ class ModularCases(unittest.TestCase):
             self.assertEqual(low["run_limits"]["consultant_turns"], 2)
             self.assertEqual(low["completion_contract"], "full_report")
 
+    def test_missing_or_invalid_persona_disclosure_policy_rejects_composition(self):
+        with tempfile.TemporaryDirectory(prefix="modular-disclosure-") as temporary:
+            sandbox = Path(temporary)
+            personas = sandbox / "personas"
+            shutil.copytree(ROOT / "personas", personas)
+            original = read(personas / "novice.json")
+            for index, value in enumerate((None, [], "share everything", [""], [12])):
+                profile = {**original, "disclosure_policy": value}
+                if value is None:
+                    del profile["disclosure_policy"]
+                (personas / "novice.json").write_text(json.dumps(profile), encoding="utf-8")
+                output = sandbox / str(index)
+                with self.subTest(value=value), self.assertRaisesRegex(ValueError, "disclosure"):
+                    composer.compose_case("study-design", "novice", output, personas_root=personas)
+                self.assertFalse(output.exists())
+
     def test_cli_lists_only_the_four_by_four_catalog_and_composes_a_valid_case(self):
         script = ROOT / "scripts/compose_case.py"
         listed = subprocess.run([sys.executable, "-B", str(script), "--list"],
@@ -426,6 +442,23 @@ class ModularCases(unittest.TestCase):
             for filename, expected in regenerated.items():
                 self.assertEqual((directory / filename).read_bytes(), expected, problem + "/" + filename)
         self.assertEqual(inventory(ROOT / "problems"), before)
+
+    def test_every_pair_receives_loop_permissions_without_persona_or_world_changes(self):
+        for (problem, persona), (directory, manifest) in self.cases.items():
+            with self.subTest(problem=problem, persona=persona):
+                actor = read(directory / manifest["actor"])
+                rules = {item["rule_id"]: item["action"] for item in actor["rules"]}
+                self.assertNotIn("initial report request remains authorized", json.dumps(actor).lower())
+                self.assertNotIn("already authorized saved report", json.dumps(actor).lower())
+                self.assertIn("bounded", rules["r-proceed"])
+                self.assertIn("actual", rules["r-report-goal"])
+                criteria = {item["id"]: item for item in read(directory / manifest["reviewer"])["criteria"]}
+                self.assertTrue({"c-loop-permissions", "c-loop-steering"} <= criteria.keys())
+                self.assertTrue(criteria["c-loop-permissions"]["required"])
+                self.assertEqual(manifest["problem_version"], "1.0.2")
+                self.assertEqual(manifest["case_version"], "1.0.2")
+                self.assertEqual(manifest["persona_version"], "1.0.1")
+                self.assertEqual(read(directory / "persona.json"), read(ROOT / "personas" / (persona + ".json")))
 
 
 if __name__ == "__main__":

@@ -43,7 +43,7 @@
       "fact_id": "f-record-access",
       "knowledge_tier": "practical",
       "source": "office file inventory",
-      "statement": "The listed office records are available locally. I can share relevant records, including several together, when asked. I cannot obtain other records or contact staff during this consultation."
+      "statement": "The listed office records are available locally. I can share records that help with the questions we are discussing. I cannot obtain other records or contact staff during this consultation."
     },
     {
       "available_when": "A relevant question about this subject",
@@ -67,7 +67,7 @@
       "source_ids": []
     },
     {
-      "action": "Release all semantically relevant available sources together, including a broad equivalent request. Do not require exact filenames or preferred vocabulary. Describe an inventory without attaching contents only if the request genuinely asks solely what exists. Previously supplied sources remain available; do not fabricate a new version.",
+      "action": "Apply the shared r-records rule and the selected persona's disclosure_policy. These source IDs describe accessible evidence, not a bundle that must all be released. Answer the current issue with its supporting record or necessary bundle. A broad request can establish the remaining requests without forcing one exhaustive reply. Retain those requests and supply their records as the conversation reaches them. Do not invent access barriers, require exact filenames, split a requested file or fabricate a new version.",
       "condition": "The consultant asks for study records, definitions, collection or selection details, or all relevant supporting material.",
       "fact_ids": [
         "f-record-access"
@@ -91,7 +91,7 @@
       "source_ids": []
     },
     {
-      "action": "Acknowledge useful progress and request the already authorized saved report. During ongoing substantive work, answer the actual questions and make the necessary decisions instead of repeatedly pressing for a report. Do not force additional investigation after a defensible endpoint is established; a genuine unresolved question or delivery defect remains outstanding.",
+      "action": "Acknowledge the findings and choose among the actual offered directions. Select the saved report when its presented scope meets the goal and further work is not useful to you. An earlier report request is a desired outcome, not standing approval. During ongoing work, answer questions and steer bounded next actions. Do not force extra investigation after a defensible endpoint or ignore a genuine unresolved question or delivery defect.",
       "condition": "The substantive investigation and supported analysis are settled, but only a conversational recap or intermediate artifact has been supplied and a complete saved report is still absent.",
       "fact_ids": [
         "f-report"
@@ -112,14 +112,14 @@
   "files": {
     "check_oracle.py": "62ecf5dd7260cedaf7b97c6cd774e33a8b50dc5f6677f4674980c4c12d0e3a7f",
     "oracle.json": "0a456cc56e86e3bad69e763d89765eaec17495c39f30c3ea8335bd2c1483040a",
-    "public/available-records.md": "69d455142b9f6a91d123d2d701d05996ae4e0af7acc47b6d50336df010f9237d",
+    "public/available-records.md": "71329fdf63502480b3464800866dabbadf04c59a6def5ed88b92d42f7e4b9bb6",
     "public/calendar-and-measures.md": "2d53027ec3655d7a9850f79fa6c48814e4112b807be920c678e6bf8f2eae0165",
     "public/centers.csv": "e27e86c5efb79fb7128ed79b5d9b539d3638ea41cdd92cec469099fa1764db38",
     "public/delivery-constraints.md": "4f6c619d103ca585510e9b8f00cbdb4cc6b25161607e0ad4c66827d7cc1760b5",
     "public/dictionary.md": "c7489f36e9eeefb1c4fe8ecaed86315c5898e756805511a22c60c75aa46ca5bc",
     "public/planning-inputs.json": "8c1a6f65a683d23a2f7a3aa4d706b40e08f8b20d1ee3028fd558e76f9bd3cd88",
-    "reviewer.json": "d10f9467c8447eb6064298cb00f1a703da4b12602ac6f2d34c729a1ea428fbf8",
-    "world.json": "abaa522f10f4a04e96bd901637ffc6b6ddf763da9b4d221f50b98a1da873d61d"
+    "reviewer.json": "b2ccd4d481d614cb40357aa02b4a60548ecedc508316024da90b71e13ad4cd83",
+    "world.json": "602e856df20efd4480849c8193e0e0a5945277390e7c33877d1715675b33efb9"
   },
   "goal": "Prepare a complete saved local design report for a feasible prospective evaluation of tutoring offers at the 24 listed learning centers. Explain the design and collection plan, precision assumptions and practical decisions. No trial has run and no program-effect results are requested. A self-contained HTML report is suitable; no publication.",
   "initial_request": "Please use the causal-consultant skill for this consultation. Please help design and document a prospective evaluation of our tutoring offer across the attached learning centers. I can explain the delivery and recruitment constraints. We need a feasible allocation and measurement plan, with precision assumptions, in a complete saved design report before launch.",
@@ -132,7 +132,7 @@
   "label": "Prospective clustered tutoring study",
   "oracle_check": "check_oracle.py",
   "problem_id": "study-design",
-  "problem_version": "1.0.0",
+  "problem_version": "1.0.2",
   "reviewer": "reviewer.json",
   "schema_version": 1,
   "sources": [
