@@ -60,7 +60,7 @@ class ModularCases(unittest.TestCase):
                 manifest = validate_case(directory)
                 self.assertEqual(returned, manifest)
                 self.assertEqual(manifest["schema_version"], 1)
-                self.assertEqual(manifest["suite_version"], "7.0.8")
+                self.assertEqual(manifest["suite_version"], "7.0.9")
                 self.assertEqual(manifest["completion_contract"], "full_report")
                 self.assertEqual(manifest["problem_id"], problem)
                 self.assertEqual(manifest["persona_id"], persona)

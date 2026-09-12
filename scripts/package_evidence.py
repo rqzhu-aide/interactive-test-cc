@@ -184,17 +184,31 @@ def _analyze(files, read_bytes):
         for name in ("public.json", "transport/transport.json", *("transport/" + item for item in CAPTURE_FILES)):
             if event + name in files and event + name not in expected:
                 issue(event + name, "not_bound_to_review_index")
-        if "assistant" not in public or "message" not in transport or public.get("assistant") != transport.get("message"):
+        public_text, transport_text = public.get("assistant"), transport.get("message")
+        if event + "public.json" in files and ("assistant" not in public
+                or (public_text is not None and not isinstance(public_text, str))
+                or (public_text is None and isinstance(transport_text, str))):
+            issue(event + "public.json", "invalid_public_capture")
+        if event + "transport/transport.json" in files and ("message" not in transport
+                or (transport_text is not None and not isinstance(transport_text, str))
+                or (transport_text is None and isinstance(public_text, str))):
+            issue(event + "transport/transport.json", "invalid_transport_capture")
+        if isinstance(public_text, str) and isinstance(transport_text, str) and public_text != transport_text:
             issue(event + "public.json", "public_transport_mismatch")
-        if not transport.get("error") and isinstance(transport.get("message"), str):
+        raw_path = event + "transport/stdout.txt"
+        if not transport.get("error") and isinstance(transport.get("message"), str) and raw_path in files:
             try:
-                events = [json.loads(line) for line in read_bytes(event + "transport/stdout.txt").decode("utf-8").splitlines()
+                events = [json.loads(line) for line in read_bytes(raw_path).decode("utf-8").splitlines()
                           if line.strip()]
                 results = [item for item in events if isinstance(item, dict) and item.get("type") == "result"]
-                if len(results) != 1 or results[0].get("result") != transport["message"]:
-                    issue(event + "transport/stdout.txt", "raw_public_mismatch")
-            except (KeyError, OSError, ValueError, UnicodeError):
-                issue(event + "transport/stdout.txt", "raw_public_mismatch")
+                if len(results) != 1 or not isinstance(results[0].get("result"), str):
+                    issue(raw_path, "invalid_raw_capture")
+                elif results[0]["result"] != transport["message"]:
+                    issue(raw_path, "raw_public_mismatch")
+            except (KeyError, OSError):
+                issue(raw_path, "unreadable_raw_capture")
+            except (ValueError, UnicodeError):
+                issue(raw_path, "invalid_raw_capture")
         captured = document(event + "work-files.json")
         for name, sha in mapping(captured, event + "work-files.json").items():
             required(event + "work-snapshot/" + name, sha)

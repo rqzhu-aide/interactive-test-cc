@@ -12,12 +12,12 @@ import time
 import uuid
 
 from claude_transport import capture, invoke
-from consultation_observer import CAPABILITY as LOOP_CAPABILITY, evaluate_frames, retained_frames
-from source_release import validate_source_prerequisite, validate_release_receipts
+from consultation_observer import CAPABILITY as LOOP_CAPABILITY, evaluate_frames, retained_frames, public_reply_correspondence
+from source_release import validate_source_prerequisite, validate_release_receipts, source_release_observations
 from package_evidence import export_package, check_package
 
 ACTOR_UPDATES = ("knowledge_updates", "belief_updates", "decision_updates")
-CONSULTANT_VERSIONS = ("7.0.0", "7.0.1", "7.0.2", "7.0.4", "7.0.5", "7.0.6", "7.0.7", "7.0.8")
+CONSULTANT_VERSIONS = ("7.0.0", "7.0.1", "7.0.2", "7.0.4", "7.0.5", "7.0.6", "7.0.7", "7.0.8", "7.0.9")
 EXCHANGE_CAPABILITY = "durable-exchanges-v1"
 USER_QUESTION_CAPABILITY = "user-question-routing-v1"
 
@@ -182,8 +182,8 @@ def validate_config(config):
 def candidate_observation_profile(candidate, config):
     profile = {"consultant_version": read(candidate / "package.json")["version"],
                "enforcement": "observational_only", "capabilities": [], "user_question_routing": False,
-               "consultation_loop": False}
-    if profile["consultant_version"] in ("7.0.5", "7.0.6", "7.0.7", "7.0.8"):
+               "consultation_loop": False, "intact_reply_recovery": False, "source_attributed_memory": False}
+    if profile["consultant_version"] in ("7.0.5", "7.0.6", "7.0.7", "7.0.8", "7.0.9"):
         probe = subprocess.run(config["node_command"] + [str(candidate / "scripts/project.cjs"), "capabilities"],
                                cwd=candidate, capture_output=True, timeout=30)
         require(probe.returncode == 0, profile["consultant_version"] + " consultant capability probe failed")
@@ -198,11 +198,16 @@ def candidate_observation_profile(candidate, config):
         profile["consultation_loop"] = LOOP_CAPABILITY in capability["capabilities"]
         profile["captured_delivery"] = "captured-delivery-v1" in capability["capabilities"]
         profile["proposal_preflight"] = "proposal-preflight-v1" in capability["capabilities"]
-        if profile["consultant_version"] in ("7.0.7", "7.0.8"):
+        profile["intact_reply_recovery"] = "intact-reply-recovery-v1" in capability["capabilities"]
+        profile["source_attributed_memory"] = "source-attributed-memory-v1" in capability["capabilities"]
+        if profile["consultant_version"] in ("7.0.7", "7.0.8", "7.0.9"):
             require(profile["consultation_loop"], profile["consultant_version"] + " consultant lacks " + LOOP_CAPABILITY)
-        if profile["consultant_version"] == "7.0.8":
-            require(profile["captured_delivery"], "7.0.8 consultant lacks captured-delivery-v1")
-            require(profile["proposal_preflight"], "7.0.8 consultant lacks proposal-preflight-v1")
+        if profile["consultant_version"] in ("7.0.8", "7.0.9"):
+            require(profile["captured_delivery"], profile["consultant_version"] + " consultant lacks captured-delivery-v1")
+            require(profile["proposal_preflight"], profile["consultant_version"] + " consultant lacks proposal-preflight-v1")
+        if profile["consultant_version"] == "7.0.9":
+            require(profile["intact_reply_recovery"], "7.0.9 consultant lacks intact-reply-recovery-v1")
+            require(profile["source_attributed_memory"], "7.0.9 consultant lacks source-attributed-memory-v1")
     return profile
 
 
@@ -337,7 +342,7 @@ def observe_exchange(event):
     """Compare actual final bytes with a prepared exchange; do not write delivery or grade science."""
     result = {"profile": EXCHANGE_CAPABILITY, "enforcement": "observational_only", "status": "unobserved",
               "reason": "No successful durable-exchange observation is available.",
-              "scope": "Exact returned-final correspondence only; not delivery/read proof or scientific validation."}
+              "scope": "Actual public reply/body correspondence; wrappers need semantic review. Not delivery/read proof or scientific validation."}
     try:
         process = read(event / "project-status/process.json")
         require(process["exit_code"] == 0 and not process["error"], "project status did not succeed")
@@ -352,6 +357,16 @@ def observe_exchange(event):
         message = read(event / "public.json")["assistant"]
         require(isinstance(message, str), "No successful final response was returned.")
         actual = hashlib.sha256(message.encode("utf-8")).hexdigest()
+        canonical_body = None
+        try:
+            binding = read(event / "project-binding.json")
+            prefix = "" if binding["project_root"] == "." else binding["project_root"] + "/"
+            relative = prefix + "exchanges/" + exchange["exchange_id"] + "/response.md"
+            if binding["status"] == "bound":
+                canonical_body = member(event / "work-snapshot", relative).read_bytes().decode("utf-8")
+        except (ValueError, OSError, KeyError, TypeError):
+            pass  # Older snapshots retain the bounded header/hash comparison.
+        correspondence = public_reply_correspondence(message, exchange["response_sha256"], canonical_body)
         prior = event.parent / f"{int(event.name) - 1:03d}" / "project-status/stdout.txt"
         new_exchange = None
         if prior.is_file():
@@ -360,8 +375,10 @@ def observe_exchange(event):
         result.update(exchange_id=exchange["exchange_id"], exchange_turn_id=exchange["turn_id"],
                       exchange_event_ref=exchange["event_ref"], expected_response_sha256=exchange["response_sha256"],
                       actual_response_sha256=actual, new_since_previous_observation=new_exchange,
-                      status="matched" if actual == exchange["response_sha256"] else "mismatch",
-                      reason="Compared exact UTF-8 final response with the current prepared exchange hash.")
+                      body_correspondence=correspondence,
+                      status={"exact": "matched", "wrapped": "wrapped", "body_changed": "mismatch",
+                              "ambiguous_body": "mismatch"}.get(correspondence["status"], "unobserved"),
+                      reason="Compared actual UTF-8 public reply and intact body with the prepared hash; surrounding prose is not automatically endorsed.")
     except (ValueError, OSError, KeyError, TypeError) as exc:
         result["reason"] = str(exc)
     write(event / "exchange-observation.json", result)
@@ -590,7 +607,9 @@ def review_observations(attempt, state, frozen, index):
     completion = (full_report_completion(attempt, state, index)
                   if frozen["case_manifest"].get("completion_contract") == "full_report" else None)
     loop = consultation_loop_check(attempt, frozen, index)
-    findings = [{"id": "loop-" + identity(item), "check": "consultation_loop", "observation": item}
+    findings = [{"id": "loop-" + identity(item),
+                 "check": "delivery_correspondence" if item.get("owner") == "undetermined" else "consultation_loop",
+                 "observation": item}
                 for item in loop.get("findings", [])]
     for key in ("unobserved", "response_correspondence"):
         findings += [{"id": key + "-" + identity(item), "check": key, "observation": item}
@@ -607,6 +626,8 @@ def review_observations(attempt, state, frozen, index):
         if ref.startswith("private/rejected-releases/") and ref.endswith(".json"):
             findings.append({"id": "release-" + identity(ref), "check": "source_release_rejected",
                              "observation": {"evidence_ref": ref, "dispatched": False}})
+    findings += [{"id": "source-" + identity(item), "check": "source_release_trace", "observation": item}
+                 for item in source_release_observations(attempt, frozen, index)]
     if completion and not completion["satisfied"]:
         findings.append({"id": "completion-" + identity(completion), "check": "completion", "observation": completion})
     return {"schema_version": 1, "evidence_sha256": index["sha256"], "completion_check": completion,
@@ -749,7 +770,7 @@ def assess(review, state, frozen, index, completion_check=None, loop_check=None)
             require(criteria[key].get("conditional"), "unconditional criterion cannot be waived")
         missing |= criteria[key].get("required", True) and item["status"] == "unobserved"
     for finding in review["findings"]:
-        require(finding["owner"] in ("consultant", "simulator", "harness", "fixture", "environment"), "invalid finding owner")
+        require(finding["owner"] in ("consultant", "simulator", "harness", "fixture", "environment", "undetermined"), "invalid finding owner")
         require(finding["severity"] in ("minor", "material", "fundamental"), "invalid severity")
         require(finding["criterion"] in criteria and finding.get("description") and finding.get("consequence"), "incomplete finding")
         references(finding)
@@ -780,13 +801,15 @@ def assess(review, state, frozen, index, completion_check=None, loop_check=None)
     if outcome == "useful_stop":
         require(packet.get("useful_stop") and review.get("useful_stop_basis"), "case does not permit this useful stop")
     defects = [f for f in review["findings"] if f["owner"] == "consultant"]
+    unresolved_cause = any(f["owner"] == "undetermined" and f["severity"] in ("material", "fundamental")
+                           for f in review["findings"])
     loop_required = frozen.get("observation_profile", {}).get("consultation_loop", False)
     if loop_required and loop_check is None:
         loop_check = {"profile": LOOP_CAPABILITY, "status": "unobserved", "findings": [],
                       "reason": "Actual consultation chronology was not checked.", "evidence_refs": []}
     if any(f["severity"] in ("material", "fundamental") for f in defects) or (loop_check or {}).get("status") == "breach":
         rating = "fail"
-    elif validity != "valid" or missing or state["breaches"] or outcome not in ("objective_met", "useful_stop") or (
+    elif validity != "valid" or missing or unresolved_cause or state["breaches"] or outcome not in ("objective_met", "useful_stop") or (
             loop_required and loop_check["status"] != "no_structural_breach"):
         rating = "inconclusive"
     else:
@@ -846,6 +869,10 @@ def finish(attempt, review):
             result["quality_rating"] = "inconclusive"
         if observations["missing_captures"] and result["quality_rating"] in ("pass", "weak"):
             result["quality_rating"] = "inconclusive"
+        if any(f["check"] in ("source_release_trace", "delivery_correspondence")
+               and dispositions[f["id"]]["status"] != "false_positive" for f in observations["machine_findings"]):
+            if result["quality_rating"] in ("pass", "weak"):
+                result["quality_rating"] = "inconclusive"
         write(attempt / "assessment.json", result)
         state["status"] = "finished"
         write(attempt / "state.json", state)

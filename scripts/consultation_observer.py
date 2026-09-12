@@ -81,6 +81,38 @@ def _body_hashes(message):
     return found
 
 
+def public_reply_correspondence(message, expected_hash, canonical_body=None):
+    """Check actual public bytes; candidate correspondence labels are not inputs.
+
+    Retained canonical bytes allow inline wrappers. Historical snapshots without
+    that file retain the existing bounded, header-based hash comparison.
+    """
+    result = {"status": "hash_unavailable", "semantic_review_required": True}
+    if not isinstance(expected_hash, str) or not expected_hash:
+        return result
+    if not isinstance(message, str):
+        return {**result, "status": "public_unavailable"}
+    actual = message.encode("utf-8")
+    if hashlib.sha256(actual).hexdigest() == expected_hash:
+        return {**result, "status": "exact", "start_byte": 0, "end_byte": len(actual), "occurrences": 1}
+    body = None
+    if isinstance(canonical_body, str) and hashlib.sha256(canonical_body.encode("utf-8")).hexdigest() == expected_hash:
+        body = canonical_body.encode("utf-8")
+    else:
+        matched = _body_hashes(message).get(expected_hash)
+        if matched:
+            body = matched[1].encode("utf-8")
+    if not body or body not in actual:
+        return {**result, "status": "body_changed"}
+    start = actual.find(body)
+    # A repeated complete reply cannot be assigned one recovery span, including
+    # overlapping matches. No candidate wrapper review resolves that ambiguity.
+    if actual.find(body, start + 1) >= 0:
+        return {**result, "status": "ambiguous_body", "occurrences": "multiple"}
+    return {**result, "status": "wrapped", "start_byte": start,
+            "end_byte": start + len(body), "occurrences": 1}
+
+
 def _exchange_artifact(name, frame):
     """Known response/capture artifacts are correspondence, not final reports."""
     relative = name.removeprefix(frame.get("root_prefix", ""))
@@ -121,21 +153,23 @@ def _evaluate_frames(frames):
     """Evaluate retained public turns and snapshots; never repair the candidate."""
     result = {"profile": CAPABILITY, "enforcement": "observational_only", "status": "unobserved",
               "actions": [], "findings": [], "evidence_refs": [], "unobserved": [],
-              "response_correspondence": [],
+              "response_correspondence": [], "delivery_correspondence": [],
               "limitations": ["A text match does not prove that the user accepted the scope. Independently read each actual user message, including questions and corrections.",
                               "Per-reply snapshots establish first observed appearance, not exact within-call creation time. Uncaptured transient files and disguised computations require transport/tool review.",
-                              "Neither candidate delivery records nor actor decision_updates establish consent. This observer does not write project state."]}
+                              "Neither candidate delivery records nor actor decision_updates establish consent. This observer does not write project state.",
+                              "An intact body and a recorded wrapper review do not establish that surrounding prose leaves the proposal unchanged; read the whole actual reply."]}
     rows, first, scopes, decisions, evidence, exchanges, hashes, runs = {}, {}, {}, {}, {}, {}, {}, {}
     presented, seen_runs, previous_journal, files_seen, first_files = {}, set(), None, set(), {}
     correspondence_files = set()
+    checked_deliveries = set()
 
     def ref(frame, name="public.json"):
         if name == "public.json" and frame.get("observation_ref"):
             return frame["observation_ref"]
         return "private/events/" + frame["event"] + "/" + name
 
-    def breach(code, frame, run_id, description, refs=()):
-        result["findings"].append({"code": code, "owner": "consultant", "severity": "material",
+    def breach(code, frame, run_id, description, refs=(), owner="consultant"):
+        result["findings"].append({"code": code, "owner": owner, "severity": "material",
                                    "run_id": run_id, "description": description,
                                    "evidence_refs": list(dict.fromkeys([ref(frame), *refs]))})
 
@@ -201,19 +235,19 @@ def _evaluate_frames(frames):
             hashes[item["exchange_id"]] = item
         message = frame.get("public", {}).get("assistant")
         if isinstance(message, str):
-            observed_bodies = _body_hashes(message)
             matched = set()
             for exchange_id, (exchange, row) in exchanges.items():
                 expected_hash = hashes.get(exchange_id, {}).get("response_sha256")
-                correspondence = observed_bodies.get(expected_hash)
-                if correspondence:
+                correspondence = public_reply_correspondence(message, expected_hash,
+                    frame.get("response_bodies", {}).get(exchange_id))
+                if correspondence["status"] in ("exact", "wrapped"):
                     matched.add(exchange_id)
                     presented.setdefault(exchange_id, {"ordinal": ordinal, "exchange": exchange,
                         "message": message, "evidence_ref": ref(frame), "row": row,
-                        "correspondence": correspondence[0],
+                        "correspondence": correspondence["status"],
                         "findings_basis_versions": hashes[exchange_id].get("findings_basis_versions", [])})
                     result["response_correspondence"].append({"event": event_number, "exchange_ref": exchange_id,
-                        "status": correspondence[0], "evidence_ref": ref(frame), "semantic_review_required": True})
+                        **correspondence, "evidence_ref": ref(frame)})
             # A newly saved exchange provides a candidate association for a rewritten
             # reply, never proof that its canonical scope or candidate capture was sent.
             newly_saved = [(identity, exchange, row) for identity, (exchange, row) in exchanges.items()
@@ -221,7 +255,9 @@ def _evaluate_frames(frames):
             if newly_saved:
                 exchange_id, exchange, row = max(newly_saved, key=lambda item: item[2]["sequence"])
                 if exchange_id not in matched and exchange_id not in presented:
-                    correspondence = "body_changed" if hashes.get(exchange_id, {}).get("response_sha256") else "hash_unavailable"
+                    correspondence = public_reply_correspondence(message,
+                        hashes.get(exchange_id, {}).get("response_sha256"),
+                        frame.get("response_bodies", {}).get(exchange_id))["status"]
                     presented[exchange_id] = {"ordinal": ordinal, "exchange": exchange,
                         "message": message, "evidence_ref": ref(frame), "row": row, "correspondence": correspondence,
                         "findings_basis_versions": hashes.get(exchange_id, {}).get("findings_basis_versions", [])}
@@ -230,6 +266,70 @@ def _evaluate_frames(frames):
                         "association": "Latest exchange first seen in this snapshot; canonical body correspondence not established."})
                     if correspondence == "hash_unavailable":
                         unobserved("response_hash_unavailable", frame, None, "The saved exchange has no response hash to compare with actual public text.")
+        for row in journal:
+            delivery = row.get("payload", {}).get("delivery", {})
+            if not delivery or row["event_id"] in checked_deliveries:
+                continue
+            checked_deliveries.add(row["event_id"])
+            # Historical save receipts without a claimed actual capture keep
+            # their original coverage; do not retroactively require new fields.
+            if not delivery.get("observed_response_sha256") and not delivery.get("response_span"):
+                continue
+            exchange_id = delivery.get("exchange_ref")
+            source = delivery.get("source_ref")
+            captured = frame.get("delivery_captures", {}).get(source)
+            item = {"event": event_number, "delivery_ref": delivery.get("delivery_id"),
+                    "exchange_ref": exchange_id, "evidence_refs": [ref(frame)],
+                    "semantic_review_required": True}
+            result["delivery_correspondence"].append(item)
+            if not isinstance(captured, str):
+                item["status"] = "capture_unavailable"
+                unobserved("delivery_capture_unavailable", frame, None,
+                    "The claimed actual reply capture is not retained; its hash or wrapper label cannot establish delivery.")
+                continue
+            capture_ref = ref(frame, "work-snapshot/" + frame.get("root_prefix", "") + source)
+            item["evidence_refs"].append(capture_ref)
+            actual = captured.encode("utf-8")
+            public_matches = [prior for prior in frames[:ordinal]
+                              if prior.get("public", {}).get("assistant") == captured]
+            item["public_match_events"] = [prior["event"] for prior in public_matches]
+            if public_matches:
+                item["status"] = "exact_public_capture"
+                item["evidence_refs"].extend(ref(prior) for prior in public_matches)
+            elif any(not isinstance(prior.get("public", {}).get("assistant"), str) for prior in frames[:ordinal]):
+                item["status"] = "public_capture_unobserved"
+                unobserved("delivery_public_unobserved", frame, None,
+                    "The retained candidate capture matches no available public reply, but some public captures are missing.", [capture_ref])
+            else:
+                item["status"] = "public_capture_mismatch"
+                breach("delivery_public_mismatch", frame, None,
+                    "The candidate's retained actual-reply capture matches no complete public reply observed through this turn. This establishes a record discrepancy, not its backend or transport cause.", [capture_ref], owner="undetermined")
+            expected_hash = hashes.get(exchange_id, {}).get("response_sha256")
+            correspondence = public_reply_correspondence(captured, expected_hash,
+                frame.get("response_bodies", {}).get(exchange_id))
+            item["captured_body_correspondence"] = correspondence["status"]
+            if (hashlib.sha256(actual).hexdigest() != delivery.get("observed_response_sha256")
+                    or delivery.get("response_sha256") != expected_hash):
+                breach("delivery_hash_mismatch", frame, None,
+                    "The retained candidate capture or prepared reply does not match the delivery record's hashes.", [capture_ref], owner="undetermined")
+            span = delivery.get("response_span")
+            if span is not None:
+                valid = (isinstance(span, dict) and correspondence["status"] == "wrapped"
+                         and type(span.get("start_byte")) is int and type(span.get("end_byte")) is int
+                         and span["start_byte"] == correspondence["start_byte"]
+                         and span["end_byte"] == correspondence["end_byte"])
+                item["response_span_valid"] = valid
+                if not valid:
+                    breach("delivery_span_mismatch", frame, None,
+                        "The claimed recovery span does not identify one exact complete prepared reply in the retained capture.", [capture_ref], owner="undetermined")
+                else:
+                    outside = actual[:span["start_byte"]] + actual[span["end_byte"]:]
+                    review = span.get("wrapper_review")
+                    item["wrapper_review_recorded"] = isinstance(review, str) and bool(review.strip())
+                    item["recovery"] = "observed_intact_wrapper" if public_matches else "candidate_capture_only"
+                    if outside.strip() and not item["wrapper_review_recorded"]:
+                        unobserved("wrapper_review_unobserved", frame, None,
+                            "The intact reply is observable, but the recovery record has no review of nonempty surrounding prose. This does not erase independently observed scope or user choice.", [capture_ref])
         # Plans reveal starts even when a candidate omits them from its saved run index.
         current_runs = {key: value for key, value in runs.items()}
         for path, plan in frame.get("plans", {}).items():
@@ -411,7 +511,9 @@ def _evaluate_frames(frames):
                 elif earliest and action and action["status"] == "structurally_observed":
                     accepted_origins.add((path, output_hash))
     result["evidence_refs"] = list(dict.fromkeys(result["evidence_refs"] + [item for finding in result["findings"] for item in finding["evidence_refs"]]))
-    result["status"] = "breach" if result["findings"] else ("unobserved" if result["unobserved"] or not frames else "no_structural_breach")
+    structural_breach = any(item["owner"] == "consultant" for item in result["findings"])
+    result["status"] = "breach" if structural_breach else (
+        "unobserved" if result["findings"] or result["unobserved"] or not frames else "no_structural_breach")
     return result
 
 
@@ -487,6 +589,30 @@ def retained_frames(attempt, read, inventory):
             frame["journal"] = [json.loads(line) for line in (root / "journal.jsonl").read_text(encoding="utf-8").splitlines() if line.strip()]
             project = read(root / "project.yaml")
             frame["exchange_indexes"] = project.get("exchanges", [])
+            def retained_text(relative):
+                if not isinstance(relative, str) or frame["root_prefix"] + relative not in files:
+                    return None
+                path = root / relative
+                if not path.resolve().is_relative_to(root.resolve()) or not path.is_file():
+                    return None
+                try:
+                    # read_text performs universal newline conversion, which
+                    # would manufacture equality for a byte-level observation.
+                    return path.read_bytes().decode("utf-8")
+                except (OSError, UnicodeError):
+                    return None
+            frame["response_bodies"] = {}
+            for exchange in frame["exchange_indexes"]:
+                identity = exchange.get("exchange_id")
+                body = retained_text("exchanges/" + str(identity) + "/response.md")
+                if body is not None:
+                    frame["response_bodies"][identity] = body
+            frame["delivery_captures"] = {}
+            for row in frame["journal"]:
+                source = row.get("payload", {}).get("delivery", {}).get("source_ref")
+                capture = retained_text(source)
+                if capture is not None:
+                    frame["delivery_captures"][source] = capture
             frame["plans"] = {p.relative_to(root).as_posix(): read(p) for p in (root / "runs").glob("*/plan.yaml")}
             frame["manifests"] = {p.relative_to(root).as_posix(): read(p) for p in (root / "runs").glob("*/manifest.json")}
             frame["files"] = files

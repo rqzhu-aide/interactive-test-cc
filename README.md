@@ -1,15 +1,16 @@
 # Interactive Test CC v7
 
-Version: `7.0.8`, aligned with causal-consultant. Hermes supplies a simulated user
+Version: `7.0.9`, aligned with causal-consultant. Hermes supplies a simulated user
 and Claude Code hosts the consultant. The tester captures actual conversation,
 released evidence, analysis and saved reporting for independent review.
 
-Version 7.0.8 adds saved-plan checks before held-out data release,
-retained actor input records, review snapshots prepared before assessment, and
-verified complete or explicitly partial ZIP export. The observer distinguishes
-reply wrappers and rewritten content from unsupported claims about consent.
-Its consultant profile requires captured-delivery and proposal-preflight
-capabilities. These changes have not been live-qualified.
+Version 7.0.9 independently checks actual replies, saved captures and intact
+reply recovery. It separates missing evidence from mismatches, permits an
+undetermined failure cause, and flags source appearances without a recorded
+release. Novices disclose progressively; statisticians engage with substantive
+choices. The consultant profile requires intact-reply recovery and source
+attribution alongside the existing delivery and loop capabilities. These changes
+have not been live-qualified.
 
 The catalog contains **four problems and four independent personas**, freely
 combined into 16 possible tests. The old 15 frozen bundles under `cases/` and
@@ -56,10 +57,11 @@ Start with [SKILL.md](SKILL.md), the [runner guide](references/runner.md) and th
 [Hermes/Claude contract](references/hermes-claude.md). The runner supports
 preflight, start, step, inspect, finish, export and package checking, including source isolation, snapshot
 identity and session continuity. Supported consultant versions are `7.0.0`,
-`7.0.1`, `7.0.2`, `7.0.4`, `7.0.5`, `7.0.6`, `7.0.7` and `7.0.8`; unlisted versions need a
-checked compatibility update. Versions 7.0.7 and 7.0.8 require `consultation-loop-v1`;
-7.0.5 through 7.0.8 require `durable-exchanges-v1`. Version 7.0.8 also requires
-`captured-delivery-v1` and `proposal-preflight-v1`.
+`7.0.1`, `7.0.2`, `7.0.4`, `7.0.5`, `7.0.6`, `7.0.7`, `7.0.8` and `7.0.9`; unlisted versions need a
+checked compatibility update. Versions 7.0.7 through 7.0.9 require `consultation-loop-v1`;
+7.0.5 through 7.0.9 require `durable-exchanges-v1`. Versions 7.0.8 and 7.0.9 also require
+`captured-delivery-v1` and `proposal-preflight-v1`. Version 7.0.9 additionally requires
+`intact-reply-recovery-v1` and `source-attributed-memory-v1`.
 
 Local validation covers all 16 compositions, scientific references, source
 boundaries, runner behavior and consultation-loop chronology. See the

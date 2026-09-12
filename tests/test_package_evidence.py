@@ -141,6 +141,56 @@ class PackageEvidenceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "raw_public_mismatch"):
             package.export_package(self.attempt, self.output)
 
+    def test_missing_capture_is_partial_without_claiming_different_messages(self):
+        for number, relative in enumerate(("transport/transport.json", "public.json", "transport/stdout.txt")):
+            with self.subTest(relative=relative):
+                target = self.event / relative
+                original = target.read_bytes()
+                target.unlink()
+                self.index()
+                output = self.root / f"missing-{number}.zip"
+                result = package.export_package(self.attempt, output, allow_partial=True)
+                self.assertEqual(result["completeness"], "partial")
+                self.assertTrue(any(item["path"] == "private/events/001/" + relative
+                                    and item["reason"] == "missing" for item in result["omissions"]))
+                self.assertFalse(any(item["reason"] in ("public_transport_mismatch", "raw_public_mismatch")
+                                     for item in result["omissions"]))
+                self.assertEqual(package.check_package(output, require_complete=False), result)
+                target.write_bytes(original)
+                self.index()
+
+    def test_invalid_capture_does_not_establish_a_message_mismatch(self):
+        cases = (("transport/transport.json", "{", "invalid_json"),
+                 ("transport/transport.json", {}, "invalid_transport_capture"),
+                 ("transport/transport.json", {"message": ["Exact public reply."]}, "invalid_transport_capture"),
+                 ("transport/transport.json", {"message": None}, "invalid_transport_capture"),
+                 ("public.json", {}, "invalid_public_capture"),
+                 ("public.json", {"assistant": 7}, "invalid_public_capture"),
+                 ("public.json", {"assistant": None}, "invalid_public_capture"),
+                 ("transport/stdout.txt", "unparseable response", "invalid_raw_capture"),
+                 ("transport/stdout.txt", json.dumps({"type": "result"}), "invalid_raw_capture"),
+                 ("transport/stdout.txt", "\n".join([json.dumps({"type": "result", "result": "Exact public reply."})] * 2),
+                  "invalid_raw_capture"))
+        for number, (relative, replacement, reason) in enumerate(cases):
+            with self.subTest(relative=relative, replacement=replacement):
+                target = self.event / relative
+                original = target.read_bytes()
+                self.write(target, replacement)
+                self.index()
+                result = package.export_package(self.attempt, self.root / f"invalid-{number}.zip", allow_partial=True)
+                self.assertEqual(result["completeness"], "partial")
+                self.assertTrue(any(item["reason"] == reason for item in result["omissions"]))
+                self.assertFalse(any(item["reason"] in ("public_transport_mismatch", "raw_public_mismatch")
+                                     for item in result["omissions"]))
+                target.write_bytes(original)
+                self.index()
+
+    def test_public_transport_disagreement_detected_even_after_reindexing(self):
+        self.write(self.event / "public.json", {"user": "Exact request.", "assistant": "Different public reply."})
+        self.index()
+        with self.assertRaisesRegex(ValueError, "public_transport_mismatch"):
+            package.export_package(self.attempt, self.output)
+
     def test_failed_transport_preserves_corrupt_raw_output(self):
         self.write(self.event / "transport/stdout.txt", "unparseable provider noise\n")
         self.write(self.event / "transport/transport.json", {"message": None, "error": "invalid_response"})

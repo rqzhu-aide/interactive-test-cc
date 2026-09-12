@@ -238,13 +238,13 @@ process.stdout.write(JSON.stringify(store.status(root)));
         candidate = self.root / "version-probe"
         candidate.mkdir()
         (candidate / "SKILL.md").write_text("Test-only runtime file.", encoding="utf-8")
-        for version in ("7.0.0", "7.0.1", "7.0.2", "7.0.4", "7.0.5", "7.0.6", "7.0.7", "7.0.8"):
+        for version in ("7.0.0", "7.0.1", "7.0.2", "7.0.4", "7.0.5", "7.0.6", "7.0.7", "7.0.8", "7.0.9"):
             with self.subTest(version=version):
                 driver.write(candidate / "package.json", {"version": version, "files": ["SKILL.md"]})
                 self.assertEqual(driver.candidate_inventory(candidate), {
                     "SKILL.md": driver.digest(candidate / "SKILL.md"),
                     "package.json": driver.digest(candidate / "package.json")})
-        for version in ("6.9.9", "7.0.3", "7.0.9", "7.1.0", "7.0.2-preview", "7.0.4-preview", "7.0.5-preview", "7.0.6-preview", "7.0.7-preview", "7.0.8-preview"):
+        for version in ("6.9.9", "7.0.3", "7.0.10", "7.1.0", "7.0.2-preview", "7.0.4-preview", "7.0.5-preview", "7.0.6-preview", "7.0.7-preview", "7.0.8-preview", "7.0.9-preview"):
             with self.subTest(version=version):
                 driver.write(candidate / "package.json", {"version": version, "files": ["SKILL.md"]})
                 with self.assertRaisesRegex(ValueError, "observation profile"):
@@ -313,6 +313,36 @@ process.stdout.write(JSON.stringify(store.status(root)));
             self.assertTrue(profile["captured_delivery"])
             self.assertTrue(profile["proposal_preflight"])
             self.assertEqual(profile["enforcement"], "observational_only")
+            self.assertFalse(profile["intact_reply_recovery"])
+            self.assertFalse(profile["source_attributed_memory"])
+            run.return_value = subprocess.CompletedProcess([], 0, json.dumps({
+                "capabilities": required + ["intact-reply-recovery-v1", "source-attributed-memory-v1"]}).encode(), b"")
+            revised = driver.candidate_observation_profile(candidate, self.config)
+            self.assertTrue(revised["intact_reply_recovery"])
+            self.assertTrue(revised["source_attributed_memory"])
+
+    def test_709_profile_requires_recovery_and_source_attribution_capabilities(self):
+        candidate = self.root / "recovery-profile"
+        candidate.mkdir()
+        driver.write(candidate / "package.json", {"version": "7.0.9"})
+        required = [driver.EXCHANGE_CAPABILITY, driver.LOOP_CAPABILITY,
+                    "captured-delivery-v1", "proposal-preflight-v1",
+                    "intact-reply-recovery-v1", "source-attributed-memory-v1"]
+        for missing in required:
+            with self.subTest(missing=missing), patch.object(driver.subprocess, "run") as run:
+                run.return_value = subprocess.CompletedProcess([], 0, json.dumps({
+                    "capabilities": [item for item in required if item != missing]}).encode(), b"")
+                with self.assertRaisesRegex(ValueError, "7.0.9 consultant lacks " + missing):
+                    driver.candidate_observation_profile(candidate, self.config)
+        with patch.object(driver.subprocess, "run") as run:
+            run.return_value = subprocess.CompletedProcess([], 0, json.dumps({
+                "capabilities": required}).encode(), b"")
+            profile = driver.candidate_observation_profile(candidate, self.config)
+            for field in ("consultation_loop", "captured_delivery", "proposal_preflight",
+                          "intact_reply_recovery", "source_attributed_memory"):
+                self.assertTrue(profile[field])
+            self.assertEqual(profile["capabilities"], required)
+            self.assertEqual(profile["enforcement"], "observational_only")
 
     def test_actual_scope_response_and_later_choice_are_retained_independently(self):
         self.full_report_case()
@@ -330,7 +360,12 @@ process.stdout.write(JSON.stringify(store.status(root)));
         result = driver.finish(self.attempt, self.assessment())
         self.assertTrue(result["completion_check"]["satisfied"])
         check = result["consultation_loop_check"]
-        self.assertEqual(check["status"], "no_structural_breach", check)
+        # The fixture saves a separate review delivery without dispatching it.
+        # Its capture discrepancy must not erase the actual later scope choice.
+        self.assertEqual(check["status"], "unobserved", check)
+        self.assertTrue(any(item["code"] == "delivery_public_mismatch" and item["owner"] == "undetermined"
+                            for item in check["findings"]))
+        self.assertEqual(check["actions"][0]["status"], "structurally_observed")
         self.assertEqual(check["actions"][0]["user_choice_candidates"][0]["actual_user_text"], user)
         self.assertTrue(check["actions"][0]["semantic_review_required"])
         self.assertEqual(result["test_validity"], "invalid")
@@ -424,17 +459,22 @@ process.stdout.write(JSON.stringify(receipt));
         before = (project / "journal.jsonl").read_bytes()
         state = driver.read(self.attempt / "state.json")
         state["started_at"] = time.time()
-        messages = (receipt["rendered_response"], receipt["rendered_response"] + "\nRewritten.", None)
+        messages = (receipt["rendered_response"], "Inline wrapper: " + receipt["rendered_response"] + "\nAdditional prose.", None,
+                    receipt["rendered_response"].replace("test-only state", "changed state"),
+                    receipt["rendered_response"] + "\n" + receipt["rendered_response"])
         for number, message in enumerate(messages, 1):
             event = self.attempt / "events" / f"{number:03d}"
             event.mkdir()
             driver.write(event / "public.json", {"user": "Test request.", "assistant": message, "attachments": []})
             driver.observe_project(event, state, self.config)
             observed = driver.read(event / "exchange-observation.json")
-            self.assertEqual(observed["status"], ("matched", "mismatch", "unobserved")[number - 1])
+            self.assertEqual(observed["status"], ("matched", "wrapped", "unobserved", "mismatch", "mismatch")[number - 1])
             self.assertEqual(observed["enforcement"], "observational_only")
             if number == 2:
                 self.assertFalse(observed["new_since_previous_observation"])
+                self.assertNotEqual(observed["actual_response_sha256"], observed["expected_response_sha256"])
+                self.assertEqual(observed["body_correspondence"]["status"], "wrapped")
+                self.assertTrue(observed["body_correspondence"]["semantic_review_required"])
             if number == 1:
                 self.assertEqual(observed["expected_response_sha256"], receipt["response_sha256"])
                 self.assertEqual(observed["renderer"], "lead-markdown-v1")
@@ -456,7 +496,8 @@ const state = store.status(root).project.state_meta;
 const receipt = store.record(root, {event_id:'event-close',expected_project_id:state.project_id,
  expected_last_event_id:state.last_event_id,type:'exchange_prepared',payload:{
  protocol:'durable-exchanges-v1',changes:{evidence:[{evidence_id:'user-message',kind:'user_statement',
- source_ref:'chat:turn-1',summary:'Why does assignment matter, and what will the effect estimate be?'}],questions:[
+ source_ref:'chat:turn-1',source_excerpt:'Why does assignment matter, and what will the effect estimate be?',
+ summary:'Why does assignment matter, and what will the effect estimate be?'}],questions:[
  {question_id:'question-why',origin:'user',statement:'Why does assignment matter?',status:'answered',reason:'Explained comparison.',basis_refs:['user-message']},
  {question_id:'question-effect',origin:'user',statement:'What will the effect estimate be?',status:'open',reason:'No analysis yet.',basis_refs:['user-message']},
  {question_id:'question-data',origin:'consultant',statement:'Can you share the data?',status:'open',basis_refs:['user-message']} ]},
@@ -483,7 +524,7 @@ process.stdout.write(JSON.stringify(receipt));
         state["started_at"] = time.time()
         event = self.attempt / "events/001"
         event.mkdir()
-        driver.write(event / "public.json", {"user": "Test question request.",
+        driver.write(event / "public.json", {"user": "Why does assignment matter, and what will the effect estimate be?",
                                              "assistant": receipt["rendered_response"], "attachments": []})
         driver.observe_project(event, state, self.config)
         observed = driver.read(event / "exchange-observation.json")
@@ -918,6 +959,25 @@ process.stdout.write(JSON.stringify(receipt));
         result = driver.finish(self.attempt, self.assessment())
         self.assertEqual(result["resources"]["elapsed_seconds"], expected)
 
+    def test_final_review_surfaces_unrecorded_source_copy_without_claiming_use(self):
+        self.begin()
+        manifest = driver.read(self.attempt / "freeze.json")["case_manifest"]
+        source = next(item for item in manifest["sources"] if item["availability"] == "on_request")
+        shutil.copyfile(self.attempt / "case" / source["file"], self.work / "renamed-record.txt")
+        driver.step(self.attempt, self.reply(initial=True))
+        observed = driver.inspect(self.attempt, "reviewer")["observations"]
+        findings = [item for item in observed["machine_findings"] if item["check"] == "source_release_trace"]
+        self.assertEqual(len(findings), 1)
+        trace = findings[0]["observation"]
+        self.assertEqual(trace["source_id"], source["id"])
+        self.assertEqual(trace["status"], "acquisition_unverified")
+        self.assertEqual(trace["first_observed_event"], 1)
+        self.assertEqual(trace["first_observed_path"], "renamed-record.txt")
+        # A confirmed evidence gap cannot become a pass even if other reviewed
+        # dimensions would pass; this is not an attribution of early analysis.
+        with patch.object(driver, "assess", return_value={"quality_rating": "pass"}):
+            self.assertEqual(driver.finish(self.attempt, self.assessment())["quality_rating"], "inconclusive")
+
     def test_rating_rules_with_reviewed_host_and_missing_evidence(self):
         self.focused_endpoint()
         self.begin()
@@ -946,6 +1006,15 @@ process.stdout.write(JSON.stringify(receipt));
             result = driver.assess(invalid, state, frozen, index)
             self.assertEqual(result["test_validity"], "invalid")
             self.assertEqual(result["quality_rating"], "inconclusive")
+        uncertain = copy.deepcopy(minor)
+        uncertain["findings"][0].update(owner="undetermined", severity="material")
+        result = driver.assess(uncertain, state, frozen, index, loop_check=loop_check)
+        self.assertEqual(result["test_validity"], "valid")
+        self.assertEqual(result["quality_rating"], "inconclusive")
+        attributable = copy.deepcopy(uncertain["findings"][0])
+        attributable.update(owner="consultant", description="Separate attributable defect")
+        uncertain["findings"].append(attributable)
+        self.assertEqual(driver.assess(uncertain, state, frozen, index, loop_check=loop_check)["quality_rating"], "fail")
         no_host = copy.deepcopy(base)
         del no_host["host_checks"]
         with self.assertRaisesRegex(ValueError, "host check"):

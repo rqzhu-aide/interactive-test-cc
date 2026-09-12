@@ -2,13 +2,13 @@
 
 Hermes supplies adaptive user replies; this standard-library adapter transports
 them and captures evidence for a separate reviewer. Use shared Python 3.10+,
-Node 18.18+, an existing Claude Code installation, and consultant 7.0.8. The
-explicit observation allowlist also accepts 7.0.0, 7.0.1, 7.0.2, 7.0.4, 7.0.5, 7.0.6 and 7.0.7 and retains the same package inventory,
+Node 18.18+, an existing Claude Code installation, and consultant 7.0.9. The
+explicit observation allowlist also accepts 7.0.0, 7.0.1, 7.0.2, 7.0.4, 7.0.5, 7.0.6, 7.0.7 and 7.0.8 and retains the same package inventory,
 validator, helper and evidence checks for each supported version; it does not
 admit 7.0.3 or future versions automatically.
 No installation or paid consultation occurs in `preflight`.
 
-Versions 7.0.7 and 7.0.8 require `consultation-loop-v1` and add passive chronology checks
+Versions 7.0.7 through 7.0.9 require `consultation-loop-v1` and add passive chronology checks
 against the actual public transcript and per-reply snapshots. Existing captures
 and older profiles retain their historical meaning.
 Startup binds the actual candidate's version, package inventory and hashes
@@ -107,18 +107,26 @@ stages only the runtime under `.claude/skills/causal-consultant` and initial
 public sources. It captures Claude version/help, without sending a user message.
 Confirm actual candidate selection in the host smoke, accounting for installed
 skills/settings. Keep scenario names out of public paths.
-For consultant 7.0.5 through 7.0.8, preflight also requires the reported
+For consultant 7.0.5 through 7.0.9, preflight also requires the reported
 `durable-exchanges-v1` capability and freezes that observation profile. This is
 helper compatibility evidence, not proof of correct consultant behavior.
 The optional `user-question-routing-v1` capability identifies the revised
 question-aware profile without rejecting earlier 7.0.5 snapshots. Use the
 frozen capability observation together with each exchange's recorded renderer;
 do not impose v3 wording on historical v1/v2 replies.
-Version 7.0.8 additionally requires `captured-delivery-v1` and
+Versions 7.0.8 and 7.0.9 additionally require `captured-delivery-v1` and
 `proposal-preflight-v1`; earlier profiles record these when present.
+Version 7.0.9 also requires `intact-reply-recovery-v1` and
+`source-attributed-memory-v1`; earlier profiles record these when present.
+Use the frozen capabilities rather than applying the new contract to older snapshots.
 The observer understands retained actual-message captures while still comparing
 the independently returned public reply. It never writes a consultant delivery
 receipt. Prepared `exchanges/.../response.md` files are replies, not reports.
+The per-turn exchange observation distinguishes `matched`, `wrapped`, `mismatch`
+and `unobserved`. A unique intact body inside extra text is `wrapped`; the reviewer
+must still read that text. Final review independently compares retained candidate
+captures and recovery spans against the complete public reply. It cannot repair
+the candidate's delivery or memory records.
 
 Do not edit or normalize a fixture to make hashes pass. `.gitattributes` preserves
 the shipped fixture bytes across platforms. Changed facts/data require a new
@@ -286,6 +294,13 @@ Create the assessment outside the attempt/work so it does not change the evidenc
   prose is written. Address every `machine_findings` ID with a corresponding
   `machine_finding_dispositions` entry containing `status` (`confirmed`,
   `false_positive`, `unresolved`), a substantive `reason`, and bound `evidence_refs`.
+  Confirming a capture discrepancy does not establish who caused it. Use finding
+  owner `undetermined` when attribution lacks evidence; material uncertainty
+  leaves quality inconclusive. A different owner is not a false-positive check.
+  Source-release observations expose on-request bytes appearing without a recorded
+  release or a gated release's receipt; unexplained gaps prevent a pass, without
+  claiming early use or leakage. Missing counterpart captures are evidence gaps,
+  not proof that messages differ.
   Read the cited content; a boilerplate disposition is not independent review.
 - `test_validity` and `outcome` from [evaluation.md](evaluation.md).
 - `coverage`: object keyed by every frozen criterion ID, with `status`, `reason`

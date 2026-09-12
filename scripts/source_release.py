@@ -153,3 +153,104 @@ all four components. No held-out file identity is required before its release.
                         "receipt": receipt, "evidence_refs": evidence_refs,
                         "scope": "Public references, chronology and saved bytes checked; semantic adequacy requires review."})
     return checked
+
+
+def source_release_observations(attempt, frozen, index):
+    """Compare retained source bytes with recorded releases, without inferring use.
+
+    Renamed byte-identical copies are observable. Transformed data and access
+    outside retained snapshots are not. Receipt contents still need review.
+    """
+    files = index.get("files", {})
+    case = frozen.get("case_manifest", {})
+    events = sorted({int(match[1]) for name in files
+                     if (match := re.match(r"private/events/(\d+)/", name))})
+    if not events:
+        return []
+    cache = {}
+
+    def retained(relative, refs, gaps, *, document=False, expected=None):
+        key = (relative, document, expected)
+        ref = "private/" + relative
+        if key not in cache:
+            try:
+                path = member(attempt, relative)
+                if ref not in files:
+                    raise ValueError("not indexed")
+                if not path.is_file():
+                    raise ValueError("not retained")
+                sha = digest(path)
+                if sha != files[ref] or (expected is not None and sha != expected):
+                    raise ValueError("hash mismatch")
+                value = read(path) if document else True
+                if document and not isinstance(value, dict):
+                    raise ValueError("expected a JSON object")
+                cache[key] = (value, None)
+            except (OSError, ValueError, UnicodeError) as exc:
+                cache[key] = (None, {"evidence_ref": ref, "reason": str(exc)})
+        value, gap = cache[key]
+        if gap is not None:
+            if gap not in gaps:
+                gaps.append(gap)
+        elif ref not in refs:
+            refs.append(ref)
+        return value
+
+    observations = []
+    for source in case.get("sources", []):
+        if source.get("availability") != "on_request":
+            continue
+        source_id = source["id"]
+        sha = case.get("files", {}).get(source["file"])
+        refs, gaps, releases = [], [], []
+        mentioned = claimed_source = False
+        first = None
+        for turn in range(1, events[-1] + 1):
+            event = f"events/{turn:03d}"
+            inventory = retained(event + "/work-files.json", refs, gaps, document=True)
+            if first is None and isinstance(sha, str):
+                for path, saved_sha in (inventory or {}).items():
+                    if saved_sha == sha:
+                        claimed_source = True
+                        if retained(event + "/work-snapshot/" + path, refs, gaps, expected=sha):
+                            first = {"first_observed_event": turn, "first_observed_path": path, "sha256": sha}
+                            break
+            released = retained(event + "/releases.json", refs, gaps, document=True)
+            if released is not None and source_id in released:
+                mentioned = True
+                entry = released[source_id]
+                if isinstance(sha, str) and isinstance(entry, dict) and entry.get("sha256") == sha and entry.get("path") == source["destination"]:
+                    releases.append(turn)
+                else:
+                    gaps.append({"evidence_ref": "private/" + event + "/releases.json",
+                                 "reason": "source release does not match the frozen destination and hash"})
+            # Only pre-appearance release chronology can establish its acquisition.
+            if first is not None:
+                break
+        if first is None and not releases and not mentioned and not claimed_source:
+            continue
+        retained("case/" + source["file"], refs, gaps, expected=sha)
+        base = {"source_id": source_id, **(first or {}), "evidence_refs": refs}
+        if first is not None and not releases:
+            observations.append({**base, "status": "evidence_gap" if gaps else "acquisition_unverified",
+                                 "evidence_gaps": gaps,
+                                 "meaning": "Source bytes are retained without a verified release at or before their first observed event. This does not establish when they were accessed or used."})
+            continue
+        missing_receipts = []
+        if "release_prerequisite" in source:
+            for turn in releases:
+                event = f"events/{turn:03d}"
+                receipt = retained(event + "/source-release-check.json", refs, gaps, document=True)
+                verified = receipt.get("verified_receipts") if receipt is not None else None
+                if not isinstance(verified, list):
+                    if receipt is not None:
+                        gaps.append({"evidence_ref": "private/" + event + "/source-release-check.json",
+                                     "reason": "verified_receipts is not a list"})
+                elif not any(isinstance(item, dict) and item.get("source_id") == source_id for item in verified):
+                    missing_receipts.append(turn)
+        if gaps or missing_receipts:
+            observations.append({**base, "status": "evidence_gap" if gaps else "receipt_unverified",
+                                 "release_events": releases, "missing_receipt_events": missing_receipts,
+                                 "evidence_gaps": gaps,
+                                 "meaning": "The retained release trace needs review; a recorded release alone does not establish the gated commitment. No access or analysis timing is inferred."})
+    return observations

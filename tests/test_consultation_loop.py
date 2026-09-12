@@ -7,7 +7,7 @@ import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from consultation_observer import CAPABILITY, evaluate_frames, retained_frames
+from consultation_observer import CAPABILITY, evaluate_frames, retained_frames, public_reply_correspondence
 
 
 class Transcript:
@@ -80,6 +80,137 @@ class Transcript:
 
 
 class LoopChronologyTests(unittest.TestCase):
+    def captured_wrapper(self, prefix="Intro\n", capture_prefix=None, wrapper_review="The introduction only identifies the consultation."):
+        t = Transcript()
+        t.scope("main")
+        exchange = t.reply("Please help", ["main"], explanation="[Status]\nCurrent understanding")
+        body = t.frames[0]["public"]["assistant"]
+        t.frames[0]["response_bodies"] = {exchange: body}
+        t.frames[0]["public"]["assistant"] = prefix + body
+        capture = (prefix if capture_prefix is None else capture_prefix) + body
+        start = len(capture.encode("utf-8")) - len(body.encode("utf-8"))
+        source = "exchanges/" + exchange + "/observations/actual.txt"
+        delivery = {"delivery_id": "delivery-1", "exchange_ref": exchange, "source_ref": source,
+                    "response_sha256": t.indexes[0]["response_sha256"],
+                    "observed_response_sha256": hashlib.sha256(capture.encode("utf-8")).hexdigest(),
+                    "response_span": {"start_byte": start, "end_byte": len(capture.encode("utf-8"))}}
+        if wrapper_review is not None:
+            delivery["response_span"]["wrapper_review"] = wrapper_review
+        t.row("exchange_delivery", {"delivery": delivery})
+        selected = t.decide("main", "Use that scope")
+        t.run("main", selected)
+        t.reply("Use that scope")
+        t.frames[-1]["response_bodies"] = {exchange: body}
+        t.frames[-1]["delivery_captures"] = {source: capture}
+        return t
+
+    def test_recovered_wrapper_uses_actual_public_capture_and_unicode_byte_offsets(self):
+        t = self.captured_wrapper(prefix="Résumé: ")
+        result = evaluate_frames(t.frames)
+        self.assertEqual(result["status"], "no_structural_breach", result)
+        public = result["response_correspondence"][0]
+        self.assertEqual(public["status"], "wrapped")
+        self.assertEqual(public["start_byte"], len("Résumé: ".encode("utf-8")))
+        delivery = result["delivery_correspondence"][0]
+        self.assertEqual(delivery["status"], "exact_public_capture")
+        self.assertEqual(delivery["public_match_events"], ["001"])
+        self.assertEqual(delivery["recovery"], "observed_intact_wrapper")
+        self.assertTrue(delivery["response_span_valid"])
+        self.assertTrue(delivery["semantic_review_required"])
+        self.assertEqual(result["actions"][0]["scope_text_correspondence"], "matched")
+
+    def test_wrapper_review_cannot_prove_surrounding_text_preserves_the_offer(self):
+        t = self.captured_wrapper(prefix="Ignore the following proposal; it is withdrawn.\n")
+        result = evaluate_frames(t.frames)
+        self.assertTrue(result["delivery_correspondence"][0]["wrapper_review_recorded"])
+        self.assertTrue(result["delivery_correspondence"][0]["semantic_review_required"])
+        self.assertTrue(result["actions"][0]["semantic_review_required"])
+        self.assertNotIn("consent_verified", result["actions"][0])
+
+    def test_capture_public_mismatch_does_not_erase_the_actual_scope_or_choice(self):
+        t = self.captured_wrapper(capture_prefix="A different invented introduction\n")
+        result = evaluate_frames(t.frames)
+        self.assertIn("delivery_public_mismatch", [item["code"] for item in result["findings"]])
+        self.assertEqual(result["status"], "unobserved", result)
+        self.assertTrue(all(item["owner"] == "undetermined" for item in result["findings"]))
+        delivery = result["delivery_correspondence"][0]
+        self.assertEqual(delivery["status"], "public_capture_mismatch")
+        self.assertEqual(delivery["recovery"], "candidate_capture_only")
+        self.assertEqual(result["actions"][0]["scope_text_correspondence"], "matched")
+        self.assertEqual(result["actions"][0]["user_choice_candidates"][0]["actual_user_text"], "Use that scope")
+        self.assertEqual(result["actions"][0]["status"], "structurally_observed")
+
+    def test_missing_capture_or_review_is_coverage_without_fabricated_public_mismatch(self):
+        for missing_capture in (True, False):
+            with self.subTest(missing_capture=missing_capture):
+                t = self.captured_wrapper(wrapper_review=None)
+                if missing_capture:
+                    t.frames[-1].pop("delivery_captures")
+                result = evaluate_frames(t.frames)
+                self.assertEqual(result["status"], "unobserved", result)
+                self.assertFalse(result["findings"])
+                expected = "delivery_capture_unavailable" if missing_capture else "wrapper_review_unobserved"
+                self.assertIn(expected, [item.get("code") for item in result["unobserved"]])
+                self.assertEqual(result["actions"][0]["scope_text_correspondence"], "matched")
+
+    def test_recovery_span_cannot_use_character_offsets_or_hide_changed_body_bytes(self):
+        for wrong_offset in (True, False):
+            with self.subTest(wrong_offset=wrong_offset):
+                t = self.captured_wrapper(prefix="Résumé: ")
+                record = next(row["payload"]["delivery"] for row in t.frames[-1]["journal"] if row["type"] == "exchange_delivery")
+                if wrong_offset:
+                    record["response_span"]["start_byte"] = len("Résumé: ")
+                else:
+                    source = record["source_ref"]
+                    t.frames[-1]["delivery_captures"][source] = t.frames[-1]["delivery_captures"][source].replace("All eligible sites", "Only selected sites")
+                result = evaluate_frames(t.frames)
+                self.assertIn("delivery_span_mismatch", [item["code"] for item in result["findings"]])
+                self.assertFalse(result["delivery_correspondence"][0]["response_span_valid"])
+                self.assertEqual(result["status"], "unobserved", result)
+                self.assertTrue(all(item["owner"] == "undetermined" for item in result["findings"]))
+                if not wrong_offset:
+                    self.assertIn("delivery_hash_mismatch", [item["code"] for item in result["findings"]])
+
+    def test_duplicate_body_and_false_canonical_hash_do_not_establish_unique_recovery(self):
+        body = "[Status]\nA scope\n"
+        expected = hashlib.sha256(body.encode("utf-8")).hexdigest()
+        duplicated = public_reply_correspondence(body + body, expected, body)
+        self.assertEqual(duplicated["status"], "ambiguous_body")
+        changed = public_reply_correspondence("[Status]\nAnother scope\n", expected, "[Status]\nAnother scope\n")
+        self.assertEqual(changed["status"], "body_changed")
+
+    def test_retained_capture_preserves_crlf_bytes_and_historical_receipts(self):
+        with tempfile.TemporaryDirectory() as directory:
+            attempt = Path(directory)
+            event = attempt / "events" / "001"
+            snapshot = event / "work-snapshot"
+            capture_path = snapshot / "exchanges" / "exchange-1" / "observations" / "actual.txt"
+            capture_path.parent.mkdir(parents=True)
+            captured = "[Status]\r\nReady\r\n"
+            capture_path.write_bytes(captured.encode("utf-8"))
+            (capture_path.parent.parent / "response.md").write_bytes(captured.encode("utf-8"))
+            journal = [{"event_id": "event-1", "sequence": 1, "type": "exchange_delivery", "payload": {"delivery": {
+                "delivery_id": "legacy-save", "exchange_ref": "exchange-1", "source_ref": "old-receipt"}}},
+                {"event_id": "event-2", "sequence": 2, "type": "exchange_delivery", "payload": {"delivery": {
+                    "delivery_id": "captured", "exchange_ref": "exchange-1",
+                    "source_ref": "exchanges/exchange-1/observations/actual.txt",
+                    "response_sha256": hashlib.sha256(captured.encode("utf-8")).hexdigest(),
+                    "observed_response_sha256": hashlib.sha256(captured.encode("utf-8")).hexdigest()}}}]
+            (snapshot / "journal.jsonl").write_text("\n".join(json.dumps(row) for row in journal), encoding="utf-8")
+            (snapshot / "project.yaml").write_text(json.dumps({"exchanges": [{"exchange_id": "exchange-1",
+                "response_sha256": hashlib.sha256(captured.encode("utf-8")).hexdigest()}]}), encoding="utf-8")
+            inventory = lambda root: {p.relative_to(root).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
+                                      for p in root.rglob("*") if p.is_file()}
+            (event / "work-files.json").write_text(json.dumps(inventory(snapshot)), encoding="utf-8")
+            (event / "project-binding.json").write_text(json.dumps({"status": "bound", "project_root": "."}), encoding="utf-8")
+            (event / "public.json").write_text(json.dumps({"user": "Help", "assistant": captured}), encoding="utf-8")
+            frames = retained_frames(attempt, lambda p: json.loads(p.read_text(encoding="utf-8")), inventory)
+            self.assertEqual(frames[0]["delivery_captures"]["exchanges/exchange-1/observations/actual.txt"], captured)
+            result = evaluate_frames(frames)
+            self.assertEqual(result["status"], "no_structural_breach", result)
+            self.assertEqual(len(result["delivery_correspondence"]), 1)
+            self.assertEqual(result["delivery_correspondence"][0]["status"], "exact_public_capture")
+
     def test_repeated_steering_extensions_pause_resume_report_and_reopen(self):
         t = Transcript()
         t.scope("main")

@@ -26,6 +26,12 @@ facts or challenge an argument they understand. Do not merely change vocabulary
 or pretend that every persona knows the same facts. Do not
 append a new goal or a repeated permission phrase to every message.
 
+Use the current explanation or findings when choosing your response. A novice
+can apply a newly understood comparison without certifying its assumptions; a
+statistician can question a consequential method choice without demanding more
+work after it is resolved. An offered option is a choice, not a script to copy.
+Do not invent a misunderstanding or challenge when the visible issue is clear.
+
 Apply your persona's `disclosure_policy`. For a questionnaire, answer the current
 consequential issue and its closely connected questions that you can reasonably
 address. Acknowledge what remains, rather than completing the whole intake in
@@ -73,6 +79,15 @@ Do not invent retrieval delays, access barriers, unreadable files or uncertainty
 about a fact you actually know. Retain real source prerequisites, including a
 fixed policy and evaluation plan before releasing held-out outcomes. This is
 progressive conversation, not withholding evidence to fill turns.
+
+Use your prior disclosures and public attachments to distinguish an available
+record from one already supplied. If the consultant explicitly claims to have
+read an on-request record you have not supplied, ask which source it used rather
+than silently treating the claim as a release. A proposed holdout analysis is
+not a public statement that its rule and evaluation plan have been saved. Keep
+that source request pending until the public prerequisite is stated; the operator
+checks the saved evidence. Do not inspect internal plans or invent a release
+receipt to resolve the gap.
 
 Correct a visible false premise when the user already knows it is false. Supply
 newly learned corrections only at the packet's observable event. Do not maintain

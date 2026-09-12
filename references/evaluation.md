@@ -150,12 +150,29 @@ Use `inspect --view reviewer` before writing the assessment. It saves
 machine finding, missing-coverage entry and response discrepancy with exact
 evidence references. Do not describe a previous per-turn check as the final
 result. If evidence changes, regenerate the snapshot and revise the assessment.
+Confirm a discrepancy separately from assigning its cause. Reassigning ownership
+does not make an observed discrepancy a `false_positive`. Use `undetermined`
+when invocation or other evidence cannot establish the responsible component;
+do not invent a backend or transport explanation. For claims about missing
+memory attribution, count the actual relevant records and quote their excerpts
+against the public user messages, rather than generalizing from one empty field.
 Keep report completion, observed chronology, delivery correspondence and
 scientific judgment separate. An intact reply with extra wrapper text differs
 from a rewritten body. Missing exact correspondence does not by itself prove
 missing consent or that report creation preceded the choice. A foreign `run_id`
 on new evidence is not a revision of the run itself. Read changed conditions and
 the actual public wording before drawing either conclusion.
+Compare the candidate's retained delivery capture with the complete actual public
+reply, including surrounding prose. A matching prepared body or candidate
+`wrapper_review` alone does not establish that the prose preserves the offer.
+Missing or malformed counterpart evidence remains unobserved, not a text mismatch.
+
+Review `source_release_trace` observations against recorded releases and raw
+invocations. Identical on-request source bytes appearing in a saved work snapshot
+before a recorded release establish unverified acquisition. They do not prove
+that the consultant used the file early or that the actor leaked it. A gated
+release also needs its retained prerequisite receipt. Preserve unexplained gaps
+as incomplete coverage, even when the resulting numbers appear correct.
 
 Open actual saved code and outputs for material numerical claims. Apply the
 case's independent row-level or estimator/uncertainty references and declared
@@ -232,7 +249,7 @@ Keep these fields separate in the assessment:
 | `test_validity` | `valid`, `invalid`, `unverified`: whether fixture execution, private-information boundaries and required continuity are established |
 | `outcome` | `objective_met`, `useful_stop`, `incomplete`, `execution_error`: what the consultation actually achieved |
 | `coverage` | Each required criterion is `observed`, `unobserved` or `not_applicable`, with evidence/reason; a counterexample is observed, not missing |
-| `findings` | Defects with `owner` (`consultant`, `simulator`, `harness`, `fixture`, `environment`), `severity`, `criterion`, `description`, consequence and actual `evidence_refs` |
+| `findings` | Defects with `owner` (`consultant`, `simulator`, `harness`, `fixture`, `environment`, `undetermined`), `severity`, `criterion`, `description`, consequence and actual `evidence_refs` |
 | `quality_rating` | Derived as below, not chosen to conceal a finding or incomplete objective |
 | `resources` | Actual measured work, provider coverage, limits and any breaches, distinct from scientific validity |
 
@@ -246,7 +263,8 @@ Derive the rating in this order:
 1. An attributable material/fundamental consultant defect yields `fail`, even
    if a later cap prevents completion. With invalid/unverified execution, retain
    that bounded defect but do not claim a valid whole-case comparison.
-2. Otherwise an invalid/unverified test, unobserved required criterion, resource
+2. Otherwise an invalid/unverified test, material/fundamental finding with
+   undetermined cause, unobserved required criterion, resource
    breach or execution error yields `inconclusive`. So does an outcome that is
    neither `objective_met` nor a `useful_stop` satisfying the case's frozen
    stopping criteria; such a useful stop need not deliver an unattainable estimate.
@@ -264,7 +282,8 @@ Severity meanings: `minor` leaves the substantive decision equivalent;
 `material` changes scientific support, requested utility or a meaningful user
 decision; `fundamental` destroys trustworthy continuity/evidence or represents
 unperformed work as completed. Simulator leaks, inconsistent worlds and transport
-errors remain owned by the responsible component, not blamed on the consultant.
+errors are attributed only when the evidence identifies the responsible component.
+An undetermined cause does not by itself invalidate execution or erase the defect.
 Retain the original failed record when a defect is corrected.
 
 ## Reporting and Comparison

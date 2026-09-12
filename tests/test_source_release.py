@@ -10,7 +10,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 from source_release import (POLICY_EVALUATION_COMPONENTS, policy_evaluation_prerequisite,
-                            validate_release_receipts, validate_source_prerequisite)
+                            source_release_observations, validate_release_receipts, validate_source_prerequisite)
 
 
 def write(path, value):
@@ -166,6 +166,98 @@ class SourceReleaseTests(unittest.TestCase):
                 validate_source_prerequisite({**self.sources["s-evaluation"], "release_prerequisite": prerequisite})
         with self.assertRaisesRegex(ValueError, "cannot be initial"):
             validate_source_prerequisite({**self.sources["s-evaluation"], "availability": "initial"})
+
+    def trace_index(self):
+        return {"files": {"private/" + path.relative_to(self.attempt).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
+                          for path in self.attempt.rglob("*") if path.is_file()}}
+
+    def trace_fixture(self, *, release=True):
+        source = self.sources["s-evaluation"]
+        content = b"id,outcome\n1,8\n2,11\n"
+        sha = hashlib.sha256(content).hexdigest()
+        alias = "analysis/inputs/0001.csv"
+        for path in (self.attempt / "case" / source["file"],
+                     self.attempt / "events/002/work-snapshot" / alias):
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(content)
+        write(self.attempt / "events/001/releases.json", {})
+        write(self.attempt / "events/002/work-files.json", {alias: sha})
+        write(self.attempt / "events/002/releases.json",
+              {source["id"]: {"path": source["destination"], "sha256": sha}} if release else {})
+        write(self.attempt / "events/002/source-release-check.json", {"verified_receipts": self.check() if release else []})
+        frozen = {"case_manifest": {"sources": [source], "files": {source["file"]: sha}}}
+        return frozen, alias
+
+    def test_renamed_source_without_release_is_acquisition_unverified(self):
+        frozen, alias = self.trace_fixture(release=False)
+        index = self.trace_index()
+        observed = source_release_observations(self.attempt, frozen, index)
+        self.assertEqual(len(observed), 1)
+        self.assertEqual(observed[0]["status"], "acquisition_unverified")
+        self.assertEqual(observed[0]["source_id"], "s-evaluation")
+        self.assertEqual(observed[0]["first_observed_event"], 2)
+        self.assertEqual(observed[0]["first_observed_path"], alias)
+        self.assertIn("does not establish when they were accessed or used", observed[0]["meaning"])
+        self.assertTrue(all(ref in index["files"] for ref in observed[0]["evidence_refs"]))
+
+    def test_valid_release_trace_adds_no_finding_and_does_not_change_evidence(self):
+        frozen, _ = self.trace_fixture()
+        before = self.trace_index()
+        self.assertEqual(source_release_observations(self.attempt, frozen, before), [])
+        self.assertEqual(self.trace_index(), before)
+
+    def test_empty_gated_receipt_is_distinct_from_unreadable_receipt(self):
+        frozen, _ = self.trace_fixture()
+        target = self.attempt / "events/002/source-release-check.json"
+        write(target, {"verified_receipts": []})
+        observed = source_release_observations(self.attempt, frozen, self.trace_index())
+        self.assertEqual(observed[0]["status"], "receipt_unverified")
+        self.assertEqual(observed[0]["missing_receipt_events"], [2])
+        target.write_text("{", encoding="utf-8")
+        observed = source_release_observations(self.attempt, frozen, self.trace_index())
+        self.assertEqual(observed[0]["status"], "evidence_gap")
+        self.assertTrue(observed[0]["evidence_gaps"])
+        target.unlink()
+        observed = source_release_observations(self.attempt, frozen, self.trace_index())
+        self.assertEqual(observed[0]["status"], "evidence_gap")
+        self.assertNotIn("private/events/002/source-release-check.json", observed[0]["evidence_refs"])
+
+    def test_changed_or_unindexed_snapshot_cannot_establish_source_appearance(self):
+        frozen, alias = self.trace_fixture(release=False)
+        snapshot = self.attempt / "events/002/work-snapshot" / alias
+        index = self.trace_index()
+        snapshot.write_bytes(b"changed data")
+        observed = source_release_observations(self.attempt, frozen, index)
+        self.assertEqual(observed[0]["status"], "evidence_gap")
+        self.assertNotIn("first_observed_event", observed[0])
+        ref = "private/events/002/work-snapshot/" + alias
+        self.assertNotIn(ref, observed[0]["evidence_refs"])
+        del index["files"][ref]
+        observed = source_release_observations(self.attempt, frozen, index)
+        self.assertEqual(observed[0]["status"], "evidence_gap")
+        self.assertNotIn("first_observed_event", observed[0])
+
+    def test_missing_prior_release_record_is_an_evidence_gap(self):
+        frozen, _ = self.trace_fixture(release=False)
+        (self.attempt / "events/001/releases.json").unlink()
+        observed = source_release_observations(self.attempt, frozen, self.trace_index())
+        self.assertEqual(observed[0]["status"], "evidence_gap")
+        self.assertEqual(observed[0]["first_observed_event"], 2)
+
+    def test_later_release_cannot_establish_the_earlier_acquisition(self):
+        frozen, _ = self.trace_fixture(release=False)
+        source = frozen["case_manifest"]["sources"][0]
+        write(self.attempt / "events/003/releases.json", {source["id"]: {
+            "path": source["destination"], "sha256": frozen["case_manifest"]["files"][source["file"]]}})
+        write(self.attempt / "events/003/source-release-check.json", {"verified_receipts": self.check()})
+        observed = source_release_observations(self.attempt, frozen, self.trace_index())
+        self.assertEqual(observed[0]["status"], "acquisition_unverified")
+        self.assertEqual(observed[0]["first_observed_event"], 2)
+
+    def test_unseen_unreleased_source_adds_no_finding(self):
+        frozen, _ = self.trace_fixture(release=False)
+        write(self.attempt / "events/002/work-files.json", {})
+        self.assertEqual(source_release_observations(self.attempt, frozen, self.trace_index()), [])
 
 
 if __name__ == "__main__":

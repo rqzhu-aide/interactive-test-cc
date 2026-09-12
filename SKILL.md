@@ -2,7 +2,7 @@
 name: interactive-test-cc
 description: Define, prepare and evaluate adaptive multi-turn tests of causal-consultant v7, with a Hermes simulated user and a consultant accessed through Claude Code. Use for end-to-end investigation, reproducible analysis and saved reporting, or explicitly focused tests of elicitation, preparation, useful stopping and continuity.
 metadata:
-  version: "7.0.8"
+  version: "7.0.9"
 ---
 
 # Adaptive Causal Consultation Testing
@@ -21,15 +21,18 @@ Use the [runner guide](references/runner.md) for startup, adaptive steps and rev
 Local subprocess tests do not establish Hermes/Claude compatibility. The actual
 host smoke and live qualification of selected compositions remain pending.
 
-Target: `causal-consultant` `7.0.8` (also compatible with `7.0.0`, `7.0.1`, `7.0.2`, `7.0.4`, `7.0.5`, `7.0.6` and `7.0.7`),
+Target: `causal-consultant` `7.0.9` (also compatible with `7.0.0`, `7.0.1`, `7.0.2`, `7.0.4`, `7.0.5`, `7.0.6`, `7.0.7` and `7.0.8`),
 pinned to the actual tested snapshot. Old frozen cases are no longer shipped;
 prior run packages retain their original identities. The 7.0.5
-through 7.0.8 profiles verify the helper's `durable-exchanges-v1` capability and retain
+through 7.0.9 profiles verify the helper's `durable-exchanges-v1` capability and retain
 the observed turn/exchange views. They record `user-question-routing-v1` when
-present; earlier 7.0.5 snapshots retain their own response contract. Versions 7.0.7 and 7.0.8
+present; earlier 7.0.5 snapshots retain their own response contract. Versions 7.0.7 through 7.0.9
 also require `consultation-loop-v1` and independently observe actual proposals,
-later user choices, findings discussion and first protected work appearance. Version 7.0.8
-additionally requires `captured-delivery-v1` and `proposal-preflight-v1`. Consultant
+later user choices, findings discussion and first protected work appearance. Versions 7.0.8 and 7.0.9
+additionally require `captured-delivery-v1` and `proposal-preflight-v1`. Version 7.0.9
+also requires `intact-reply-recovery-v1` and `source-attributed-memory-v1`;
+earlier profiles record these when present. Review actual reply captures and source
+quotations against the frozen capabilities. Earlier snapshots retain their own contract. Consultant
 `7.0.3` and later unlisted candidates require an explicitly checked compatibility profile. Preserve
 the pre-v7 testing skill, runner, fixtures and results in the sibling local
 `interactive-test-cc-v6` archive. This repository root now contains the v7

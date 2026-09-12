@@ -2,9 +2,9 @@
 
 - Class: implementation record
 - Status: consultation-loop testing and evidence corrections implemented and locally verified; live qualification pending
-- Date: 2026-09-11
-- Package: `interactive-test-cc`, `7.0.8`
-- Current consultant target: an identified `7.0.8` snapshot
+- Date: 2026-09-12
+- Package: `interactive-test-cc`, `7.0.9`
+- Current consultant target: an identified `7.0.9` snapshot
 
 ## Active testing contract
 
@@ -167,3 +167,31 @@ the false stale-permission and premature-report findings while retaining missing
 capture and reply-correspondence coverage limits. This does not repair that
 archive or qualify its science. Actual host isolation, actor invocation evidence
 and a live full-report consultation remain separate qualification work.
+
+## Version 7.0.9 evidence and persona correction, September 12, 2026
+
+The observer independently compares complete public replies, retained consultant
+captures and unique intact reply spans. Missing transport evidence remains
+unobserved instead of becoming a claimed mismatch. Review permits an undetermined
+failure cause and exposes source appearances without a recorded release, without
+treating an unexplained appearance as proof of early use or leakage. These gaps
+remain visible in the final assessment.
+
+Novice replies distinguish available records from facts actually read and learned;
+statistician replies engage with consequential findings and choices. Partial
+requests and source disclosure history persist across replies. The four problems,
+four personas, scientific source bytes and descriptive target lengths are unchanged.
+
+Both skills are aligned at 7.0.9. The new consultant profile requires
+`intact-reply-recovery-v1` and `source-attributed-memory-v1` alongside the existing
+delivery, preflight and loop capabilities. Older profiles retain their contracts;
+historical release records and frozen attempts are preserved. Local regression
+checks and isolated actor rehearsals do not establish live host qualification or
+scientific performance.
+
+The final 7.0.9 release suite ran 156 tests in 216.615 seconds: 155 passed
+and the Windows symlink-creation test was skipped because the host did not grant
+that permission. The suite ran against the aligned 7.0.9 consultant and covers
+the required capabilities, older profile compatibility and rejection of unlisted
+versions. Skill metadata validation, all 32 active Markdown links and the
+whitespace check passed.

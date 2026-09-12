@@ -148,7 +148,7 @@ def compose_case(problem_id, persona_id, output, bank_root=None, personas_root=N
     })
     manifest = {
         "schema_version": 1, "case_id": problem_id + "--" + persona_id, "case_version": "1.0.2",
-        "suite_version": "7.0.8", "edition": "modular-problem-persona",
+        "suite_version": "7.0.9", "edition": "modular-problem-persona",
         "problem_id": problem_id, "problem_version": problem["problem_version"],
         "persona_id": persona_id, "persona_version": persona["persona_version"],
         "world": problem["world"], "world_id": world["world_id"], "world_version": world["world_version"],
