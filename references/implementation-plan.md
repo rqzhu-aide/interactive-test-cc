@@ -1,10 +1,10 @@
 # Implementation Plan for the V7 Testing Skill
 
 - Class: implementation record
-- Status: consultation-loop revision and modular catalog simplification implemented and locally verified; live qualification pending
-- Date: 2026-09-10
-- Package: `interactive-test-cc`, `7.0.7`
-- Current consultant target: an identified `7.0.7` snapshot
+- Status: consultation-loop testing and evidence corrections implemented and locally verified; live qualification pending
+- Date: 2026-09-11
+- Package: `interactive-test-cc`, `7.0.8`
+- Current consultant target: an identified `7.0.8` snapshot
 
 ## Active testing contract
 
@@ -84,7 +84,7 @@ contract. No fifth scientific problem or copied legacy dataset is retained.
 The fake Claude process and current-policy helper are explicitly test-only;
 they do not represent live consulting behavior.
 
-## Validation and remaining qualification
+## Version 7.0.7 validation and remaining qualification
 
 Problem/case definitions are `1.0.2`; persona definitions are `1.0.1`. All
 scientific public sources, numerical oracles and checkers remain byte-identical
@@ -128,3 +128,42 @@ then run the selected pairs with independent review and prospectively frozen
 limits. Diagnostic mode cannot qualify a blinded comparison. A local test pass
 is evidence about the adapter, not about real user behavior or scientific
 performance. See [runner.md](runner.md) and [evaluation.md](evaluation.md).
+
+## Version 7.0.8 tester correction, September 11, 2026
+
+The CATE novice review exposed premature held-out source release, false stale
+permission and report-timing flags, review prose written before final checks,
+and missing raw captures in the exported package. This revision adds
+source-specific commitment receipts, retained actor inputs and current-choice
+records, final observation snapshots with explicit reviewer dispositions, and
+verified complete or explicitly partial package export. The observer uses typed
+record identities, separates reply correspondence from consent evidence, and
+retains missing turns. The 7.0.8 consultant profile requires captured-delivery
+and proposal-preflight capabilities without writing consultant receipts on its
+behalf. Earlier compatible profiles preserve their own capability requirements.
+
+The four problems and four personas remain independently selectable. Scientific
+data, public source bytes and numerical oracles are unchanged. The generator
+identity and world-file hashes were refreshed for the added source metadata.
+Both skill versions are aligned at 7.0.8. Historical fixture identities and
+earlier frozen attempts retain their original version records.
+
+Correction validation ran 136 tests in 140.519 seconds: 135 passed and one filesystem
+symlink-creation test was skipped because the host did not grant that permission.
+ZIP link and traversal rejection checks passed. The suite covers all 16
+compositions, 34 chronology checks, source prerequisites, actor continuity,
+review ordering and complete package export against the updated consultant.
+A fresh integration test refused an early held-out release without dispatch,
+accepted it after a prior saved/public commitment, finalized its diagnostic
+assessment, and exported and checked its complete evidence package.
+
+The final 7.0.8 release suite ran 137 tests in 140.512 seconds: 136 passed
+and the same OS symlink-creation test was skipped. The added regression verifies
+each required 7.0.8 capability while preserving the earlier 7.0.7 profile.
+Skill validation, active Markdown links and the whitespace check also passed.
+
+A read-only diagnostic replay of the earlier nine-turn CATE archive removed
+the false stale-permission and premature-report findings while retaining missing
+capture and reply-correspondence coverage limits. This does not repair that
+archive or qualify its science. Actual host isolation, actor invocation evidence
+and a live full-report consultation remain separate qualification work.

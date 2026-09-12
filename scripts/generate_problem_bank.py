@@ -14,6 +14,8 @@ import math
 from pathlib import Path
 import random
 
+from source_release import policy_evaluation_prerequisite
+
 ROOT = Path(__file__).resolve().parents[1]
 PROBLEM_IDS = ("study-design", "observational-did", "cate-policy", "data-quality-edge")
 PERSONAS = ("novice", "domain-expert", "statistician", "adversarial")
@@ -274,6 +276,7 @@ def cate_policy():
         source("s-constraints", "decision-constraints.md", "Questions about implementable decisions, cost, capacity, utility, target population or all study records."),
         source("s-evaluation-access", "evaluation-access.md", "Questions about validation, held-out data, available files or all study records."),
         source("s-evaluation", "evaluation.csv", "Only after a visible statement identifying the saved fixed candidate rule and evaluation plan, including utility and comparators. Never release solely because of a broad request or elapsed dialogue. The user may ask a brief practical clarification if the commitment is missing; no private-journal inspection or exact wording is required.")]
+    p["sources"][-1]["release_prerequisite"] = policy_evaluation_prerequisite()
     p["actor_facts"] = [fact("f-targeting", "We need a practical rule deciding whom to offer tutoring before the program starts, and a saved report explaining its likely value and limits.", "user decision brief", certainty="user preference"),
         fact("f-evaluation-access", "There is a separate evaluation file. The records office releases it after the analyst states in the conversation that the proposed rule and evaluation plan have been fixed and saved. I can share the access note now.", "evaluation-access.md", certainty="known access procedure"),
         fact("f-implementation", "Staff know the three baseline fields before making offers; week-four engagement is later. Capacity and a point-equivalent offer cost are recorded in the decision note.", "decision-constraints.md and dictionary.md", "domain"),

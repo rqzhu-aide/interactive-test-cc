@@ -1,8 +1,15 @@
 # Interactive Test CC v7
 
-Version: `7.0.7`, aligned with causal-consultant. Hermes supplies a simulated user
+Version: `7.0.8`, aligned with causal-consultant. Hermes supplies a simulated user
 and Claude Code hosts the consultant. The tester captures actual conversation,
 released evidence, analysis and saved reporting for independent review.
+
+Version 7.0.8 adds saved-plan checks before held-out data release,
+retained actor input records, review snapshots prepared before assessment, and
+verified complete or explicitly partial ZIP export. The observer distinguishes
+reply wrappers and rewritten content from unsupported claims about consent.
+Its consultant profile requires captured-delivery and proposal-preflight
+capabilities. These changes have not been live-qualified.
 
 The catalog contains **four problems and four independent personas**, freely
 combined into 16 possible tests. The old 15 frozen bundles under `cases/` and
@@ -47,11 +54,12 @@ independent review.
 
 Start with [SKILL.md](SKILL.md), the [runner guide](references/runner.md) and the
 [Hermes/Claude contract](references/hermes-claude.md). The runner supports
-preflight, start, step, inspect and finish, including source isolation, snapshot
+preflight, start, step, inspect, finish, export and package checking, including source isolation, snapshot
 identity and session continuity. Supported consultant versions are `7.0.0`,
-`7.0.1`, `7.0.2`, `7.0.4`, `7.0.5`, `7.0.6` and `7.0.7`; unlisted versions need a
-checked compatibility update. Version 7.0.7 requires `consultation-loop-v1`;
-7.0.5 through 7.0.7 require `durable-exchanges-v1`.
+`7.0.1`, `7.0.2`, `7.0.4`, `7.0.5`, `7.0.6`, `7.0.7` and `7.0.8`; unlisted versions need a
+checked compatibility update. Versions 7.0.7 and 7.0.8 require `consultation-loop-v1`;
+7.0.5 through 7.0.8 require `durable-exchanges-v1`. Version 7.0.8 also requires
+`captured-delivery-v1` and `proposal-preflight-v1`.
 
 Local validation covers all 16 compositions, scientific references, source
 boundaries, runner behavior and consultation-loop chronology. See the

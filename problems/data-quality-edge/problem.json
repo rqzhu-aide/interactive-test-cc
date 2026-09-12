@@ -122,7 +122,7 @@
     "public/participant-roster.csv": "9f1fa36f8e599d265e60cf4a501aed29c97035040a3557757ecb1247acbe69a4",
     "public/report-decision.md": "d3798d86dea0d08273295f10f9275ebb876546d3b82b5b16b52467c8d236b388",
     "reviewer.json": "a8c822b4da40284b4a39aa50a2ff4d5de70a257662dd98280acfdc2340ce85b3",
-    "world.json": "56138d633e8710a664219a6087b054651cdbd60e5cb2a538abc0dc3c657e438d"
+    "world.json": "816fc67590fca86d8ad431c44d767e9343793a3c5df9868575de4a6c3e2d5c92"
   },
   "goal": "Audit the tutoring program extract, investigate what can and cannot support a causal conclusion, and save a complete local report with reproducible data preparation, honest descriptive findings or bounds, remaining data limitations and a practical future-evidence plan. HTML is suitable; no publication.",
   "initial_request": "Please use the causal-consultant skill for this consultation. Please audit our tutoring participant extract and assess whether it can support the claim that the program improved completion. I can supply the roster and export records. We need a complete saved report with reliable summaries, unresolved limitations and a practical plan for better evidence.",

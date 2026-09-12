@@ -6,6 +6,7 @@ from pathlib import Path
 import shutil
 
 from session_driver import digest, inventory, member, read, require
+from source_release import validate_source_prerequisite
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -57,6 +58,8 @@ def problem_definition(problem_id, bank_root):
     require(set(definition["initial_requests"]) == set(PERSONA_IDS), "missing persona request wording")
     require("public/initial-message.txt" not in actual,
             "initial message must be composed from private wording templates")
+    for source in definition["sources"]:
+        validate_source_prerequisite(source)
     world = read(member(directory, definition["world"]))
     require(world.get("world_id") and world.get("world_version"), "missing world identity")
     for key in ("world", "reviewer", "oracle_check"):
@@ -108,7 +111,9 @@ def compose_case(problem_id, persona_id, output, bank_root=None, personas_root=N
         rule["fact_ids"] = [ref for ref in rule.get("fact_ids", []) if ref in fact_ids]
     rules[1]["fact_ids"] = sorted(fact_ids)
     sources = [{"source_id": entry["id"], "file": entry["destination"],
-                "availability": entry["availability"], "release": entry["release_when"]}
+                "availability": entry["availability"], "release": entry["release_when"],
+                **({"release_prerequisite": copy.deepcopy(entry["release_prerequisite"])}
+                   if "release_prerequisite" in entry else {})}
                for entry in problem["sources"]]
     rules[2]["source_ids"] = [entry["source_id"] for entry in sources]
     actor = {
@@ -117,7 +122,8 @@ def compose_case(problem_id, persona_id, output, bank_root=None, personas_root=N
         "persona_profile": persona, "goal": problem["goal"], "fluency": persona["fluency"],
         "facts": facts, "sources": sources, "rules": rules, "unknown_policy": problem["unknown_policy"],
         "reply_record": {"required": ["message", "fact_ids", "rule_ids", "attachments", "unanswered_questions", "fixture_gaps", "stop"],
-                         "optional": ["knowledge_updates", "belief_updates", "decision_updates"]},
+                         "optional": ["knowledge_updates", "belief_updates", "decision_updates", "actor_context",
+                                      "action_intents", "source_release_receipts"]},
         "pacing": "Share information progressively around the issue currently being discussed, using your persona's disclosure_policy. Broad relevance does not require exhausting all facts or records in one reply. Retain and revisit unanswered requests; do not hide a known consequential correction, fragment a necessary answer or invent delays. No turn number, target or operational limit determines disclosure or completion. Operational stopping is the operator's responsibility."
     }
     request = problem["initial_requests"][persona_id]
@@ -142,7 +148,7 @@ def compose_case(problem_id, persona_id, output, bank_root=None, personas_root=N
     })
     manifest = {
         "schema_version": 1, "case_id": problem_id + "--" + persona_id, "case_version": "1.0.2",
-        "suite_version": "7.0.7", "edition": "modular-problem-persona",
+        "suite_version": "7.0.8", "edition": "modular-problem-persona",
         "problem_id": problem_id, "problem_version": problem["problem_version"],
         "persona_id": persona_id, "persona_version": persona["persona_version"],
         "world": problem["world"], "world_id": world["world_id"], "world_version": world["world_version"],

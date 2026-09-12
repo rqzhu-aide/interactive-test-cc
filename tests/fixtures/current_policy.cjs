@@ -25,9 +25,21 @@ module.exports = function prepare(scripts, root, plan, suffix, offered = null, p
       interpretation_ref:it.interpretation_id,basis_refs:[],completed_work_refs:completed,renderer:"lead-markdown-v4",
       reconciliation:{changes:[],limitations:["Synthetic structural test only."],unresolved:[],next_direction:"The user chooses."},response}},"exchange-"+name);
     const delivery="delivery-"+name;
-    record("exchange_delivery",{protocol,delivery:{delivery_id:delivery,exchange_ref:receipt.exchange_id,
-      observation:"assistant_emission",source_ref:"conversation:assistant-"+name,
-      response_sha256:state().exchanges.find(x=>x.exchange_id===receipt.exchange_id).response_sha256}},"delivery-"+name);
+    if (fs.existsSync(path.join(scripts,"lib/delivery.cjs"))) {
+      // Synthetic fixture bytes only. The runner still observes the real public
+      // reply independently and never supplies consultant delivery records.
+      const capture=path.join(root,"fixture-message-"+name+".txt");
+      fs.writeFileSync(capture,receipt.rendered_response,"utf8");
+      require(path.join(scripts,"lib/delivery.cjs")).observe(root,{
+        event_id:"event-delivery-"+name,expected_project_id:state().state_meta.project_id,
+        expected_last_event_id:state().state_meta.last_event_id,delivery_id:delivery,
+        exchange_ref:receipt.exchange_id,message_path:capture,
+        observation:"assistant_emission",source_ref:"fixture:assistant-"+name});
+    } else {
+      record("exchange_delivery",{protocol,delivery:{delivery_id:delivery,exchange_ref:receipt.exchange_id,
+        observation:"assistant_emission",source_ref:"conversation:assistant-"+name,
+        response_sha256:state().exchanges.find(x=>x.exchange_id===receipt.exchange_id).response_sha256}},"delivery-"+name);
+    }
     return {...receipt,delivery_ref:delivery};
   }
   if(plan.kind==="audit"){

@@ -13,9 +13,11 @@ import uuid
 
 from claude_transport import capture, invoke
 from consultation_observer import CAPABILITY as LOOP_CAPABILITY, evaluate_frames, retained_frames
+from source_release import validate_source_prerequisite, validate_release_receipts
+from package_evidence import export_package, check_package
 
 ACTOR_UPDATES = ("knowledge_updates", "belief_updates", "decision_updates")
-CONSULTANT_VERSIONS = ("7.0.0", "7.0.1", "7.0.2", "7.0.4", "7.0.5", "7.0.6", "7.0.7")
+CONSULTANT_VERSIONS = ("7.0.0", "7.0.1", "7.0.2", "7.0.4", "7.0.5", "7.0.6", "7.0.7", "7.0.8")
 EXCHANGE_CAPABILITY = "durable-exchanges-v1"
 USER_QUESTION_CAPABILITY = "user-question-routing-v1"
 
@@ -95,6 +97,11 @@ def validate_case(case):
                 "world identity mismatch")
         require(actor.get("persona_id") == manifest["persona_id"], "actor persona identity mismatch")
     source_ids, destinations = set(), set()
+    problem_sources = ({s["id"]: s for s in read(case / "problem.json")["sources"]}
+                       if "problem.json" in actual else None)
+    actor_sources = {s["source_id"]: s for s in actor["sources"]}
+    protected_files = {s["file"]: s["release_prerequisite"] for s in (problem_sources or {}).values()
+                       if "release_prerequisite" in s}
     for source in manifest["sources"]:
         require(source["id"] not in source_ids, "duplicate source ID")
         require(source["destination"].casefold() not in destinations, "duplicate public destination")
@@ -105,6 +112,16 @@ def validate_case(case):
         member(case, source["destination"])
         require(source["destination"].split("/")[0] not in (".claude", "consultation"), "reserved destination")
         require(source["availability"] in ("initial", "on_request"), "invalid availability")
+        validate_source_prerequisite(source)
+        if source["file"] in protected_files:
+            require(source.get("release_prerequisite") == protected_files[source["file"]],
+                    "protected source file cannot bypass its release prerequisite")
+        for declared in (actor_sources.get(source["id"], {}),
+                         problem_sources.get(source["id"], {}) if problem_sources is not None else source):
+            require(("release_prerequisite" in source) == ("release_prerequisite" in declared)
+                    and source.get("release_prerequisite") == declared.get("release_prerequisite"),
+                    "source prerequisite differs across frozen case, actor or problem")
+    require(set(protected_files) <= {s["file"] for s in manifest["sources"]}, "protected problem source is missing")
     require({s["source_id"] for s in actor["sources"]} == source_ids, "actor/source mismatch")
     for field, key in (("facts", "fact_id"), ("rules", "rule_id")):
         ids = [item[key] for item in actor[field]]
@@ -166,7 +183,7 @@ def candidate_observation_profile(candidate, config):
     profile = {"consultant_version": read(candidate / "package.json")["version"],
                "enforcement": "observational_only", "capabilities": [], "user_question_routing": False,
                "consultation_loop": False}
-    if profile["consultant_version"] in ("7.0.5", "7.0.6", "7.0.7"):
+    if profile["consultant_version"] in ("7.0.5", "7.0.6", "7.0.7", "7.0.8"):
         probe = subprocess.run(config["node_command"] + [str(candidate / "scripts/project.cjs"), "capabilities"],
                                cwd=candidate, capture_output=True, timeout=30)
         require(probe.returncode == 0, profile["consultant_version"] + " consultant capability probe failed")
@@ -179,8 +196,13 @@ def candidate_observation_profile(candidate, config):
         profile["capability_probe"] = capability
         profile["user_question_routing"] = USER_QUESTION_CAPABILITY in capability["capabilities"]
         profile["consultation_loop"] = LOOP_CAPABILITY in capability["capabilities"]
-        if profile["consultant_version"] == "7.0.7":
-            require(profile["consultation_loop"], "7.0.7 consultant lacks " + LOOP_CAPABILITY)
+        profile["captured_delivery"] = "captured-delivery-v1" in capability["capabilities"]
+        profile["proposal_preflight"] = "proposal-preflight-v1" in capability["capabilities"]
+        if profile["consultant_version"] in ("7.0.7", "7.0.8"):
+            require(profile["consultation_loop"], profile["consultant_version"] + " consultant lacks " + LOOP_CAPABILITY)
+        if profile["consultant_version"] == "7.0.8":
+            require(profile["captured_delivery"], "7.0.8 consultant lacks captured-delivery-v1")
+            require(profile["proposal_preflight"], "7.0.8 consultant lacks proposal-preflight-v1")
     return profile
 
 
@@ -253,7 +275,7 @@ def start(case, candidate, config, attempt, work):
                 shutil.copyfile(case / source["file"], destination)
                 public[source["destination"]] = digest(destination)
         frozen["adapter_files"] = {
-            name: digest(Path(__file__).parent / name) for name in ("session_driver.py", "claude_transport.py", "consultation_observer.py")}
+            name: digest(Path(__file__).parent / name) for name in ("session_driver.py", "claude_transport.py", "consultation_observer.py", "source_release.py", "package_evidence.py")}
         testing_root = Path(__file__).resolve().parents[1]
         testing_files = [testing_root / "SKILL.md", testing_root / "README.md"]
         testing_files += list((testing_root / "references").glob("*"))
@@ -266,6 +288,7 @@ def start(case, candidate, config, attempt, work):
             shutil.copyfile(source, destination)
             frozen["testing_files"][name] = digest(destination)
         frozen["initial_public_files"] = public
+        frozen["review_package_profile"] = "review-observations-v1"
         frozen["created_at"] = time.time()
         frozen["no_token_or_cost_cap_reason"] = "Exploratory utility test; preserve raw provider usage without assumed aggregation."
         write(attempt / "freeze.json", frozen)
@@ -378,6 +401,42 @@ def record_time_limits(state, config, now):
         state["breaches"].append("whole_run_time_limit")
 
 
+def validate_actor_input(attempt, state, reply):
+    """Bind a declared actor invocation to retained allowed input, not proof of isolation."""
+    if not state["turns"]:
+        require(not reply.get("actor_context") and not reply.get("action_intents"),
+                "initial dispatch has no actor invocation or selected action")
+        return
+    receipt = reply.get("actor_context", {})
+    require(isinstance(receipt, dict) and set(receipt) == {"input_sha256", "context_id"}
+            and isinstance(receipt["context_id"], str) and receipt["context_id"].strip(),
+            "later replies require the actor input digest and actual actor context ID")
+    require(receipt["context_id"] != state["session_id"], "actor and consultant contexts must be separate")
+    sha = receipt["input_sha256"]
+    require(isinstance(sha, str) and len(sha) == 64 and all(c in "0123456789abcdef" for c in sha),
+            "invalid actor input digest")
+    path = attempt / "actor-inputs" / (sha + ".json")
+    require(path.is_file() and digest(path) == sha, "actor input was not retained; inspect actor first")
+    context = read(path)
+    current = actor_view(attempt, state)
+    require(context == current, "actor input is stale; inspect actor again")
+    require(isinstance(reply.get("action_intents", []), list), "action_intents must be a list")
+    for item in reply.get("action_intents", []):
+        require(isinstance(item, dict) and item.get("kind") in ("selection", "goal_request", "decline", "defer")
+                and isinstance(item.get("message_quote"), str) and item["message_quote"].strip()
+                and item["message_quote"] in reply["message"], "action intent must cite actual reply text")
+        fields = {"kind", "message_quote"}
+        if item["kind"] == "selection":
+            fields |= {"public_turn", "option_quote"}
+            require(type(item.get("public_turn")) is int and 0 < item["public_turn"] <= state["turns"],
+                    "a selection must name an earlier completed public turn")
+            public = read(attempt / "events" / f"{item['public_turn']:03d}" / "public.json")
+            require(isinstance(item.get("option_quote"), str) and item["option_quote"].strip()
+                    and item["option_quote"] in (public.get("assistant") or ""),
+                    "selection must quote an actually presented option")
+        require(set(item) == fields, "unexpected action intent fields")
+
+
 def step(attempt, reply):
     with locked(attempt):
         state, frozen = read(attempt / "state.json"), read(attempt / "freeze.json")
@@ -386,7 +445,8 @@ def step(attempt, reply):
         config, case = frozen["configuration"], frozen["case_manifest"]
         actor = read(attempt / "case" / case["actor"])
         required = {"message", "fact_ids", "rule_ids", "attachments", "unanswered_questions", "fixture_gaps", "stop"}
-        require(required <= reply.keys() and not reply.keys() - required - set(ACTOR_UPDATES),
+        optional = set(ACTOR_UPDATES) | {"actor_context", "action_intents", "source_release_receipts"}
+        require(required <= reply.keys() and not reply.keys() - required - optional,
                 "reply record fields do not match actor contract")
         for field in required - {"message", "stop"}:
             require(isinstance(reply[field], list), field + " must be a list")
@@ -401,6 +461,9 @@ def step(attempt, reply):
             require(set(reply[field]) <= {item[key] for item in actor[packet]}, "unknown " + field)
         if reply["stop"]:
             require(reply["message"] is None and not reply["attachments"], "stop sends no message or attachments")
+            require(not reply.get("action_intents") and not reply.get("source_release_receipts"),
+                    "stop does not select or release work")
+            validate_actor_input(attempt, state, reply)
             write(attempt / "events" / (f"{state['turns'] + 1:03d}-stop.json"), reply)
             state["status"] = "awaiting_review"
             state["ended_at"] = time.time()
@@ -417,6 +480,7 @@ def step(attempt, reply):
         if case.get("world"):
             private_markers.append(case["world"])
         require(not any(marker.casefold() in message.casefold() for marker in private_markers), "private path leaked into public text")
+        validate_actor_input(attempt, state, reply)
         limits = config["limits"]
         remaining_elapsed = limits["elapsed_seconds"] - (time.time() - state["started_at"] if state["started_at"] else 0)
         remaining_active = limits["active_seconds"] - state["active_seconds"]
@@ -428,13 +492,23 @@ def step(attempt, reply):
             return {"status": state["status"]}
         sources = {item["id"]: item for item in case["sources"]}
         require(len(reply["attachments"]) == len(set(reply["attachments"])), "duplicate release")
-        for source_id in reply["attachments"]:
-            require(source_id in sources and sources[source_id]["availability"] == "on_request", "unauthorized source release")
-            require(source_id not in state["released_sources"], "source already released")
-            require(not member(Path(state["work"]), sources[source_id]["destination"]).exists(), "release would overwrite a file")
+        try:
+            for source_id in reply["attachments"]:
+                require(source_id in sources and sources[source_id]["availability"] == "on_request", "unauthorized source release")
+                require(source_id not in state["released_sources"], "source already released")
+                require(not member(Path(state["work"]), sources[source_id]["destination"]).exists(), "release would overwrite a file")
+            release_receipts = validate_release_receipts(attempt, state, sources, reply["attachments"],
+                                                        reply.get("source_release_receipts"))
+        except ValueError as exc:
+            rejected = attempt / "rejected-releases"
+            rejected.mkdir(exist_ok=True)
+            write(rejected / (str(uuid.uuid4()) + ".json"),
+                  {"after_turn": state["turns"], "reply": reply, "reason": str(exc), "dispatched": False})
+            raise
         event = attempt / "events" / f"{state['turns'] + 1:03d}"
         event.mkdir()  # Refuse an existing/uncertain attempt, never overwrite it.
         write(event / "actor.json", reply)
+        write(event / "source-release-check.json", {"verified_receipts": release_receipts})
         state["status"] = "pending"  # Persist before staging or dispatch; interrupted delivery cannot be retried.
         state["started_at"] = state["started_at"] or time.time()
         state["turns"] += 1
@@ -482,38 +556,87 @@ def step(attempt, reply):
 
 def evidence(attempt, state):
     files = {"private/" + name: sha for name, sha in inventory(attempt).items()
-             if name not in ("operator.lock", "review-index.json", "assessment.json", "state.json")}
+             if name not in ("operator.lock", "review-index.json", "review-observations.json", "assessment.json", "state.json")}
     files.update({"work/" + name: sha for name, sha in inventory(Path(state["work"])).items()})
     files["state_at_review"] = identity(state)
     return {"sha256": identity(files), "files": files}
 
 
+def actor_view(attempt, state):
+    frozen = read(attempt / "freeze.json")
+    conversation = [read(path) for path in sorted((attempt / "events").glob("*/public.json"))]
+    result = {"conversation": conversation, "public_files": list(state["public_files"]),
+              "actor_packet": read(attempt / "case" / frozen["case_manifest"]["actor"]),
+              "reply_policy": (attempt / "testing/references/user-simulator.md").read_text(encoding="utf-8"),
+              "public_file_hashes": state["public_files"]}
+    updates, disclosures = [], []
+    for path in sorted((attempt / "events").glob("*/public.json")):
+        record = read(path.parent / "actor.json")
+        disclosures.append({"event": path.parent.name, "fact_ids": record["fact_ids"],
+                            "attachments": record["attachments"],
+                            "unanswered_questions": record["unanswered_questions"],
+                            "action_intents": record.get("action_intents", [])})
+        changes = {field: record[field] for field in ACTOR_UPDATES if record.get(field)}
+        if changes:
+            updates.append({"event": path.parent.name, **changes})
+    if updates:
+        result["actor_updates"] = updates
+    if disclosures:
+        result["actor_disclosures"] = disclosures
+    return result
+
+
+def review_observations(attempt, state, frozen, index):
+    completion = (full_report_completion(attempt, state, index)
+                  if frozen["case_manifest"].get("completion_contract") == "full_report" else None)
+    loop = consultation_loop_check(attempt, frozen, index)
+    findings = [{"id": "loop-" + identity(item), "check": "consultation_loop", "observation": item}
+                for item in loop.get("findings", [])]
+    for key in ("unobserved", "response_correspondence"):
+        findings += [{"id": key + "-" + identity(item), "check": key, "observation": item}
+                     for item in loop.get(key, []) if key != "response_correspondence" or item.get("status") != "exact"]
+    expected = [f"private/events/{turn:03d}/{name}" for turn in range(1, state["turns"] + 1)
+                for name in ("public.json", "actor.json", "work-files.json", "project-binding.json",
+                             "transport/command.json", "transport/request.txt", "transport/stdout.txt",
+                             "transport/stderr.txt", "transport/process.json", "transport/transport.json")]
+    missing = [ref for ref in expected if ref not in index["files"]]
+    if missing:
+        findings.append({"id": "capture-" + identity(missing), "check": "capture_completeness",
+                         "observation": {"missing": missing, "meaning": "Unobserved evidence, not proof of consultant misconduct."}})
+    for ref in sorted(index["files"]):
+        if ref.startswith("private/rejected-releases/") and ref.endswith(".json"):
+            findings.append({"id": "release-" + identity(ref), "check": "source_release_rejected",
+                             "observation": {"evidence_ref": ref, "dispatched": False}})
+    if completion and not completion["satisfied"]:
+        findings.append({"id": "completion-" + identity(completion), "check": "completion", "observation": completion})
+    return {"schema_version": 1, "evidence_sha256": index["sha256"], "completion_check": completion,
+            "consultation_loop_check": loop, "missing_captures": missing, "machine_findings": findings}
+
+
 def inspect(attempt, view):
     with locked(attempt):
         state = read(attempt / "state.json")
-        conversation = [read(path) for path in sorted((attempt / "events").glob("*/public.json"))]
         if view == "actor":
-            result = {"conversation": conversation, "public_files": list(state["public_files"])}
-            updates = []
-            disclosures = []
-            for path in sorted((attempt / "events").glob("*/public.json")):
-                record = read(path.parent / "actor.json")
-                disclosures.append({"event": path.parent.name,
-                                    "fact_ids": record["fact_ids"],
-                                    "attachments": record["attachments"],
-                                    "unanswered_questions": record["unanswered_questions"]})
-                changes = {field: record[field] for field in ACTOR_UPDATES if record.get(field)}
-                if changes:
-                    updates.append({"event": path.parent.name, **changes})
-            if updates:
-                result["actor_updates"] = updates
-            if disclosures:
-                result["actor_disclosures"] = disclosures
-            return result
+            require(state["status"] == "ready", "actor input requires a ready attempt")
+            result = actor_view(attempt, state)
+            folder = attempt / "actor-inputs"
+            folder.mkdir(exist_ok=True)
+            # The exact JSON handed to the actor is retained separately from its receipt.
+            payload = (json.dumps(result, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
+            sha = hashlib.sha256(payload).hexdigest()
+            target = folder / (sha + ".json")
+            if not target.exists():
+                target.write_bytes(payload)
+            require(digest(target) == sha, "retained actor input changed")
+            return {**result, "input_sha256": sha}
         require(state["status"] != "finished", "review already finalized")
         index = evidence(attempt, state)
+        observations = review_observations(attempt, state, read(attempt / "freeze.json"), index)
+        write(attempt / "review-observations.json", observations)
+        index["observations_sha256"] = digest(attempt / "review-observations.json")
         write(attempt / "review-index.json", index)
-        return {"state": state, "evidence_sha256": index["sha256"], "index": str(attempt / "review-index.json")}
+        return {"state": state, "evidence_sha256": index["sha256"], "index": str(attempt / "review-index.json"),
+                "observations_sha256": index["observations_sha256"], "observations": observations}
 
 
 def full_report_completion(attempt, state, index):
@@ -688,11 +811,41 @@ def finish(attempt, review):
         state, frozen = read(attempt / "state.json"), read(attempt / "freeze.json")
         require(state["status"] != "finished", "already finalized")
         index = evidence(attempt, state)
+        require((attempt / "review-index.json").is_file() and (attempt / "review-observations.json").is_file(),
+                "inspect reviewer first; final checks must precede assessment writing")
+        prepared = read(attempt / "review-index.json")
+        require(prepared["sha256"] == index["sha256"] and prepared["files"] == index["files"],
+                "review evidence changed; inspect and review again")
+        observations = read(attempt / "review-observations.json")
+        sha = digest(attempt / "review-observations.json")
+        require(sha == prepared.get("observations_sha256") == review.get("observations_sha256"),
+                "review must bind the final observation snapshot")
+        require(observations == review_observations(attempt, state, frozen, index),
+                "final observations changed; inspect and review again")
+        dispositions = review.get("machine_finding_dispositions", {})
+        require(isinstance(dispositions, dict) and set(dispositions) == {f["id"] for f in observations["machine_findings"]},
+                "review must disposition every final machine finding")
+        for item in dispositions.values():
+            require(isinstance(item, dict) and item.get("status") in ("confirmed", "false_positive", "unresolved")
+                    and isinstance(item.get("reason"), str) and item["reason"].strip()
+                    and isinstance(item.get("evidence_refs"), list) and item["evidence_refs"]
+                    and all(ref in index["files"] for ref in item["evidence_refs"]),
+                    "each machine finding disposition needs status, reason and bound evidence")
         frozen["reviewer_packet"] = read(attempt / "case" / frozen["case_manifest"]["reviewer"])
-        completion_check = (full_report_completion(attempt, state, index)
-                            if frozen["case_manifest"].get("completion_contract") == "full_report" else None)
-        loop_check = consultation_loop_check(attempt, frozen, index)
+        completion_check = observations["completion_check"]
+        loop_check = observations["consultation_loop_check"]
         result = assess(review, state, frozen, index, completion_check, loop_check)
+        # Retain raw checks. Disputed structural flags need correction/retest,
+        # not an automatic pass or an unsupported consultant failure.
+        loop_dispositions = [dispositions[f["id"]]["status"] for f in observations["machine_findings"]
+                             if f["check"] == "consultation_loop"]
+        if loop_check.get("status") == "breach" and loop_dispositions and "confirmed" not in loop_dispositions:
+            if not any(f["owner"] == "consultant" and f["severity"] in ("material", "fundamental") for f in review["findings"]):
+                result["quality_rating"] = "inconclusive"
+        if any(item["status"] == "unresolved" for item in dispositions.values()) and result["quality_rating"] in ("pass", "weak"):
+            result["quality_rating"] = "inconclusive"
+        if observations["missing_captures"] and result["quality_rating"] in ("pass", "weak"):
+            result["quality_rating"] = "inconclusive"
         write(attempt / "assessment.json", result)
         state["status"] = "finished"
         write(attempt / "state.json", state)
@@ -718,6 +871,14 @@ def main():
             p.add_argument("--view", required=True, choices=("actor", "reviewer"))
         if name == "finish":
             p.add_argument("--assessment", required=True, type=Path)
+    p = commands.add_parser("export")
+    p.add_argument("--attempt", required=True, type=Path)
+    p.add_argument("--output", required=True, type=Path)
+    p.add_argument("--work", type=Path, help="explicit relocated work directory")
+    p.add_argument("--allow-partial", action="store_true")
+    p = commands.add_parser("check-package")
+    p.add_argument("--package", required=True, type=Path)
+    p.add_argument("--allow-partial", action="store_true")
     args = parser.parse_args()
     try:
         if args.command in ("preflight", "start"):
@@ -727,6 +888,10 @@ def main():
             result = step(args.attempt.resolve(), read(args.reply))
         elif args.command == "inspect":
             result = inspect(args.attempt.resolve(), args.view)
+        elif args.command == "export":
+            result = export_package(args.attempt, args.output, allow_partial=args.allow_partial, work=args.work)
+        elif args.command == "check-package":
+            result = check_package(args.package, require_complete=not args.allow_partial)
         else:
             result = finish(args.attempt.resolve(), read(args.assessment))
         print(json.dumps(result, indent=2, ensure_ascii=False))

@@ -2,13 +2,13 @@
 
 Hermes supplies adaptive user replies; this standard-library adapter transports
 them and captures evidence for a separate reviewer. Use shared Python 3.10+,
-Node 18.18+, an existing Claude Code installation, and consultant 7.0.7. The
-explicit observation allowlist also accepts 7.0.0, 7.0.1, 7.0.2, 7.0.4, 7.0.5 and 7.0.6 and retains the same package inventory,
+Node 18.18+, an existing Claude Code installation, and consultant 7.0.8. The
+explicit observation allowlist also accepts 7.0.0, 7.0.1, 7.0.2, 7.0.4, 7.0.5, 7.0.6 and 7.0.7 and retains the same package inventory,
 validator, helper and evidence checks for each supported version; it does not
 admit 7.0.3 or future versions automatically.
 No installation or paid consultation occurs in `preflight`.
 
-Version 7.0.7 requires `consultation-loop-v1` and adds passive chronology checks
+Versions 7.0.7 and 7.0.8 require `consultation-loop-v1` and add passive chronology checks
 against the actual public transcript and per-reply snapshots. Existing captures
 and older profiles retain their historical meaning.
 Startup binds the actual candidate's version, package inventory and hashes
@@ -107,13 +107,18 @@ stages only the runtime under `.claude/skills/causal-consultant` and initial
 public sources. It captures Claude version/help, without sending a user message.
 Confirm actual candidate selection in the host smoke, accounting for installed
 skills/settings. Keep scenario names out of public paths.
-For consultant 7.0.5 through 7.0.7, preflight also requires the reported
+For consultant 7.0.5 through 7.0.8, preflight also requires the reported
 `durable-exchanges-v1` capability and freezes that observation profile. This is
 helper compatibility evidence, not proof of correct consultant behavior.
 The optional `user-question-routing-v1` capability identifies the revised
 question-aware profile without rejecting earlier 7.0.5 snapshots. Use the
 frozen capability observation together with each exchange's recorded renderer;
 do not impose v3 wording on historical v1/v2 replies.
+Version 7.0.8 additionally requires `captured-delivery-v1` and
+`proposal-preflight-v1`; earlier profiles record these when present.
+The observer understands retained actual-message captures while still comparing
+the independently returned public reply. It never writes a consultant delivery
+receipt. Prepared `exchanges/.../response.md` files are replies, not reports.
 
 Do not edit or normalize a fixture to make hashes pass. `.gitattributes` preserves
 the shipped fixture bytes across platforms. Changed facts/data require a new
@@ -139,6 +144,7 @@ semantic rules. This example illustrates the format, not a prescribed next turn:
   "attachments": [],
   "unanswered_questions": [],
   "fixture_gaps": [],
+  "actor_context": {"input_sha256": "digest returned by actor inspect", "context_id": "actual actor context ID"},
   "stop": false
 }
 ```
@@ -166,7 +172,41 @@ its event and the actor's own update arrays for an existing public exchange;
 it adds no reviewer evidence. `actor_disclosures` also retains that actor's own
 fact IDs, attachments and unanswered questions from dispatched exchanges.
 Resume with this history so learning, earlier disclosures and outstanding requests
-persist. The first
+persist. Each input
+also includes the frozen actor packet and reply policy. Each actor inspect
+retains this allowed bundle in `actor-inputs/<sha256>.json` and returns its
+`input_sha256`. Send that bundle to the separate actor context; add
+`actor_context: {"input_sha256": "...", "context_id": "actual actor context ID"}`
+to each later reply, including an actor stop. The driver rejects missing, changed
+or stale bundles and a consultant session ID used as the actor context. A digest
+and declared context ID do not prove that the host isolated prior context or
+tools. Retain actual actor invocation/context and any additional public material
+inputs in host evidence; independently check their boundaries. If isolation
+cannot be established, use diagnostic mode. Do not feed the operator/reviewer
+context to the actor and label it a fresh context.
+
+`action_intents` is an optional array used whenever the reply makes a choice or
+goal request. Each item has `kind` (`selection`, `goal_request`, `decline`, `defer`)
+and an exact `message_quote`. A selection also has `public_turn` and an exact
+`option_quote` from an earlier completed assistant reply. The driver checks these
+anchors; the reviewer checks whether later clarifications changed the option or
+the user's words actually chose it. An eventual report goal remains distinct
+from the current selected work. These records never change the public message.
+
+For a source with `release_prerequisite`, the operator adds a
+`source_release_receipts` array before `step`. Each receipt has `source_id`, an
+earlier `public_turn`, an exact `public_quote` identifying the saved plan, and
+`commitments`. For CATE evaluation the commitment keys are `candidate_rule`,
+`utility`, `comparators`, and `evaluation_procedure`. Each value contains an
+`artifact` path relative to work, its `sha256`, and an exact saved `quote` covering
+that component. Components may share one file. Its public path must occur in the
+public quote; the saved bytes must agree with both the prior turn snapshot and
+current file. No held-out hash is required. Statistical adequacy remains for the
+reviewer. A failed release check retains the proposed reply and reason under
+`rejected-releases/`, without staging any file or consuming a turn. Preserve that
+failure; do not invent a consultant commitment to make the check pass.
+
+The first
 call uses an explicit UUID; all later calls use `--resume` with that exact ID and
 the same work directory. Verbose stream JSON retains complete stdout/stderr,
 available tool/worker events, returned identity, exit/timeout and raw usage.
@@ -241,6 +281,12 @@ python scripts/session_driver.py inspect --attempt /private/run001 --view review
 Create the assessment outside the attempt/work so it does not change the evidence:
 
 - `evidence_sha256`: returned digest; `reviewer`: identity/context; `stop_reason`.
+- `observations_sha256`: returned digest of `review-observations.json`. Inspect
+  computes final completion, chronology, correspondence and capture checks before
+  prose is written. Address every `machine_findings` ID with a corresponding
+  `machine_finding_dispositions` entry containing `status` (`confirmed`,
+  `false_positive`, `unresolved`), a substantive `reason`, and bound `evidence_refs`.
+  Read the cited content; a boilerplate disposition is not independent review.
 - `test_validity` and `outcome` from [evaluation.md](evaluation.md).
 - `coverage`: object keyed by every frozen criterion ID, with `status`, `reason`
   and `evidence_refs`. References are exact keys in review-index.json, such as
@@ -262,7 +308,7 @@ override missing coverage. An attributable material consultant defect can still
 yield a bounded fail in an invalid run. Finalized attempts cannot dispatch again.
 Material or fundamental simulator, fixture, harness or environment findings also
 make test validity invalid; they do not erase separately evidenced consultant defects.
-For full-report cases, finish derives `completion_check` from the latest captured
+For full-report cases, reviewer inspect derives `completion_check` from the latest captured
 project status, successful verification and actual manifested report output.
 It checks the retained report evidence against the current captured project;
 reviewer assertions cannot supply this result. A missing, unfinished or unverifiable
@@ -271,18 +317,48 @@ Finalization remains available for failures. Scientific/report-content quality
 still needs the independent review; artifact verification alone cannot earn a pass.
 
 For the new loop profile, each turn also saves
-`consultation-loop-observation.json`. Finish reconstructs
+`consultation-loop-observation.json`. Reviewer inspect reconstructs
 `consultation_loop_check` from retained public messages and snapshots, rather
 than trusting that saved observation or the candidate's latest state. The first
 protected start must follow an actual scope offer and later user text attributed
 to its selection. A report also requires actual findings discussion. A captured
-structural breach makes quality fail even after later approval. Missing captures
+structural breach confirmed by review makes quality fail even after later approval. Missing captures
 remain unobserved. The reviewer must still interpret the whole user reply,
 classify unregistered artifacts/computations and assess evidence changes. The
 observer records evidence and never creates delivery or permission records.
 Keep the snapshot, public JSON, observer module and raw transport evidence in
-the run package. A valid user pause without a report leaves the full-report
-objective incomplete; the operator can resume the same ready session later.
+the run package. A temporary user pause leaves the session `ready`: send no stop
+record and resume later within its frozen limits. A stop record changes the
+session to `awaiting_review` and ends further dispatch for that attempt.
+A pause or stop without a report leaves the full-report objective incomplete.
+
+Finish recomputes the checks and requires the same evidence and observation
+digests. A changed capture or a newly added reviewer rerun requires another
+inspect and updated assessment. Raw findings remain visible. Disputed structural
+flags with no confirmed material consultant defect leave the rating inconclusive;
+they cannot silently turn into a pass. Missing reporting cannot be waived by a
+reviewer disposition. Explain corrections and coverage limits in the final prose.
+
+Export after assessment using the evidence packager. Create the output parent
+directory first; export does not create it:
+
+```sh
+python scripts/session_driver.py export --attempt /private/run001 --output /packages/run001.zip
+python scripts/session_driver.py check-package --package /packages/run001.zip
+```
+
+The ZIP retains the actual private and work trees, raw stdout/stderr for every
+turn, public exchanges, snapshots, frozen inputs, observations and assessment.
+Its manifest binds file hashes and checks review-index expectations and raw/public
+correspondence. Complete export refuses omissions, changed evidence, links,
+overlapping paths and existing output files. A failed or interrupted attempt with
+readable `state.json` can be packaged with `--allow-partial`; its status and
+specific omissions remain visible. Earlier startup failures without retained
+state need their original startup evidence kept separately.
+Use the same flag to inspect a partial package. For an explicitly relocated work
+tree, pass `--work`; original state bytes and paths are retained. Never manually
+drop raw logs or rewrite a previous archive to make it appear complete. Complete
+evidence packaging does not mean the consultation itself passed.
 
 ## Validation and target-host handoff
 

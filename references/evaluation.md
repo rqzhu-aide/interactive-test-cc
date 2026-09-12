@@ -77,6 +77,17 @@ beyond the persona's finite rule as an actor/fixture issue when consequential.
 Do not punish an honest limited report because the adversarial persona initially
 wanted a stronger conclusion.
 
+Inspect retained `actor-inputs` bundles, each reply's `actor_context`, and actual
+host invocation evidence. A named context is a declaration; only retained host
+evidence can establish that it did not inherit the oracle or reviewer context.
+Check `action_intents` against the whole public message: a future report goal is
+not a current selection. Natural early-report pressure remains a legitimate
+persona behavior. Review rejected releases separately; the operator blocking an
+attempt does not prove the actor was faithful, nor that outcomes leaked.
+For held-out outcomes, trace `source-release-check.json` to a previously public,
+saved candidate, utility, comparators and evaluation procedure. Exact text and
+hash anchors establish retention and order; read them for scientific adequacy.
+
 Represent these judgments with the existing coverage criteria and findings,
 not an extra actor-fidelity score. A material or fundamental finding owned by
 `simulator`, `fixture`, `harness` or `environment` makes execution invalid for a
@@ -126,11 +137,25 @@ extension returns to discussion, not automatic reporting. Check deferred scope
 memory, partial answers, focus changes, interruption, pause/resume and reopening
 where triggered. Untriggered paths are unexercised coverage, not required extra
 turns. Report completion is an artifact result, not a permanently closed project.
-The adapter preserves observed structural breaches as failures even if the
-reviewer omits them. Missing captures remain unobserved. Per-reply snapshots
+The adapter requires a disposition for every final machine finding before
+assessment can finish. Confirmed structural breaches remain failures; disputed
+flags with no independently established material defect remain inconclusive.
+Raw checks stay visible and missing captures remain unobserved. Per-reply snapshots
 cannot establish exact within-call timing or rule out transient bypassed files;
 consult actual transport/tool evidence. Diagnostic mode remains invalid and
 cannot establish a passing live test.
+
+Use `inspect --view reviewer` before writing the assessment. It saves
+`review-observations.json` and binds it to the evidence index. Reconcile every
+machine finding, missing-coverage entry and response discrepancy with exact
+evidence references. Do not describe a previous per-turn check as the final
+result. If evidence changes, regenerate the snapshot and revise the assessment.
+Keep report completion, observed chronology, delivery correspondence and
+scientific judgment separate. An intact reply with extra wrapper text differs
+from a rewritten body. Missing exact correspondence does not by itself prove
+missing consent or that report creation preceded the choice. A foreign `run_id`
+on new evidence is not a revision of the run itself. Read changed conditions and
+the actual public wording before drawing either conclusion.
 
 Open actual saved code and outputs for material numerical claims. Apply the
 case's independent row-level or estimator/uncertainty references and declared
@@ -249,6 +274,13 @@ and resource table, with the complete private dossier available for inspection.
 The dossier binds fixture/candidate/configuration identities to every sent and
 received message, disclosure, source release, run artifact and failed attempt.
 Do not include secret credentials in captured configuration or reports.
+
+Export with the runner and check the resulting package before sharing. Verify
+all dispatched turns have retained raw transport and public messages, including
+failed turns. A complete package has all required evidence with matching hashes;
+a partial package lists missing or changed items and cannot establish complete
+coverage. Preserve raw evidence even when a shorter human-readable transcript is
+also supplied. The assessment and its prose must reflect the same final snapshot.
 
 Count user messages, consultant turns, substantive reviews, repeated/repair work,
 active wall time and user-wait time separately. Report input, cached input,

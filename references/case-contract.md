@@ -3,6 +3,17 @@
 For fixture authors and run operators. The four problem/persona compositions
 use this contract and the shared validator described in [runner.md](runner.md).
 
+Source-specific `release_prerequisite` metadata is frozen in the problem, case
+manifest and actor source inventory. The validator requires agreement, including
+presence. For CATE held-out outcomes, `saved-policy-evaluation-commitment-v1`
+requires the candidate rule, utility, comparators and evaluation procedure to be
+saved and publicly identified in an earlier completed consultant turn. The
+operator binds exact artifact quotes and hashes to that turn's snapshot using
+`source_release_receipts`. A promised future plan does not qualify. The held-out
+file hash is recorded after release; requiring it beforehand would be circular.
+This checks timing and evidence anchors, not statistical adequacy. Ordinary
+requested sources and coherent bundles retain their existing disclosure rules.
+
 ## Information Boundaries
 
 Prepare separately accessible public, world, actor and reviewer materials. The actor packet is private to

@@ -16,6 +16,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 import compose_case as composer
+from source_release import policy_evaluation_prerequisite
 from session_driver import validate_case
 
 PROBLEMS = {"study-design": 5, "observational-did": 10,
@@ -59,7 +60,7 @@ class ModularCases(unittest.TestCase):
                 manifest = validate_case(directory)
                 self.assertEqual(returned, manifest)
                 self.assertEqual(manifest["schema_version"], 1)
-                self.assertEqual(manifest["suite_version"], "7.0.7")
+                self.assertEqual(manifest["suite_version"], "7.0.8")
                 self.assertEqual(manifest["completion_contract"], "full_report")
                 self.assertEqual(manifest["problem_id"], problem)
                 self.assertEqual(manifest["persona_id"], persona)
@@ -188,6 +189,7 @@ class ModularCases(unittest.TestCase):
                     self.assertEqual(source["file"], original["destination"])
                     self.assertEqual(source["availability"], original["availability"])
                     self.assertTrue(source["release"])
+                    self.assertEqual(source.get("release_prerequisite"), original.get("release_prerequisite"))
                 fact_ids = {fact["fact_id"] for fact in actor["facts"]}
                 for rule in actor["rules"]:
                     self.assertTrue(set(rule["fact_ids"]) <= fact_ids, rule["rule_id"])
@@ -395,8 +397,15 @@ class ModularCases(unittest.TestCase):
             actor = read(directory / "actor.json")
             evaluation = next(source for source in manifest["sources"] if source["id"] == "s-evaluation")
             self.assertEqual(evaluation["availability"], "on_request")
+            self.assertEqual(evaluation["release_prerequisite"], policy_evaluation_prerequisite())
             actor_source = next(source for source in actor["sources"] if source["source_id"] == "s-evaluation")
             self.assertIn("saved fixed candidate rule", actor_source["release"])
+            self.assertEqual(actor_source["release_prerequisite"], evaluation["release_prerequisite"])
+            problem_source = next(source for source in read(directory / "problem.json")["sources"]
+                                  if source["id"] == "s-evaluation")
+            self.assertEqual(problem_source["release_prerequisite"], evaluation["release_prerequisite"])
+            self.assertEqual([source["id"] for source in manifest["sources"]
+                              if "release_prerequisite" in source], ["s-evaluation"])
             rules = {rule["rule_id"]: rule for rule in actor["rules"]}
             self.assertIn("s-evaluation", rules["r-evaluation-release"]["source_ids"])
             self.assertIn("s-evaluation-access", rules["r-evaluation-release"]["source_ids"])
@@ -405,6 +414,25 @@ class ModularCases(unittest.TestCase):
             for rule in problem_rules:
                 if rule["rule_id"] != "r-evaluation-release":
                     self.assertNotIn("s-evaluation", rule["source_ids"])
+
+    def test_invalid_source_prerequisite_is_rejected_before_composition(self):
+        with tempfile.TemporaryDirectory(prefix="modular-release-") as temporary:
+            sandbox = Path(temporary)
+            bank = sandbox / "problems"
+            shutil.copytree(ROOT / "problems", bank)
+            path = bank / "cate-policy/problem.json"
+            original = read(path)
+            for index, prerequisite in enumerate((None, {},
+                    {"kind": "unknown", "required_components": []},
+                    {"kind": "saved-policy-evaluation-commitment-v1", "required_components": ["candidate_rule"]})):
+                problem = json.loads(json.dumps(original))
+                evaluation = next(source for source in problem["sources"] if source["id"] == "s-evaluation")
+                evaluation["release_prerequisite"] = prerequisite
+                path.write_text(json.dumps(problem), encoding="utf-8")
+                output = sandbox / str(index)
+                with self.subTest(prerequisite=prerequisite), self.assertRaisesRegex(ValueError, "source release prerequisite"):
+                    composer.compose_case("cate-policy", "novice", output, bank_root=bank)
+                self.assertFalse(output.exists())
 
     def test_edge_person_level_denominators_and_completion_bounds_are_independent(self):
         directory, _ = self.cases["data-quality-edge", "adversarial"]

@@ -119,7 +119,7 @@
     "public/rollout-record.md": "d5182cbdeeddaeae49c8cd06a99712f44948850bd5eb97be5022a6a106bd49f6",
     "public/site-roster.csv": "887d3b4c84daa8b16e7c99b46c5c13019eb5a67dfabfce2d84ded0c1858be106",
     "reviewer.json": "905e24506170fbbc24a70c626c73aada44b8dfb3600fb5421e0256532aac3d10",
-    "world.json": "55c447e99a3ed6fb8bec142dbd5757f31352333b888ec23f882c76cfc3e52de2"
+    "world.json": "0400bddeb13356624bffec921aa2e6adfb0dea92cf019967d9aab079317ad107"
   },
   "goal": "Use the site panel and obtainable records to investigate the tutoring policy and save a complete local report addressing the average effect over all 120 sites in 2025-2026. Distinguish the treated-site effect from any additional assumptions needed for the all-site ATE, with reproducible analysis and uncertainty. HTML is suitable; no publication.",
   "initial_request": "Please use the causal-consultant skill for this consultation. Please evaluate our tutoring policy using the attached site panel and save a complete report for the regional office. We want the average effect across all 120 sites for 2025-2026, including sites that did not adopt. Adoption was an operational choice; I can provide the rollout and measurement records.",

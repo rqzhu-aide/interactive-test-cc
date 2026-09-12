@@ -3,7 +3,7 @@
 Choose one scientific problem and one persona to obtain a frozen test case.
 There are 16 possible combinations; no persona is tied to a dataset.
 
-Version 7.0.7 keeps the four scientific problems and source access while testing a
+Version 7.0.8 keeps the four scientific problems and source access while testing a
 continuing consultation loop. Initial report desire does not pre-approve the
 analysis or final report. The persona responds to actual proposed scopes and
 findings, selects useful extensions or the report, and retains changed choices.

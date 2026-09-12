@@ -1,11 +1,13 @@
 import copy
 import hashlib
+import json
 from pathlib import Path
 import sys
+import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from consultation_observer import CAPABILITY, evaluate_frames
+from consultation_observer import CAPABILITY, evaluate_frames, retained_frames
 
 
 class Transcript:
@@ -142,7 +144,86 @@ class LoopChronologyTests(unittest.TestCase):
         selected = t.decide("main", "Please proceed")
         t.run("main", selected)
         t.reply("Please proceed")
-        self.assertIn("unobserved_prior_offer", [f["code"] for f in evaluate_frames(t.frames)["findings"]])
+        result = evaluate_frames(t.frames)
+        self.assertEqual(result["status"], "unobserved", result)
+        self.assertIn("scope_presentation_unverified", [item.get("code") for item in result["unobserved"]])
+        self.assertEqual(result["response_correspondence"][0]["status"], "body_changed")
+        self.assertNotIn("presented_scope", result["actions"][0])
+
+    def test_capture_claim_cannot_replace_independent_public_text(self):
+        t = Transcript()
+        t.scope("main")
+        exchange = t.reply("Please help", ["main"], message="I have not offered an analysis scope.")
+        expected = t.indexes[0]["response_sha256"]
+        t.row("exchange_delivery", {"delivery": {"delivery_id": "delivery-claimed", "exchange_ref": exchange,
+            "response_sha256": expected, "observed_response_sha256": expected,
+            "capture_source_ref": "exchanges/exchange-1/observations/claimed.txt"}})
+        selected = t.decide("main", "Please proceed")
+        t.run("main", selected)
+        t.reply("Please proceed")
+        result = evaluate_frames(t.frames)
+        self.assertEqual(result["status"], "unobserved", result)
+        self.assertEqual(result["actions"][0]["scope_text_correspondence"], "unverified")
+        self.assertEqual(result["actions"][0]["user_choice_candidates"][0]["actual_user_text"], "Please proceed")
+
+    def test_intact_response_with_wrapper_keeps_scope_and_flags_byte_discrepancy(self):
+        for prefix, suffix in (("Delivery metadata\n\n", ""), ("", "\nAdditional commentary")):
+            with self.subTest(prefix=prefix, suffix=suffix):
+                t = Transcript()
+                t.scope("main")
+                t.reply("Please help", ["main"], explanation="[Status]\nCurrent understanding")
+                t.frames[0]["public"]["assistant"] = prefix + t.frames[0]["public"]["assistant"] + suffix
+                selected = t.decide("main", "Use that scope")
+                t.run("main", selected)
+                t.reply("Use that scope")
+                result = evaluate_frames(t.frames)
+                self.assertEqual(result["status"], "no_structural_breach", result)
+                self.assertEqual(result["response_correspondence"][0]["status"], "wrapped")
+                self.assertEqual(result["actions"][0]["scope_text_correspondence"], "matched")
+                self.assertTrue(result["actions"][0]["semantic_review_required"])
+
+    def test_rewritten_report_offer_retains_later_choice_without_false_early_report(self):
+        t = Transcript()
+        t.scope("report", "report", ["review-design"])
+        t.reply("Please help", ["report"], ["review-design"],
+                message="The design has limits. I can save a report about the eligible sites and agreed design; shall I?")
+        selected = t.decide("report", "Yes, save the offered report")
+        t.run("report", selected)
+        t.reply("Yes, save the offered report")
+        t.frames[-1].update(files={"runs/run-report/report.md": "report-hash"}, manifests={"manifest": {
+            "kind": "report", "run_id": "run-report", "output_paths": ["report.md"],
+            "files": [{"path": "report.md", "sha256": "report-hash"}]}})
+        result = evaluate_frames(t.frames)
+        self.assertEqual(result["status"], "unobserved", result)
+        self.assertEqual(result["actions"][0]["user_choice_candidates"][0]["event"], "002")
+        self.assertIn("scope_presentation_unverified", [item.get("code") for item in result["unobserved"]])
+        self.assertIn("findings_presentation_unverified", [item.get("code") for item in result["unobserved"]])
+        self.assertNotIn("report_output_predates_choice", [item["code"] for item in result["findings"]])
+
+    def test_rewritten_offer_does_not_hide_a_demonstrated_early_report(self):
+        t = Transcript()
+        t.scope("report", "report", ["review-design"])
+        t.reply("Please help", ["report"], ["review-design"], message="Shall I save a summary of these design findings?")
+        t.frames[0]["files"] = {"early.md": "report-hash"}
+        selected = t.decide("report", "Yes, save it")
+        t.run("report", selected)
+        t.reply("Yes, save it")
+        t.frames[-1].update(files={"runs/run-report/report.md": "report-hash"}, manifests={"manifest": {
+            "kind": "report", "run_id": "run-report", "output_paths": ["report.md"],
+            "files": [{"path": "report.md", "sha256": "report-hash"}]}})
+        result = evaluate_frames(t.frames)
+        self.assertIn("report_output_predates_choice", [item["code"] for item in result["findings"]])
+        self.assertEqual(result["actions"][0]["user_choice_candidates"][0]["ordinal"], 2)
+
+    def test_absent_response_hash_is_not_called_a_demonstrated_rewrite(self):
+        t = Transcript()
+        t.scope("main")
+        t.reply("Please help", ["main"])
+        t.frames[0]["exchange_indexes"] = []
+        result = evaluate_frames(t.frames)
+        self.assertEqual(result["status"], "unobserved", result)
+        self.assertEqual(result["response_correspondence"][0]["status"], "hash_unavailable")
+        self.assertIn("response_hash_unavailable", [item.get("code") for item in result["unobserved"]])
 
     def test_forged_candidate_user_statement_does_not_match_actual_user(self):
         t = Transcript()
@@ -226,6 +307,30 @@ class LoopChronologyTests(unittest.TestCase):
                 codes = [f["code"] for f in evaluate_frames(t.frames)["findings"]]
                 self.assertEqual("stale_permission_basis" in codes, related)
 
+    def test_foreign_run_id_does_not_update_run_identity_but_run_lifecycle_does(self):
+        for change_run in (False, True):
+            with self.subTest(change_run=change_run):
+                t = Transcript()
+                run = t.row("run_finalized", {"run": {"run_id": "audit", "kind": "audit", "status": "completed"}})
+                # Foreign run_id deliberately appears before the evidence's own ID.
+                source = t.row("memory_updated", {"changes": {"evidence": [
+                    {"run_id": "audit", "evidence_id": "audit-result", "kind": "computed"}]}})
+                t.scope("main", basis=[{"ref": "audit", "event_ref": run["event_id"]},
+                    {"ref": "audit-result", "event_ref": source["event_id"]},
+                    {"ref": source["event_id"], "event_ref": source["event_id"]}])
+                t.reply("Please help", ["main"])
+                selected = t.decide("main", "Proceed")
+                if change_run:
+                    t.row("run_failed", {"run": {"run_id": "audit", "kind": "audit", "status": "failed"}})
+                t.run("main", selected)
+                t.reply("Proceed")
+                result = evaluate_frames(t.frames)
+                codes = [item["code"] for item in result["findings"]]
+                self.assertEqual("stale_permission_basis" in codes, change_run, result)
+                self.assertNotIn("unbound_governing_conditions", codes)
+                if not change_run:
+                    self.assertEqual(result["status"], "no_structural_breach", result)
+
     def test_missing_capture_is_unobserved_and_pause_does_not_manufacture_a_report(self):
         result = evaluate_frames([{"event": "001", "journal": None, "error": "Missing snapshot"}])
         self.assertEqual(result["status"], "unobserved")
@@ -270,6 +375,89 @@ class LoopChronologyTests(unittest.TestCase):
             "kind": "report", "run_id": "run-report", "output_paths": ["report.md"],
             "files": [{"path": "report.md", "sha256": "report-hash"}]}})
         self.assertIn("report_output_predates_choice", [f["code"] for f in evaluate_frames(t.frames)["findings"]])
+
+    def test_missing_attributable_choice_is_not_proof_of_report_predating_it(self):
+        t = Transcript()
+        t.scope("report", "report", ["review-design"])
+        t.reply("Please help", ["report"], ["review-design"])
+        chosen = t.decide("report", "Save the report")
+        t.run("report", chosen)
+        t.reply("Before that, explain the limitations")
+        t.frames[-1].update(files={"runs/run-report/report.md": "report-hash"}, manifests={"manifest": {
+            "kind": "report", "run_id": "run-report", "output_paths": ["report.md"],
+            "files": [{"path": "report.md", "sha256": "report-hash"}]}})
+        result = evaluate_frames(t.frames)
+        codes = [item["code"] for item in result["findings"]]
+        self.assertIn("unobserved_later_user_choice", codes)
+        self.assertNotIn("report_output_predates_choice", codes)
+        self.assertIn("report_output_order_unverified", [item.get("code") for item in result["unobserved"]])
+
+    def test_missing_actual_user_capture_is_coverage_not_proven_absent_choice(self):
+        t = Transcript()
+        t.scope("main")
+        t.reply("Please help", ["main"])
+        selected = t.decide("main", "Proceed")
+        t.run("main", selected)
+        t.reply("Proceed")
+        del t.frames[-1]["public"]["user"]
+        result = evaluate_frames(t.frames)
+        self.assertEqual(result["status"], "unobserved", result)
+        self.assertIn("unobserved_later_user_choice", [item.get("code") for item in result["unobserved"]])
+        self.assertNotIn("unobserved_later_user_choice", [item["code"] for item in result["findings"]])
+
+    def test_report_order_uses_observation_order_with_noncontiguous_event_labels(self):
+        t = Transcript()
+        t.scope("report", "report", ["review-design"])
+        t.reply("Please help", ["report"], ["review-design"])
+        chosen = t.decide("report", "Save the report")
+        t.run("report", chosen)
+        t.reply("Save the report")
+        t.frames[-1].update(event="010", files={"runs/run-report/report.md": "report-hash"}, manifests={"manifest": {
+            "kind": "report", "run_id": "run-report", "output_paths": ["report.md"],
+            "files": [{"path": "report.md", "sha256": "report-hash"}]}})
+        result = evaluate_frames(t.frames)
+        self.assertEqual(result["status"], "no_structural_breach", result)
+        self.assertEqual(result["actions"][0]["user_choice_candidates"][0]["event"], "010")
+
+    def test_ready_responses_and_capture_files_are_not_early_final_reports(self):
+        t = Transcript()
+        t.scope("report", "report", ["review-design"])
+        t.reply("Please help", ["report"], ["review-design"])
+        t.frames[0].update(root_prefix="project/", files={
+            "project/exchanges/exchange-1/response.md": "report-hash",
+            "project/exchanges/exchange-1/observations/actual.txt": "report-hash",
+            "project/exchanges/exchange-1/other-report.md": "unknown-hash"})
+        chosen = t.decide("report", "Save the report")
+        t.run("report", chosen)
+        t.reply("Save the report")
+        t.frames[-1].update(root_prefix="project/", files={"project/runs/run-report/report.md": "report-hash"}, manifests={"manifest": {
+            "kind": "report", "run_id": "run-report", "output_paths": ["report.md"],
+            "files": [{"path": "report.md", "sha256": "report-hash"}]}})
+        result = evaluate_frames(t.frames)
+        self.assertEqual(result["status"], "no_structural_breach", result)
+        self.assertEqual(result["artifact_candidates"][0]["paths"], ["project/exchanges/exchange-1/other-report.md"])
+
+    def test_missing_public_capture_and_entire_event_directory_remain_visible(self):
+        with tempfile.TemporaryDirectory() as directory:
+            attempt = Path(directory)
+            (attempt / "state.json").write_text(json.dumps({"turns": 3}), encoding="utf-8")
+            for number in (1, 2):
+                event = attempt / "events" / f"{number:03d}"
+                (event / "work-snapshot").mkdir(parents=True)
+                (event / "public.json").write_text(json.dumps({"user": "Help", "assistant": "Please explain"}), encoding="utf-8")
+                (event / "project-binding.json").write_text(json.dumps({"status": "missing"}), encoding="utf-8")
+                (event / "work-files.json").write_text("{}", encoding="utf-8")
+            (attempt / "events" / "002" / "public.json").unlink()
+            read = lambda path: json.loads(path.read_text(encoding="utf-8"))
+            frames = retained_frames(attempt, read, lambda path: {})
+            self.assertEqual([frame["event"] for frame in frames], ["001", "002", "003"])
+            result = evaluate_frames(frames)
+            self.assertEqual(result["status"], "unobserved", result)
+            self.assertEqual({item["event"] for item in result["unobserved"]}, {"002", "003"})
+            refs = [*result["evidence_refs"], *(reference for item in result["unobserved"] for reference in item.get("evidence_refs", []))]
+            self.assertTrue(refs)
+            self.assertIn("state_at_review", refs)
+            self.assertTrue(all(reference == "state_at_review" or (attempt / reference.removeprefix("private/")).is_file() for reference in refs), refs)
 
     def test_revised_scope_does_not_inherit_the_older_selection(self):
         t = Transcript()
